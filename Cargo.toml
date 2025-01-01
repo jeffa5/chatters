@@ -1,0 +1,24 @@
+[package]
+name = "chatters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+crossterm = { version = "0.28.1", features = ["event-stream"] }
+directories = "5.0.1"
+futures = "0.3.31"
+open = "5.3.2"
+presage = { git = "https://github.com/whisperfish/presage" }
+presage-store-sled = { git = "https://github.com/whisperfish/presage" }
+qr2term = "0.3.3"
+qrcode-generator = "5.0.0"
+ratatui = "0.29.0"
+thiserror = "2.0.9"
+tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
+url = "2.5.4"
+
+[patch.crates-io]
+# For a discussion as to why, see:
+# https://github.com/whisperfish/libsignal-service-rs/tree/93c23cf27d27a17a803e34ea3dd6a82d268fa79e#working-around-the-issue-with-curve25519-dalek
+curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.1.3' }

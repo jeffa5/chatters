@@ -16,6 +16,8 @@
         pkgs.cargo
         pkgs.rustfmt
       ];
+
+      PROTOC = "${pkgs.protobuf}/bin/protoc";
     };
   };
 }

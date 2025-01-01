@@ -1,1 +1,6 @@
-.direnv
+.direnv/
+
+target/
+
+*.err
+*.png
