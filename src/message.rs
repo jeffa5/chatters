@@ -1,4 +1,4 @@
-use presage::{ store::Thread};
+use presage::store::Thread;
 
 use crate::backends::{Contact, Message};
 
@@ -11,5 +11,5 @@ pub enum BackendMessage {
 #[derive(Debug)]
 pub enum FrontendMessage {
     LoadedContacts(Vec<Contact>),
-    LoadedMessages(Vec<Message>)
+    LoadedMessages(Vec<Message>),
 }

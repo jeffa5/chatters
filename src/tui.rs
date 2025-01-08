@@ -52,10 +52,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let main_rect =
         Layout::horizontal([Constraint::Percentage(25), Constraint::Fill(1)]).split(chunks[0]);
 
-    let contact_items = tui_state
-        .contacts
-        .iter()
-        .map(|c| format!("{}", c.name));
+    let contact_items = tui_state.contacts.iter().map(|c| format!("{}", c.name));
     let contacts = List::new(contact_items)
         .highlight_style(Style::new().reversed())
         .block(b.clone().title("Contacts"));
