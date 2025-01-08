@@ -32,6 +32,12 @@ impl<B: Backend> BackendActor<B> {
                         .unbounded_send(FrontendMessage::LoadedMessages(messages))
                         .unwrap();
                 }
+                BackendMessage::SendMessage(thread, body) => {
+                    let msg = self.backend.send_message(thread, body).await.unwrap();
+                    self.message_tx
+                        .unbounded_send(FrontendMessage::NewMessage(msg))
+                        .unwrap();
+                }
             }
         }
         eprintln!("Closing backend actor");

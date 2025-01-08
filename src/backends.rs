@@ -5,6 +5,8 @@ use futures::StreamExt;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
+use presage::libsignal_service::proto::DataMessage;
+use presage::libsignal_service::protocol::ServiceId;
 use presage::store::Thread;
 use presage::{
     libsignal_service::configuration::SignalServers, manager::Registered,
@@ -63,6 +65,12 @@ pub trait Backend: Sized {
     fn groups(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
     fn messages(&self, contact: Thread) -> impl Future<Output = Result<Vec<Message>>>;
+
+    fn send_message(
+        &mut self,
+        contact: Thread,
+        body: String,
+    ) -> impl Future<Output = Result<Message>>;
 }
 
 #[derive(Debug, Clone)]
@@ -226,6 +234,36 @@ impl Backend for Signal {
         }
         Ok(ret)
     }
+
+    async fn send_message(&mut self, contact: Thread, body: String) -> Result<Message> {
+        let ts = timestamp();
+        let content_body = ContentBody::DataMessage(DataMessage {
+            body: Some(body.clone()),
+            timestamp: Some(ts),
+            ..Default::default()
+        });
+        let ui_msg = Message {
+            timestamp: ts,
+            sender: self.self_uuid,
+            thread: contact.clone(),
+            content: body,
+        };
+        match contact {
+            Thread::Contact(uuid) => {
+                self.manager
+                    .send_message(ServiceId::Aci(uuid.into()), content_body, ts)
+                    .await
+                    .unwrap();
+            }
+            Thread::Group(key) => {
+                self.manager
+                    .send_message_to_group(&key, content_body, ts)
+                    .await
+                    .unwrap();
+            }
+        }
+        Ok(ui_msg)
+    }
 }
 
 impl Signal {
@@ -237,7 +275,10 @@ impl Signal {
             .unwrap()
             .rev()
             .map(|m| m.unwrap())
-            .filter(|m| self.message_content_to_frontend_message(m.clone()).is_some())
+            .filter(|m| {
+                self.message_content_to_frontend_message(m.clone())
+                    .is_some()
+            })
             .next()
             .map(|m| m.metadata.timestamp)
             .unwrap_or_default()
@@ -293,4 +334,11 @@ async fn self_name(manager: &mut Manager<SledStore, Registered>) -> String {
             }
         })
         .unwrap_or("Self".to_owned())
+}
+
+fn timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis() as u64
 }

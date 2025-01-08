@@ -6,6 +6,7 @@ use crate::backends::{Contact, Message};
 pub enum BackendMessage {
     LoadContacts,
     LoadMessages(Thread),
+    SendMessage(Thread, String),
 }
 
 #[derive(Debug)]

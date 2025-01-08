@@ -72,8 +72,6 @@ async fn main() -> anyhow::Result<()> {
         message_tx: f_tx.clone(),
     };
 
-    tokio::spawn(async move { ba.run().await });
-
     let ui = async move {
         let terminal = ratatui::init();
         run_ui(terminal, b_tx, f_rx).await;
@@ -81,13 +79,21 @@ async fn main() -> anyhow::Result<()> {
     };
     pin_mut!(ui);
 
+    let actor = async move { ba.run().await };
+    pin_mut!(actor);
+
     // TODO: have this as a background thread rather than the UI
     let sync = async move {
         backend2.background_sync(f_tx).await.unwrap();
     };
     pin_mut!(sync);
 
-    select(ui, sync).await;
+    let backend = async move {
+        select(actor, sync).await;
+    };
+    pin_mut!(backend);
+
+    select(ui, backend).await;
 
     Ok(())
 }

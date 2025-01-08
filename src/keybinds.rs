@@ -4,7 +4,7 @@ use crossterm::event::KeyCode;
 
 use crate::commands::{
     Command, CommandMode, ComposeMode, NextContact, NextMessage, NormalMode, PrevContact,
-    PrevMessage, Quit,
+    PrevMessage, Quit, SendMessage,
 };
 
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl KeyBinds {
     pub fn compose_default() -> Self {
         let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
         bindings.insert(KeyCode::Esc, Box::new(NormalMode));
-        // bindings.insert(KeyCode::Enter, Box::new(SendMessage));
+        bindings.insert(KeyCode::Enter, Box::new(SendMessage));
         Self { bindings }
     }
 
