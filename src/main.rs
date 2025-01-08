@@ -1,5 +1,6 @@
 use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
+use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
 use chatters::tui::{render, TuiState};
 use crossterm::event::Event;
@@ -108,6 +109,8 @@ async fn run_ui(
         .unbounded_send(BackendMessage::LoadContacts)
         .unwrap();
 
+    let keybinds = KeyBinds::default();
+
     loop {
         // dbg!(&tui_state);
         terminal.draw(|f| render(f, &mut tui_state)).unwrap();
@@ -120,7 +123,7 @@ async fn run_ui(
 
         match select(event_future, backend_future).await {
             Either::Left((event, _)) => {
-                if process_user_event(&mut tui_state, &backend_actor_tx, event) {
+                if process_user_event(&mut tui_state, &backend_actor_tx, &keybinds, event) {
                     break;
                 }
             }
@@ -134,60 +137,23 @@ async fn run_ui(
 fn process_user_event(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    keybinds: &KeyBinds,
     event: Event,
 ) -> bool {
     // dbg!(&event);
 
     match event {
         Event::Key(KeyEvent {
-            code: KeyCode::Char('J'),
+            code: KeyCode::Char(c),
             ..
         }) => {
-            tui_state.contact_list_state.select_next();
-            if let Some(contact) = tui_state
-                .contact_list_state
-                .selected()
-                .and_then(|i| tui_state.contacts.get(i))
-            {
-                tui_state.messages.clear();
-                ba_tx
-                    .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
-                    .unwrap();
+            if let Some(command) = keybinds.get(&c.to_string()) {
+                command.execute(tui_state, ba_tx);
             }
         }
-        Event::Key(KeyEvent {
-            code: KeyCode::Char('K'),
-            ..
-        }) => {
-            tui_state.contact_list_state.select_previous();
-            if let Some(contact) = tui_state
-                .contact_list_state
-                .selected()
-                .and_then(|i| tui_state.contacts.get(i))
-            {
-                tui_state.messages.clear();
-                ba_tx
-                    .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
-                    .unwrap();
-            }
+        e => {
+            eprintln!("unhandled event {e:?}");
         }
-        Event::Key(KeyEvent {
-            code: KeyCode::Char('j'),
-            ..
-        }) => {
-            tui_state.message_list_state.select_next();
-        }
-        Event::Key(KeyEvent {
-            code: KeyCode::Char('k'),
-            ..
-        }) => {
-            tui_state.message_list_state.select_previous();
-        }
-        Event::Key(KeyEvent {
-            code: KeyCode::Char('q'),
-            ..
-        }) => return true,
-        _ => {}
     }
     false
 }

@@ -16,6 +16,7 @@ use ratatui::Frame;
 
 use crate::backends::Contact;
 use crate::backends::Message;
+use crate::keybinds::KeyBinds;
 
 #[derive(Debug, Default)]
 pub struct TuiState {
