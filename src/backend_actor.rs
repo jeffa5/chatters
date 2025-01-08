@@ -1,3 +1,5 @@
+use std::cmp::Reverse;
+
 use crate::{
     backends::Backend,
     message::{BackendMessage, FrontendMessage},
@@ -19,15 +21,17 @@ impl<B: Backend> BackendActor<B> {
                     let mut contacts = self.backend.contacts().await.unwrap();
                     let mut groups = self.backend.groups().await.unwrap();
                     contacts.append(&mut groups);
+                    contacts.sort_by_key(|c| (Reverse(c.last_message_timestamp), c.name.clone()));
                     self.message_tx
-                        .unbounded_send(FrontendMessage::LoadedContacts(contacts)).unwrap();
+                        .unbounded_send(FrontendMessage::LoadedContacts(contacts))
+                        .unwrap();
                 }
                 BackendMessage::LoadMessages(thread) => {
                     let messages = self.backend.messages(thread).await.unwrap();
                     self.message_tx
-                        .unbounded_send(FrontendMessage::LoadedMessages(messages)).unwrap();
+                        .unbounded_send(FrontendMessage::LoadedMessages(messages))
+                        .unwrap();
                 }
-
             }
         }
         eprintln!("Closing backend actor");

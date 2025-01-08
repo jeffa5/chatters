@@ -26,6 +26,7 @@ pub struct Contact {
     pub thread_id: Thread,
     pub name: String,
     pub address: String,
+    pub last_message_timestamp: u64,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -112,7 +113,8 @@ impl Backend for Signal {
     }
 
     async fn background_sync(&mut self) -> Result<()> {
-        let messages = self.manager
+        let messages = self
+            .manager
             .receive_messages(presage::manager::ReceivingMode::Forever)
             .await
             .unwrap();
@@ -128,6 +130,9 @@ impl Backend for Signal {
         let contacts = self.manager.store().contacts().await.unwrap();
         for contact in contacts {
             let contact = contact.unwrap();
+            let last_message_timestamp = self
+                .last_message_timestamp(&Thread::Contact(contact.uuid))
+                .await;
             eprintln!("{:?}", contact);
             ret.push(Contact {
                 thread_id: Thread::Contact(contact.uuid),
@@ -136,6 +141,7 @@ impl Backend for Signal {
                     .phone_number
                     .map(|n| n.to_string())
                     .unwrap_or_default(),
+                last_message_timestamp,
             });
         }
         Ok(ret)
@@ -146,11 +152,13 @@ impl Backend for Signal {
         let groups = self.manager.store().groups().await.unwrap();
         for group in groups {
             let (key, group) = group.unwrap();
+            let last_message_timestamp = self.last_message_timestamp(&Thread::Group(key)).await;
             eprintln!("{:?}", group);
             ret.push(Contact {
                 thread_id: Thread::Group(key),
                 name: group.title,
                 address: String::new(),
+                last_message_timestamp,
             });
         }
         Ok(ret)
@@ -187,5 +195,18 @@ impl Backend for Signal {
             }
         }
         Ok(ret)
+    }
+}
+
+impl Signal {
+    async fn last_message_timestamp(&self, thread_id: &Thread) -> u64 {
+        self.manager
+            .store()
+            .messages(thread_id, ..)
+            .await
+            .unwrap()
+            .next_back()
+            .map(|m| m.unwrap().metadata.timestamp)
+            .unwrap_or_default()
     }
 }
