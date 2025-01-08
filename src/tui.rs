@@ -83,6 +83,14 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     let compose = Paragraph::new(tui_state.compose.value()).block(b.clone().title("Compose"));
     frame.render_widget(compose, message_rect[1]);
+    if matches!(tui_state.mode, Mode::Compose) {
+        frame.set_cursor_position((
+            // Put cursor past the end of the input text
+            message_rect[1].x + tui_state.compose.visual_cursor() as u16 + 1,
+            // Move one line down, from the border to the input line
+            message_rect[1].y + 1,
+        ))
+    }
 
     let status_line = Paragraph::new(Line::from(format!("mode:{:?}", tui_state.mode)))
         .block(b.clone().title("Status line"));
@@ -90,4 +98,12 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     let exline = Paragraph::new(tui_state.command.value()).block(b.title("Exline"));
     frame.render_widget(exline, chunks[2]);
+    if matches!(tui_state.mode, Mode::Command) {
+        frame.set_cursor_position((
+            // Put cursor past the end of the input text
+            chunks[2].x + tui_state.command.visual_cursor() as u16 + 1,
+            // Move one line down, from the border to the input line
+            chunks[2].y + 1,
+        ))
+    }
 }
