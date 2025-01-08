@@ -30,6 +30,7 @@ impl Command for NextContact {
             .and_then(|i| tui_state.contacts.get(i))
         {
             tui_state.messages.clear();
+            tui_state.message_list_state.select(None);
             ba_tx
                 .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                 .unwrap();
@@ -49,6 +50,7 @@ impl Command for PrevContact {
             .and_then(|i| tui_state.contacts.get(i))
         {
             tui_state.messages.clear();
+            tui_state.message_list_state.select(None);
             ba_tx
                 .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                 .unwrap();
