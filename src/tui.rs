@@ -80,19 +80,29 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
     let message_items = tui_state.messages.values().map(|m| {
+        let sender = tui_state
+            .contacts_by_id
+            .get(&m.sender)
+            .map(|c| c.name.clone())
+            .unwrap_or(m.sender.to_string());
+        let age = biggest_duration_string(now - m.timestamp);
         Row::new(vec![
-            tui_state
-                .contacts_by_id
-                .get(&m.sender)
-                .map(|c| c.name.clone())
-                .unwrap_or(m.sender.to_string()),
-            m.content.to_string(),
+            Text::from(sender),
+            Text::from(age).alignment(Alignment::Right),
+            Text::from(m.content.clone()),
         ])
         .height(m.content.lines().count() as u16)
     });
-    let messages = Table::new(message_items, [Constraint::Fill(1), Constraint::Fill(4)])
-        .row_highlight_style(Style::new().reversed())
-        .block(b.clone().title("Messages"));
+    let messages = Table::new(
+        message_items,
+        [
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(4),
+        ],
+    )
+    .row_highlight_style(Style::new().reversed())
+    .block(b.clone().title("Messages"));
 
     let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
         .split(main_rect[1]);
