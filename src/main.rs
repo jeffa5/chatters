@@ -220,12 +220,17 @@ fn process_backend_message(
             tui_state.messages = vec.into_iter().map(|m| (m.timestamp, m)).collect();
         }
         FrontendMessage::NewMessage(m) => {
-            if let Some(contact) = tui_state
+            if let Some((i, contact)) = tui_state
                 .contact_list_state
                 .selected()
-                .and_then(|i| tui_state.contacts.get(i))
+                .and_then(|i| tui_state.contacts.get_mut(i).map(|c| (i, c)))
             {
                 if m.thread == contact.thread_id {
+                    contact.last_message_timestamp = m.timestamp;
+                    let c = tui_state.contacts.remove(i);
+                    tui_state.contacts.insert(0, c);
+                    tui_state.contact_list_state.select(Some(0));
+
                     tui_state.messages.insert(m.timestamp, m);
                 }
             }
