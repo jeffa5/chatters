@@ -143,6 +143,7 @@ fn process_user_event(
                 .selected()
                 .and_then(|i| tui_state.contacts.get(i))
             {
+                tui_state.messages.clear();
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                     .unwrap();
@@ -158,6 +159,7 @@ fn process_user_event(
                 .selected()
                 .and_then(|i| tui_state.contacts.get(i))
             {
+                tui_state.messages.clear();
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                     .unwrap();
