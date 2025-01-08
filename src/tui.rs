@@ -59,6 +59,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
                 .unwrap_or(m.sender.to_string()),
             m.content.to_string(),
         ])
+        .height(m.content.lines().count() as u16)
     });
     let messages = Table::new(message_items, [Constraint::Fill(1), Constraint::Fill(4)])
         .row_highlight_style(Style::new().reversed())
