@@ -67,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     let mut ba = BackendActor {
         backend,
         message_rx: b_rx,
-        message_tx: f_tx,
+        message_tx: f_tx.clone(),
     };
 
     tokio::spawn(async move { ba.run().await });
@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // TODO: have this as a background thread rather than the UI
-    backend2.background_sync().await.unwrap();
+    backend2.background_sync(f_tx).await.unwrap();
 
     Ok(())
 }
@@ -224,6 +224,17 @@ fn process_backend_message(
                 tui_state.message_list_state.select_last();
             }
             tui_state.messages = vec;
+        }
+        FrontendMessage::NewMessage(m) => {
+            if let Some(contact) = tui_state
+                .contact_list_state
+                .selected()
+                .and_then(|i| tui_state.contacts.get(i))
+            {
+                if m.thread == contact.thread_id {
+                    tui_state.messages.push(m);
+                }
+            }
         }
     }
 }

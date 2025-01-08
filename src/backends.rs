@@ -1,6 +1,8 @@
+use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::pin_mut;
 use futures::StreamExt;
+use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
@@ -14,10 +16,13 @@ use std::path::Path;
 use std::time::SystemTime;
 use url::Url;
 
+use crate::message::FrontendMessage;
+
 #[derive(Debug)]
 pub struct Message {
     pub timestamp: u64,
     pub sender: Uuid,
+    pub thread: Thread,
     pub content: String,
 }
 
@@ -48,7 +53,10 @@ pub trait Backend: Sized {
 
     fn sync_contacts(&mut self) -> impl Future<Output = Result<()>>;
 
-    fn background_sync(&mut self) -> impl Future<Output = Result<()>>;
+    fn background_sync(
+        &mut self,
+        ba_tx: mpsc::UnboundedSender<FrontendMessage>,
+    ) -> impl Future<Output = Result<()>>;
 
     fn contacts(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
@@ -128,7 +136,10 @@ impl Backend for Signal {
         Ok(())
     }
 
-    async fn background_sync(&mut self) -> Result<()> {
+    async fn background_sync(
+        &mut self,
+        ba_tx: mpsc::UnboundedSender<FrontendMessage>,
+    ) -> Result<()> {
         let messages = self
             .manager
             .receive_messages(presage::manager::ReceivingMode::Forever)
@@ -137,6 +148,11 @@ impl Backend for Signal {
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
             eprintln!("Received message {message:?}");
+            if let Some(msg) = self.message_content_to_frontend_message(message) {
+                ba_tx
+                    .unbounded_send(FrontendMessage::NewMessage(msg))
+                    .unwrap();
+            }
         }
         Ok(())
     }
@@ -204,34 +220,8 @@ impl Backend for Signal {
             .unwrap();
         for message in messages {
             let message = message.unwrap();
-            match message.body {
-                ContentBody::DataMessage(dm) => {
-                    let sender = message.metadata.sender.raw_uuid();
-                    if let Some(body) = dm.body {
-                        ret.push(Message {
-                            timestamp: message.metadata.timestamp,
-                            sender,
-                            content: body,
-                        });
-                    }
-                }
-                ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
-                    if let Some(sent) = sm.sent {
-                        if let Some(dm) = &sent.message {
-                            if let Some(body) = &dm.body {
-                                ret.push(Message {
-                                    timestamp: sent.timestamp(),
-                                    sender: self.self_uuid,
-                                    content: body.clone(),
-                                });
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    dbg!(&message);
-                    continue;
-                }
+            if let Some(msg) = self.message_content_to_frontend_message(message) {
+                ret.push(msg)
             }
         }
         Ok(ret)
@@ -248,6 +238,41 @@ impl Signal {
             .next_back()
             .map(|m| m.unwrap().metadata.timestamp)
             .unwrap_or_default()
+    }
+
+    fn message_content_to_frontend_message(&self, message: Content) -> Option<Message> {
+        let thread = Thread::try_from(&message).unwrap();
+        match message.body {
+            ContentBody::DataMessage(dm) => {
+                let sender = message.metadata.sender.raw_uuid();
+                if let Some(body) = dm.body {
+                    return Some(Message {
+                        timestamp: message.metadata.timestamp,
+                        sender,
+                        thread,
+                        content: body,
+                    });
+                }
+            }
+            ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
+                if let Some(sent) = sm.sent {
+                    if let Some(dm) = &sent.message {
+                        if let Some(body) = &dm.body {
+                            return Some(Message {
+                                timestamp: sent.timestamp(),
+                                sender: self.self_uuid,
+                                thread,
+                                content: body.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+            _ => {
+                dbg!(&message);
+            }
+        }
+        None
     }
 }
 
