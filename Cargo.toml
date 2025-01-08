@@ -16,6 +16,7 @@ qrcode-generator = "5.0.0"
 ratatui = "0.29.0"
 thiserror = "2.0.9"
 tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
+tui-input = "0.11.1"
 url = "2.5.4"
 
 [patch.crates-io]

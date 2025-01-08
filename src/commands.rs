@@ -1,6 +1,7 @@
 use futures::channel::mpsc;
+use tui_input::Input;
 
-use crate::{message::BackendMessage, tui::TuiState};
+use crate::{message::BackendMessage, tui::{Mode, TuiState}};
 
 pub trait Command: std::fmt::Debug {
     fn execute(&self, tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>);
@@ -68,5 +69,33 @@ pub struct PrevMessage;
 impl Command for PrevMessage {
     fn execute(&self, tui_state: &mut TuiState, _ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
         tui_state.message_list_state.select_previous();
+    }
+}
+
+#[derive(Debug)]
+pub struct NormalMode;
+
+impl Command for NormalMode {
+    fn execute(&self, tui_state: &mut TuiState, _ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+        tui_state.mode = Mode::Normal;
+        tui_state.command.reset();
+    }
+}
+
+#[derive(Debug)]
+pub struct CommandMode;
+
+impl Command for CommandMode {
+    fn execute(&self, tui_state: &mut TuiState, _ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+        tui_state.mode = Mode::Command;
+    }
+}
+
+#[derive(Debug)]
+pub struct ComposeMode;
+
+impl Command for ComposeMode {
+    fn execute(&self, tui_state: &mut TuiState, _ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+        tui_state.mode = Mode::Compose;
     }
 }

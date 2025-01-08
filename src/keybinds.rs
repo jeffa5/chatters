@@ -1,26 +1,45 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
-use crate::commands::{Command, NextContact, NextMessage, PrevContact, PrevMessage, Quit};
+use crossterm::event::KeyCode;
+
+use crate::commands::{
+    Command, CommandMode, ComposeMode, NextContact, NextMessage, NormalMode, PrevContact,
+    PrevMessage, Quit,
+};
 
 #[derive(Debug)]
 pub struct KeyBinds {
-    pub bindings: BTreeMap<String, Box<dyn Command>>,
-}
-
-impl Default for KeyBinds {
-    fn default() -> Self {
-        let mut bindings: BTreeMap<String, Box<dyn Command>> = BTreeMap::new();
-        bindings.insert("q".to_owned(), Box::new(Quit));
-        bindings.insert("J".to_owned(), Box::new(NextContact));
-        bindings.insert("K".to_owned(), Box::new(PrevContact));
-        bindings.insert("j".to_owned(), Box::new(NextMessage));
-        bindings.insert("k".to_owned(), Box::new(PrevMessage));
-        Self { bindings }
-    }
+    pub bindings: HashMap<KeyCode, Box<dyn Command>>,
 }
 
 impl KeyBinds {
-    pub fn get(&self, s: &str) -> Option<&Box<dyn Command>> {
+    pub fn normal_default() -> Self {
+        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
+        bindings.insert(KeyCode::Char('q'), Box::new(Quit));
+        bindings.insert(KeyCode::Char('J'), Box::new(NextContact));
+        bindings.insert(KeyCode::Char('K'), Box::new(PrevContact));
+        bindings.insert(KeyCode::Char('j'), Box::new(NextMessage));
+        bindings.insert(KeyCode::Char('k'), Box::new(PrevMessage));
+        bindings.insert(KeyCode::Char(':'), Box::new(CommandMode));
+        bindings.insert(KeyCode::Char('i'), Box::new(ComposeMode));
+        Self { bindings }
+    }
+
+    pub fn command_default() -> Self {
+        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
+        bindings.insert(KeyCode::Esc, Box::new(NormalMode));
+        // bindings.insert(KeyCode::Enter, Box::new(ExecuteCommand));
+        Self { bindings }
+    }
+
+    pub fn compose_default() -> Self {
+        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
+        bindings.insert(KeyCode::Esc, Box::new(NormalMode));
+        // bindings.insert(KeyCode::Enter, Box::new(SendMessage));
+        Self { bindings }
+    }
+
+    pub fn get(&self, s: &KeyCode) -> Option<&Box<dyn Command>> {
         self.bindings.get(s)
     }
 }

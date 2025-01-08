@@ -16,9 +16,18 @@ use ratatui::widgets::Row;
 use ratatui::widgets::Table;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
+use tui_input::Input;
 
 use crate::backends::Contact;
 use crate::backends::Message;
+
+#[derive(Debug, Default)]
+pub enum Mode {
+    #[default]
+    Normal,
+    Command,
+    Compose,
+}
 
 #[derive(Debug, Default)]
 pub struct TuiState {
@@ -27,7 +36,9 @@ pub struct TuiState {
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: Vec<Message>,
-    pub compose: String,
+    pub compose: Input,
+    pub command: Input,
+    pub mode: Mode,
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -70,13 +81,13 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
 
-    let compose = Paragraph::new(tui_state.compose.clone()).block(b.clone().title("Compose"));
+    let compose = Paragraph::new(tui_state.compose.value()).block(b.clone().title("Compose"));
     frame.render_widget(compose, message_rect[1]);
 
-    let status_line =
-        Paragraph::new(Line::from("mode:Normal")).block(b.clone().title("Status line"));
+    let status_line = Paragraph::new(Line::from(format!("mode:{:?}", tui_state.mode)))
+        .block(b.clone().title("Status line"));
     frame.render_widget(status_line, chunks[1]);
 
-    let exline = Paragraph::new(Line::from(":")).block(b.title("Exline"));
+    let exline = Paragraph::new(tui_state.command.value()).block(b.title("Exline"));
     frame.render_widget(exline, chunks[2]);
 }

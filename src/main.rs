@@ -2,10 +2,10 @@ use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
 use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
-use chatters::tui::{render, TuiState};
+use chatters::tui::{render, Mode, TuiState};
 use crossterm::event::Event;
+use crossterm::event::EventStream;
 use crossterm::event::KeyEvent;
-use crossterm::event::{EventStream, KeyCode};
 use directories::ProjectDirs;
 use futures::channel::mpsc;
 use futures::future::Either;
@@ -14,6 +14,7 @@ use futures::{future::select, StreamExt};
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::DefaultTerminal;
+use tui_input::backend::crossterm::EventHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -109,7 +110,7 @@ async fn run_ui(
         .unbounded_send(BackendMessage::LoadContacts)
         .unwrap();
 
-    let keybinds = KeyBinds::default();
+    let keybinds = KeyBinds::normal_default();
 
     loop {
         // dbg!(&tui_state);
@@ -137,20 +138,35 @@ async fn run_ui(
 fn process_user_event(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    keybinds: &KeyBinds,
+    normal_keybinds: &KeyBinds,
     event: Event,
 ) -> bool {
     // dbg!(&event);
+    let command_keybinds = KeyBinds::command_default();
+    let compose_keybinds = KeyBinds::compose_default();
 
-    match event {
-        Event::Key(KeyEvent {
-            code: KeyCode::Char(c),
-            ..
-        }) => {
-            if let Some(command) = keybinds.get(&c.to_string()) {
-                command.execute(tui_state, ba_tx);
+    match &event {
+        Event::Key(KeyEvent { code, .. }) => match tui_state.mode {
+            Mode::Normal => {
+                if let Some(command) = normal_keybinds.get(&code) {
+                    command.execute(tui_state, ba_tx);
+                }
             }
-        }
+            Mode::Command => {
+                if let Some(command) = command_keybinds.get(&code) {
+                    command.execute(tui_state, ba_tx);
+                } else {
+                    tui_state.command.handle_event(&event);
+                }
+            }
+            Mode::Compose => {
+                if let Some(command) = compose_keybinds.get(&code) {
+                    command.execute(tui_state, ba_tx);
+                } else {
+                    tui_state.compose.handle_event(&event);
+                }
+            }
+        },
         e => {
             eprintln!("unhandled event {e:?}");
         }
