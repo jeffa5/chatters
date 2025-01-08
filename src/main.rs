@@ -217,7 +217,7 @@ fn process_backend_message(
             if tui_state.messages.is_empty() && !vec.is_empty() {
                 tui_state.message_list_state.select_last();
             }
-            tui_state.messages = vec;
+            tui_state.messages = vec.into_iter().map(|m| (m.timestamp, m)).collect();
         }
         FrontendMessage::NewMessage(m) => {
             if let Some(contact) = tui_state
@@ -226,7 +226,7 @@ fn process_backend_message(
                 .and_then(|i| tui_state.contacts.get(i))
             {
                 if m.thread == contact.thread_id {
-                    tui_state.messages.push(m);
+                    tui_state.messages.insert(m.timestamp, m);
                 }
             }
         }

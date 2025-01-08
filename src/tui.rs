@@ -35,7 +35,7 @@ pub struct TuiState {
     pub message_list_state: TableState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
-    pub messages: Vec<Message>,
+    pub messages: BTreeMap<u64, Message>,
     pub compose: Input,
     pub command: Input,
     pub mode: Mode,
@@ -61,7 +61,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .block(b.clone().title("Contacts"));
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
-    let message_items = tui_state.messages.iter().map(|m| {
+    let message_items = tui_state.messages.values().map(|m| {
         Row::new(vec![
             tui_state
                 .contacts_by_id
