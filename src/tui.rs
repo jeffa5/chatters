@@ -1,16 +1,16 @@
 use std::collections::BTreeMap;
 
 use presage::libsignal_service::prelude::Uuid;
+use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
 use ratatui::layout::Layout;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
+use ratatui::text::Text;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
-use ratatui::widgets::List;
-use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Row;
 use ratatui::widgets::Table;
@@ -20,6 +20,13 @@ use tui_input::Input;
 
 use crate::backends::Contact;
 use crate::backends::Message;
+
+fn timestamp() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis() as u64
+}
 
 #[derive(Debug, Default)]
 pub enum Mode {
@@ -31,7 +38,7 @@ pub enum Mode {
 
 #[derive(Debug, Default)]
 pub struct TuiState {
-    pub contact_list_state: ListState,
+    pub contact_list_state: TableState,
     pub message_list_state: TableState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
@@ -42,6 +49,7 @@ pub struct TuiState {
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
+    let now = timestamp();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -55,9 +63,19 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let main_rect =
         Layout::horizontal([Constraint::Percentage(25), Constraint::Fill(1)]).split(chunks[0]);
 
-    let contact_items = tui_state.contacts.iter().map(|c| format!("{}", c.name));
-    let contacts = List::new(contact_items)
-        .highlight_style(Style::new().reversed())
+    let contact_items = tui_state.contacts.iter().map(|c| {
+        let age = if c.last_message_timestamp == 0 {
+            String::new()
+        } else {
+            biggest_duration_string(now - c.last_message_timestamp)
+        };
+        Row::new(vec![
+            Text::from(c.name.to_string()),
+            Text::from(age).alignment(Alignment::Right),
+        ])
+    });
+    let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
+        .row_highlight_style(Style::new().reversed())
         .block(b.clone().title("Contacts"));
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
@@ -105,5 +123,32 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
             // Move one line down, from the border to the input line
             chunks[2].y + 1,
         ))
+    }
+}
+
+fn biggest_duration_string(duration_ms: u64) -> String {
+    let year = duration_ms / (1000 * 60 * 60 * 24 * 365);
+    let month = duration_ms / (1000 * 60 * 60 * 24 * 30);
+    let week = duration_ms / (1000 * 60 * 60 * 24 * 7);
+    let day = duration_ms / (1000 * 60 * 60 * 24);
+    let hour = duration_ms / (1000 * 60 * 60);
+    let minute = duration_ms / (1000 * 60);
+    let second = duration_ms / 1000;
+    if year > 0 {
+        format!("{year}y")
+    } else if month > 0 {
+        format!("{month}M")
+    } else if week > 0 {
+        format!("{week}w")
+    } else if day > 0 {
+        format!("{day}d")
+    } else if hour > 0 {
+        format!("{hour}h")
+    } else if minute > 0 {
+        format!("{minute}m")
+    } else if second > 0 {
+        format!("{second}s")
+    } else {
+        "now".to_owned()
     }
 }
