@@ -12,16 +12,18 @@ use ratatui::widgets::Borders;
 use ratatui::widgets::List;
 use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
+use ratatui::widgets::Row;
+use ratatui::widgets::Table;
+use ratatui::widgets::TableState;
 use ratatui::Frame;
 
 use crate::backends::Contact;
 use crate::backends::Message;
-use crate::keybinds::KeyBinds;
 
 #[derive(Debug, Default)]
 pub struct TuiState {
     pub contact_list_state: ListState,
-    pub message_list_state: ListState,
+    pub message_list_state: TableState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: Vec<Message>,
@@ -49,18 +51,17 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
     let message_items = tui_state.messages.iter().map(|m| {
-        format!(
-            "{:?}: {}",
+        Row::new(vec![
             tui_state
                 .contacts_by_id
                 .get(&m.sender)
-                .map(|c| c.name.as_str())
-                .unwrap_or(&m.sender.to_string()),
-            m.content
-        )
+                .map(|c| c.name.clone())
+                .unwrap_or(m.sender.to_string()),
+            m.content.to_string(),
+        ])
     });
-    let messages = List::new(message_items)
-        .highlight_style(Style::new().reversed())
+    let messages = Table::new(message_items, [Constraint::Fill(1), Constraint::Fill(4)])
+        .row_highlight_style(Style::new().reversed())
         .block(b.clone().title("Messages"));
 
     let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
