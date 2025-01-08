@@ -60,6 +60,7 @@ pub trait Backend: Sized {
 #[derive(Debug, Clone)]
 pub struct Signal {
     manager: Manager<SledStore, Registered>,
+    self_uuid: Uuid,
 }
 
 impl Backend for Signal {
@@ -83,7 +84,9 @@ impl Backend for Signal {
             eprintln!("Received message {message:?}");
         }
 
-        Ok(Signal { manager })
+        let self_uuid = manager.whoami().await.unwrap().aci;
+
+        Ok(Signal { manager, self_uuid })
     }
 
     async fn link(
@@ -101,10 +104,12 @@ impl Backend for Signal {
             device_name.to_owned(),
             provisioning_link_tx,
         )
-        .await;
-        Ok(Self {
-            manager: manager.unwrap(),
-        })
+        .await
+        .unwrap();
+
+        let self_uuid = manager.whoami().await.unwrap().aci;
+
+        Ok(Self { manager, self_uuid })
     }
 
     async fn sync_contacts(&mut self) -> Result<()> {
@@ -130,13 +135,18 @@ impl Backend for Signal {
         let contacts = self.manager.store().contacts().await.unwrap();
         for contact in contacts {
             let contact = contact.unwrap();
+            let name = if contact.uuid == self.self_uuid {
+                "Note to Self".to_owned()
+            } else {
+                contact.name.clone()
+            };
             let last_message_timestamp = self
                 .last_message_timestamp(&Thread::Contact(contact.uuid))
                 .await;
             eprintln!("{:?}", contact);
             ret.push(Contact {
                 thread_id: Thread::Contact(contact.uuid),
-                name: contact.name,
+                name,
                 address: contact
                     .phone_number
                     .map(|n| n.to_string())
