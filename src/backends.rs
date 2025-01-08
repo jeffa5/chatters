@@ -235,8 +235,11 @@ impl Signal {
             .messages(thread_id, ..)
             .await
             .unwrap()
-            .next_back()
-            .map(|m| m.unwrap().metadata.timestamp)
+            .rev()
+            .map(|m| m.unwrap())
+            .filter(|m| self.message_content_to_frontend_message(m.clone()).is_some())
+            .next()
+            .map(|m| m.metadata.timestamp)
             .unwrap_or_default()
     }
 
