@@ -72,14 +72,20 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn(async move { ba.run().await });
 
-    tokio::spawn(async move {
+    let ui = async move {
         let terminal = ratatui::init();
         run_ui(terminal, b_tx, f_rx).await;
         ratatui::restore();
-    });
+    };
+    pin_mut!(ui);
 
     // TODO: have this as a background thread rather than the UI
-    backend2.background_sync(f_tx).await.unwrap();
+    let sync = async move {
+        backend2.background_sync(f_tx).await.unwrap();
+    };
+    pin_mut!(sync);
+
+    select(ui, sync).await;
 
     Ok(())
 }
