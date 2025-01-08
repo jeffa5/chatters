@@ -148,6 +148,9 @@ impl Backend for Signal {
             let contact = contact.unwrap();
             let name = if contact.uuid == self.self_uuid {
                 self.self_name.clone()
+            } else if contact.name.is_empty() {
+                // skip contacts with no names
+                continue;
             } else {
                 contact.name.clone()
             };
