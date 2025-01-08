@@ -61,6 +61,7 @@ pub trait Backend: Sized {
 pub struct Signal {
     manager: Manager<SledStore, Registered>,
     self_uuid: Uuid,
+    self_name: String,
 }
 
 impl Backend for Signal {
@@ -85,8 +86,13 @@ impl Backend for Signal {
         }
 
         let self_uuid = manager.whoami().await.unwrap().aci;
+        let self_name = self_name(&mut manager).await;
 
-        Ok(Signal { manager, self_uuid })
+        Ok(Signal {
+            manager,
+            self_uuid,
+            self_name,
+        })
     }
 
     async fn link(
@@ -98,7 +104,7 @@ impl Backend for Signal {
             SledStore::open(path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
                 .await
                 .unwrap();
-        let manager = Manager::link_secondary_device(
+        let mut manager = Manager::link_secondary_device(
             config_store,
             SignalServers::Production,
             device_name.to_owned(),
@@ -108,8 +114,13 @@ impl Backend for Signal {
         .unwrap();
 
         let self_uuid = manager.whoami().await.unwrap().aci;
+        let self_name = self_name(&mut manager).await;
 
-        Ok(Self { manager, self_uuid })
+        Ok(Self {
+            manager,
+            self_uuid,
+            self_name,
+        })
     }
 
     async fn sync_contacts(&mut self) -> Result<()> {
@@ -136,7 +147,7 @@ impl Backend for Signal {
         for contact in contacts {
             let contact = contact.unwrap();
             let name = if contact.uuid == self.self_uuid {
-                "Note to Self".to_owned()
+                self.self_name.clone()
             } else {
                 contact.name.clone()
             };
@@ -201,7 +212,23 @@ impl Backend for Signal {
                         });
                     }
                 }
-                _ => continue,
+                ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
+                    if let Some(sent) = sm.sent {
+                        if let Some(dm) = &sent.message {
+                            if let Some(body) = &dm.body {
+                                ret.push(Message {
+                                    timestamp: sent.timestamp(),
+                                    sender: self.self_uuid,
+                                    content: body.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    dbg!(&message);
+                    continue;
+                }
             }
         }
         Ok(ret)
@@ -219,4 +246,20 @@ impl Signal {
             .map(|m| m.unwrap().metadata.timestamp)
             .unwrap_or_default()
     }
+}
+
+async fn self_name(manager: &mut Manager<SledStore, Registered>) -> String {
+    manager
+        .retrieve_profile()
+        .await
+        .unwrap()
+        .name
+        .map(|n| {
+            if let Some(f) = n.family_name {
+                format!("{} {}", n.given_name, f)
+            } else {
+                n.given_name
+            }
+        })
+        .unwrap_or("Self".to_owned())
 }
