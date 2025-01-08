@@ -17,25 +17,14 @@ use ratatui::Frame;
 use crate::backends::Contact;
 use crate::backends::Message;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TuiState {
     pub contact_list_state: ListState,
     pub message_list_state: ListState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: Vec<Message>,
-}
-
-impl TuiState {
-    pub fn new() -> Self {
-        Self {
-            contact_list_state: ListState::default(),
-            message_list_state: ListState::default(),
-            contacts: Vec::new(),
-            contacts_by_id: BTreeMap::new(),
-            messages: Vec::new(),
-        }
-    }
+    pub compose: String,
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -56,6 +45,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let contacts = List::new(contact_items)
         .highlight_style(Style::new().reversed())
         .block(b.clone().title("Contacts"));
+    frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
     let message_items = tui_state.messages.iter().map(|m| {
         format!(
@@ -71,8 +61,14 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let messages = List::new(message_items)
         .highlight_style(Style::new().reversed())
         .block(b.clone().title("Messages"));
-    frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
-    frame.render_stateful_widget(messages, main_rect[1], &mut tui_state.message_list_state);
+
+    let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
+        .split(main_rect[1]);
+
+    frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
+
+    let compose = Paragraph::new(tui_state.compose.clone()).block(b.clone().title("Compose"));
+    frame.render_widget(compose, message_rect[1]);
 
     let status_line =
         Paragraph::new(Line::from("mode:Normal")).block(b.clone().title("Status line"));

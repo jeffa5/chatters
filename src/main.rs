@@ -100,7 +100,7 @@ async fn run_ui(
     //
     // handle either action then render the ui again
 
-    let mut tui_state = TuiState::new();
+    let mut tui_state = TuiState::default();
 
     let mut event_stream = EventStream::new();
 
