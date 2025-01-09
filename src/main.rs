@@ -79,10 +79,24 @@ async fn main() -> anyhow::Result<()> {
     };
     pin_mut!(ui);
 
+    let f_tx2 = f_tx.clone();
+    let tick = async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            f_tx2.unbounded_send(FrontendMessage::Tick).unwrap();
+        }
+    };
+    pin_mut!(tick);
+
+    let frontend = async move {
+        select(ui, tick).await;
+    };
+    pin_mut!(frontend);
+
     let actor = async move { ba.run().await };
     pin_mut!(actor);
 
-    // TODO: have this as a background thread rather than the UI
     let sync = async move {
         backend2.background_sync(f_tx).await.unwrap();
     };
@@ -93,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
     };
     pin_mut!(backend);
 
-    select(ui, backend).await;
+    select(frontend, backend).await;
 
     Ok(())
 }
@@ -234,6 +248,9 @@ fn process_backend_message(
                     tui_state.messages.insert(m.timestamp, m);
                 }
             }
+        }
+        FrontendMessage::Tick => {
+            // do nothing, just trigger a UI redraw
         }
     }
 }

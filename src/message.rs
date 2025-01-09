@@ -14,4 +14,5 @@ pub enum FrontendMessage {
     LoadedContacts(Vec<Contact>),
     LoadedMessages(Vec<Message>),
     NewMessage(Message),
+    Tick,
 }
