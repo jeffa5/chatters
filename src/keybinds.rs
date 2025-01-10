@@ -4,7 +4,7 @@ use crossterm::event::KeyCode;
 
 use crate::commands::{
     Command, CommandMode, ComposeMode, ExecuteCommand, NextContact, NextMessage, NormalMode,
-    PrevContact, PrevMessage, Quit, SendMessage,
+    PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
 };
 
 #[derive(Debug)]
@@ -22,6 +22,8 @@ impl KeyBinds {
         bindings.insert(KeyCode::Char('k'), Box::new(PrevMessage));
         bindings.insert(KeyCode::Char(':'), Box::new(CommandMode));
         bindings.insert(KeyCode::Char('i'), Box::new(ComposeMode));
+        bindings.insert(KeyCode::Char('g'), Box::new(SelectMessage { index: 0 }));
+        bindings.insert(KeyCode::Char('G'), Box::new(SelectMessage { index: -1 }));
         Self { bindings }
     }
 

@@ -147,7 +147,7 @@ impl Command for PrevMessage {
 
 #[derive(Debug)]
 pub struct SelectMessage {
-    index: isize,
+    pub index: isize,
 }
 
 impl Command for SelectMessage {
