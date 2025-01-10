@@ -97,6 +97,10 @@ impl Messages {
     pub fn is_empty(&self) -> bool {
         self.messages_by_ts.is_empty()
     }
+
+    pub fn len(&self) -> usize {
+        self.messages_by_ts.len()
+    }
 }
 
 impl FromIterator<crate::backends::Message> for Messages {

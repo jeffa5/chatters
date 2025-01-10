@@ -146,6 +146,38 @@ impl Command for PrevMessage {
 }
 
 #[derive(Debug)]
+pub struct SelectMessage {
+    index: isize,
+}
+
+impl Command for SelectMessage {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<()> {
+        let abs_index: usize = self.index.abs().try_into().unwrap();
+        if self.index < 0 {
+            let num_messages = tui_state.messages.len();
+            tui_state
+                .message_list_state
+                .select(Some(num_messages - (abs_index % num_messages)));
+        } else {
+            tui_state.message_list_state.select(Some(abs_index));
+        }
+        Ok(())
+    }
+
+    fn parse(mut args: pico_args::Arguments) -> Result<Self> {
+        let index = args.free_from_str().map_err(|_e| Error::InvalidArgument {
+            arg: "index".to_owned(),
+            value: "".to_owned(),
+        })?;
+        Ok(Self { index })
+    }
+}
+
+#[derive(Debug)]
 pub struct NormalMode;
 
 impl Command for NormalMode {
@@ -388,6 +420,11 @@ impl Command for ExecuteCommand {
             }
             "prev-message" => {
                 PrevMessage::parse(pargs)
+                    .unwrap()
+                    .execute(tui_state, ba_tx)?;
+            }
+            "select-message" => {
+                SelectMessage::parse(pargs)
                     .unwrap()
                     .execute(tui_state, ba_tx)?;
             }
