@@ -46,36 +46,44 @@ pub struct Messages {
 }
 
 impl Messages {
-    pub fn add(&mut self, message: crate::backends::Message) {
-        match message.content {
-            crate::backends::MessageContent::Text(content) => {
-                // assume a new message
-                self.messages_by_ts.insert(
-                    message.timestamp,
-                    Message {
-                        timestamp: message.timestamp,
-                        sender: message.sender,
-                        thread: message.thread,
-                        content,
-                        reactions: Vec::new(),
-                    },
-                );
-            }
-            crate::backends::MessageContent::Reaction(author, ts, reaction, remove) => {
-                if let Some(m) = self.messages_by_ts.get_mut(&ts) {
-                    assert_eq!(m.sender, author);
-                    let existing_reaction = m.reactions.iter().position(|r| r.author == author);
-                    if let Some(existing_reaction) = existing_reaction {
-                        if (remove && m.reactions[existing_reaction].emoji == reaction) || !remove {
-                            m.reactions.remove(existing_reaction);
-                        }
-                    }
+    pub fn add_single(&mut self, message: crate::backends::Message) {
+        self.add_multiple(std::iter::once(message));
+    }
 
-                    if !remove {
-                        m.reactions.push(Reaction {
-                            author,
-                            emoji: reaction,
-                        });
+    pub fn add_multiple(&mut self, messages: impl IntoIterator<Item = crate::backends::Message>) {
+        for message in messages {
+            match message.content {
+                crate::backends::MessageContent::Text(content) => {
+                    // assume a new message
+                    self.messages_by_ts.insert(
+                        message.timestamp,
+                        Message {
+                            timestamp: message.timestamp,
+                            sender: message.sender,
+                            thread: message.thread,
+                            content,
+                            reactions: Vec::new(),
+                        },
+                    );
+                }
+                crate::backends::MessageContent::Reaction(author, ts, reaction, remove) => {
+                    if let Some(m) = self.messages_by_ts.get_mut(&ts) {
+                        assert_eq!(m.sender, author);
+                        let existing_reaction = m.reactions.iter().position(|r| r.author == author);
+                        if let Some(existing_reaction) = existing_reaction {
+                            if (remove && m.reactions[existing_reaction].emoji == reaction)
+                                || !remove
+                            {
+                                m.reactions.remove(existing_reaction);
+                            }
+                        }
+
+                        if !remove {
+                            m.reactions.push(Reaction {
+                                author,
+                                emoji: reaction,
+                            });
+                        }
                     }
                 }
             }
@@ -106,10 +114,14 @@ impl Messages {
 impl FromIterator<crate::backends::Message> for Messages {
     fn from_iter<T: IntoIterator<Item = crate::backends::Message>>(iter: T) -> Self {
         let mut msgs = Self::default();
-        for msg in iter {
-            msgs.add(msg);
-        }
+        msgs.extend(iter);
         msgs
+    }
+}
+
+impl Extend<crate::backends::Message> for Messages {
+    fn extend<T: IntoIterator<Item = crate::backends::Message>>(&mut self, iter: T) {
+        self.add_multiple(iter);
     }
 }
 

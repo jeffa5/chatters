@@ -3,7 +3,7 @@ use chatters::backends::{Backend, Error, Signal};
 use chatters::commands::Command;
 use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
-use chatters::tui::{render, Messages, Mode, TuiState};
+use chatters::tui::{render, Mode, TuiState};
 use crossterm::event::Event;
 use crossterm::event::EventStream;
 use crossterm::event::KeyEvent;
@@ -259,7 +259,8 @@ fn process_backend_message(
             if tui_state.messages.is_empty() && !vec.is_empty() {
                 tui_state.message_list_state.select_last();
             }
-            tui_state.messages = Messages::from_iter(vec);
+            tui_state.messages.clear();
+            tui_state.messages.extend(vec);
         }
         FrontendMessage::NewMessage(m) => {
             if let Some((i, contact)) = tui_state
@@ -273,7 +274,7 @@ fn process_backend_message(
                     tui_state.contacts.insert(0, c);
                     tui_state.contact_list_state.select(Some(0));
 
-                    tui_state.messages.add(m);
+                    tui_state.messages.add_single(m);
                 }
             }
         }
