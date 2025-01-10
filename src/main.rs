@@ -1,5 +1,6 @@
 use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
+use chatters::commands::Command;
 use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
 use chatters::tui::{render, Messages, Mode, TuiState};
@@ -170,19 +171,35 @@ fn process_user_event(
     let command_keybinds = KeyBinds::command_default();
     let compose_keybinds = KeyBinds::compose_default();
 
+    let mode = tui_state.mode;
+
+    let mut execute_command = |cmd: &Box<dyn Command>| {
+        match cmd.execute(tui_state, ba_tx) {
+            Ok(cf) => {
+                if cf.is_break() {
+                    return true;
+                }
+            }
+            Err(error) => {
+                tui_state.command_error = error.to_string();
+            }
+        }
+        false
+    };
+
     match &event {
-        Event::Key(KeyEvent { code, .. }) => match tui_state.mode {
+        Event::Key(KeyEvent { code, .. }) => match mode {
             Mode::Normal => {
                 if let Some(command) = normal_keybinds.get(&code) {
-                    if let Err(error) = command.execute(tui_state, ba_tx) {
-                        tui_state.command_error = error.to_string();
+                    if execute_command(command) {
+                        return true;
                     }
                 }
             }
             Mode::Command => {
                 if let Some(command) = command_keybinds.get(&code) {
-                    if let Err(error) = command.execute(tui_state, ba_tx) {
-                        tui_state.command_error = error.to_string();
+                    if execute_command(command) {
+                        return true;
                     }
                 } else {
                     tui_state.command.handle_event(&event);
@@ -190,8 +207,8 @@ fn process_user_event(
             }
             Mode::Compose => {
                 if let Some(command) = compose_keybinds.get(&code) {
-                    if let Err(error) = command.execute(tui_state, ba_tx) {
-                        tui_state.command_error = error.to_string();
+                    if execute_command(command) {
+                        return true;
                     }
                 } else {
                     tui_state.compose.handle_event(&event);

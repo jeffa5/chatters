@@ -31,7 +31,7 @@ fn timestamp() -> u64 {
         .as_millis() as u64
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum Mode {
     #[default]
     Normal,

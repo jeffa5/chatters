@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, ops::ControlFlow};
 
 use futures::channel::mpsc;
 
@@ -27,7 +27,7 @@ pub trait Command: std::fmt::Debug {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()>;
+    ) -> Result<ControlFlow<()>>;
 
     fn parse(args: pico_args::Arguments) -> Result<Self>
     where
@@ -42,8 +42,8 @@ impl Command for Quit {
         &self,
         _tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
-        panic!("quit")
+    ) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Break(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -59,7 +59,7 @@ impl Command for NextContact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.contact_list_state.select_next();
         if let Some(contact) = tui_state
             .contact_list_state
@@ -72,7 +72,7 @@ impl Command for NextContact {
                 .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                 .unwrap();
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -88,7 +88,7 @@ impl Command for PrevContact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.contact_list_state.select_previous();
         if let Some(contact) = tui_state
             .contact_list_state
@@ -101,7 +101,7 @@ impl Command for PrevContact {
                 .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
                 .unwrap();
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -117,9 +117,9 @@ impl Command for NextMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.message_list_state.select_next();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -135,9 +135,9 @@ impl Command for PrevMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.message_list_state.select_previous();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -155,7 +155,7 @@ impl Command for SelectMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         let abs_index: usize = self.index.abs().try_into().unwrap();
         if self.index < 0 {
             let num_messages = tui_state.messages.len();
@@ -165,7 +165,7 @@ impl Command for SelectMessage {
         } else {
             tui_state.message_list_state.select(Some(abs_index));
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(mut args: pico_args::Arguments) -> Result<Self> {
@@ -185,10 +185,10 @@ impl Command for NormalMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.mode = Mode::Normal;
         tui_state.command.reset();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -204,10 +204,10 @@ impl Command for CommandMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.mode = Mode::Command;
         tui_state.command_error.clear();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -223,9 +223,9 @@ impl Command for ComposeMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         tui_state.mode = Mode::Compose;
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -241,7 +241,7 @@ impl Command for SendMessage {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         let message_body = tui_state.compose.value().to_owned();
         tui_state.compose.reset();
         tui_state.mode = Mode::Normal;
@@ -258,7 +258,7 @@ impl Command for SendMessage {
                 ))
                 .unwrap();
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
@@ -276,7 +276,7 @@ impl Command for React {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         let Some(e) = emojis::get_by_shortcode(&self.reaction) else {
             return Err(Error::InvalidArgument {
                 arg: "reaction".to_owned(),
@@ -311,7 +311,7 @@ impl Command for React {
                 ),
             ))
             .unwrap();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(mut args: pico_args::Arguments) -> Result<Self>
@@ -331,7 +331,7 @@ impl Command for Unreact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         let Some(contact) = tui_state
             .contact_list_state
             .selected()
@@ -354,7 +354,7 @@ impl Command for Unreact {
             .find(|r| r.author == tui_state.self_uuid)
             .map(|r| r.emoji.clone())
         else {
-            return Ok(());
+            return Ok(ControlFlow::Continue(()));
         };
 
         ba_tx
@@ -368,7 +368,7 @@ impl Command for Unreact {
                 ),
             ))
             .unwrap();
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self>
@@ -387,7 +387,7 @@ impl Command for ExecuteCommand {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<()> {
+    ) -> Result<ControlFlow<()>> {
         let value = tui_state.command.value().to_owned();
         tui_state.command.reset();
         tui_state.mode = Mode::Normal;
@@ -399,64 +399,40 @@ impl Command for ExecuteCommand {
             .collect();
         let mut pargs = pico_args::Arguments::from_vec(args);
 
-        match pargs.subcommand().unwrap().unwrap().as_str() {
-            "quit" => {
-                Quit::parse(pargs).unwrap().execute(tui_state, ba_tx)?;
-            }
-            "next-contact" => {
-                NextContact::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "prev-contact" => {
-                PrevContact::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "next-message" => {
-                NextMessage::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "prev-message" => {
-                PrevMessage::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "select-message" => {
-                SelectMessage::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "mode-normal" => {
-                NormalMode::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "mode-command" => {
-                CommandMode::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "mode-compose" => {
-                ComposeMode::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "send-message" => {
-                SendMessage::parse(pargs)
-                    .unwrap()
-                    .execute(tui_state, ba_tx)?;
-            }
-            "react" => {
-                React::parse(pargs).unwrap().execute(tui_state, ba_tx)?;
-            }
-            "unreact" => {
-                Unreact::parse(pargs).unwrap().execute(tui_state, ba_tx)?;
-            }
+        let ret = match pargs.subcommand().unwrap().unwrap().as_str() {
+            "quit" => Quit::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
+            "next-contact" => NextContact::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "prev-contact" => PrevContact::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "next-message" => NextMessage::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "prev-message" => PrevMessage::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "select-message" => SelectMessage::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "mode-normal" => NormalMode::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "mode-command" => CommandMode::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "mode-compose" => ComposeMode::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "send-message" => SendMessage::parse(pargs)
+                .unwrap()
+                .execute(tui_state, ba_tx)?,
+            "react" => React::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
+            "unreact" => Unreact::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
             subcmd => return Err(Error::UnknownCommand(subcmd.to_owned())),
-        }
-        Ok(())
+        };
+        Ok(ret)
     }
 
     fn parse(_args: pico_args::Arguments) -> Result<Self> {
