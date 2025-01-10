@@ -170,7 +170,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
     let message_rect =
-        Layout::vertical([Constraint::Percentage(80), Constraint::Length(3)]).split(main_rect[1]);
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(main_rect[1]);
 
     let message_width = message_rect[0].width as usize;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
