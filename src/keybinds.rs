@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crossterm::event::KeyCode;
 
 use crate::commands::{
-    Command, CommandMode, ComposeMode, NextContact, NextMessage, NormalMode, PrevContact,
-    PrevMessage, Quit, SendMessage,
+    Command, CommandMode, ComposeMode, ExecuteCommand, NextContact, NextMessage, NormalMode,
+    PrevContact, PrevMessage, Quit, SendMessage,
 };
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl KeyBinds {
     pub fn command_default() -> Self {
         let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
         bindings.insert(KeyCode::Esc, Box::new(NormalMode));
-        // bindings.insert(KeyCode::Enter, Box::new(ExecuteCommand));
+        bindings.insert(KeyCode::Enter, Box::new(ExecuteCommand));
         Self { bindings }
     }
 

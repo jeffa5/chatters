@@ -9,11 +9,13 @@ crossterm = { version = "0.28.1", features = ["event-stream"] }
 directories = "5.0.1"
 futures = "0.3.31"
 open = "5.3.2"
+pico-args = "0.5.0"
 presage = { git = "https://github.com/whisperfish/presage" }
 presage-store-sled = { git = "https://github.com/whisperfish/presage" }
 qr2term = "0.3.3"
 qrcode-generator = "5.0.0"
 ratatui = "0.29.0"
+shell-words = "1.1.0"
 textwrap = "0.16.1"
 thiserror = "2.0.9"
 tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
