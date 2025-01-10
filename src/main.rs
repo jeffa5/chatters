@@ -174,19 +174,25 @@ fn process_user_event(
         Event::Key(KeyEvent { code, .. }) => match tui_state.mode {
             Mode::Normal => {
                 if let Some(command) = normal_keybinds.get(&code) {
-                    command.execute(tui_state, ba_tx);
+                    if let Err(error) = command.execute(tui_state, ba_tx) {
+                        tui_state.command_error = error.to_string();
+                    }
                 }
             }
             Mode::Command => {
                 if let Some(command) = command_keybinds.get(&code) {
-                    command.execute(tui_state, ba_tx);
+                    if let Err(error) = command.execute(tui_state, ba_tx) {
+                        tui_state.command_error = error.to_string();
+                    }
                 } else {
                     tui_state.command.handle_event(&event);
                 }
             }
             Mode::Compose => {
                 if let Some(command) = compose_keybinds.get(&code) {
-                    command.execute(tui_state, ba_tx);
+                    if let Err(error) = command.execute(tui_state, ba_tx) {
+                        tui_state.command_error = error.to_string();
+                    }
                 } else {
                     tui_state.compose.handle_event(&event);
                 }

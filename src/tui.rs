@@ -134,6 +134,7 @@ pub struct TuiState {
     pub messages: Messages,
     pub compose: Input,
     pub command: Input,
+    pub command_error: String,
     pub mode: Mode,
 }
 
@@ -237,12 +238,19 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .block(b.clone().title("Status line"));
     frame.render_widget(status_line, chunks[1]);
 
-    let exline = Paragraph::new(tui_state.command.value()).block(b.title("Exline"));
-    frame.render_widget(exline, chunks[2]);
+    let (command_string, command_style) = if tui_state.command_error.is_empty() {
+        (format!(":{}", tui_state.command.value()), Style::new())
+    } else {
+        (tui_state.command_error.clone(), Style::new().red())
+    };
+    let command_line = Paragraph::new(command_string)
+        .style(command_style)
+        .block(b.title("Exline"));
+    frame.render_widget(command_line, chunks[2]);
     if matches!(tui_state.mode, Mode::Command) {
         frame.set_cursor_position((
             // Put cursor past the end of the input text
-            chunks[2].x + tui_state.command.visual_cursor() as u16 + 1,
+            chunks[2].x + tui_state.command.visual_cursor() as u16 + 2,
             // Move one line down, from the border to the input line
             chunks[2].y + 1,
         ))
