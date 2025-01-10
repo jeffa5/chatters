@@ -11,11 +11,14 @@ use ratatui::text::Line;
 use ratatui::text::Text;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
+use ratatui::widgets::List;
+use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Row;
 use ratatui::widgets::Table;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
+use textwrap::Options;
 use tui_input::Input;
 
 use crate::backends::Contact;
@@ -39,7 +42,7 @@ pub enum Mode {
 #[derive(Debug, Default)]
 pub struct TuiState {
     pub contact_list_state: TableState,
-    pub message_list_state: TableState,
+    pub message_list_state: ListState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: BTreeMap<u64, Message>,
@@ -82,29 +85,24 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
         .split(main_rect[1]);
 
+    let message_width = message_rect[0].width as usize;
     let message_items = tui_state.messages.values().map(|m| {
+        let sender_width = 20;
+        let age_width = 3;
+        let content_width = message_width - sender_width - age_width - 2;
         let sender = tui_state
             .contacts_by_id
             .get(&m.sender)
             .map(|c| c.name.clone())
             .unwrap_or(m.sender.to_string());
+        let sender = truncate_or_pad(sender, sender_width);
         let age = biggest_duration_string(now - m.timestamp);
-        let content = wrap_text(&m.content, message_rect[0].width as usize / 2);
-        Row::new(vec![
-            Text::from(sender),
-            Text::from(age).alignment(Alignment::Right),
-            content,
-        ])
-        .height(m.content.lines().count() as u16)
+        let content = wrap_text(&m.content, content_width, message_width - content_width);
+        format!("{sender} {:>3} {content}", age)
     });
-    let messages = Table::default()
-        .widths([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(4),
-        ])
-        .rows(message_items)
-        .row_highlight_style(Style::new().reversed())
+    let messages = List::default()
+        .items(message_items)
+        .highlight_style(Style::new().reversed())
         .block(b.clone().title("Messages"));
 
     frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
@@ -163,10 +161,22 @@ fn biggest_duration_string(duration_ms: u64) -> String {
     }
 }
 
-fn wrap_text(s: &str, width: usize) -> Text {
-    let content = textwrap::wrap(&s, width)
-        .into_iter()
-        .map(|s| Line::from(s.into_owned()))
-        .collect::<Vec<_>>();
+fn wrap_text(s: &str, width: usize, wrap_indent_width: usize) -> Text {
+    let content = textwrap::wrap(
+        &s,
+        Options::new(width).subsequent_indent(&" ".repeat(wrap_indent_width)),
+    )
+    .into_iter()
+    .map(|s| Line::from(s.into_owned()))
+    .collect::<Vec<_>>();
     Text::from(content)
+}
+
+fn truncate_or_pad(mut s: String, width: usize) -> String {
+    if s.len() >= width {
+        s[..width].to_owned()
+    } else {
+        s.push_str(&" ".repeat(width - s.len()));
+        s
+    }
 }
