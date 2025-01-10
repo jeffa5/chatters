@@ -221,6 +221,57 @@ impl Command for React {
 }
 
 #[derive(Debug)]
+pub struct Unreact;
+
+impl Command for Unreact {
+    fn execute(&self, tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+        let Some(selected_message) = tui_state
+            .message_list_state
+            .selected()
+            .and_then(|i| tui_state.messages.get_by_index(i))
+        else {
+            return;
+        };
+
+        let Some(contact) = tui_state
+            .contact_list_state
+            .selected()
+            .and_then(|i| tui_state.contacts.get(i))
+        else {
+            return;
+        };
+
+        let Some(reaction) = selected_message
+            .reactions
+            .iter()
+            .find(|r| r.author == tui_state.self_uuid)
+            .map(|r| r.emoji.clone())
+        else {
+            return;
+        };
+
+        ba_tx
+            .unbounded_send(BackendMessage::SendMessage(
+                contact.thread_id.clone(),
+                MessageContent::Reaction(
+                    selected_message.sender,
+                    selected_message.timestamp,
+                    reaction,
+                    true,
+                ),
+            ))
+            .unwrap();
+    }
+
+    fn parse(_args: pico_args::Arguments) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        Some(Self)
+    }
+}
+
+#[derive(Debug)]
 pub struct ExecuteCommand;
 
 impl Command for ExecuteCommand {
@@ -266,6 +317,9 @@ impl Command for ExecuteCommand {
             }
             "react" => {
                 React::parse(pargs).unwrap().execute(tui_state, ba_tx);
+            }
+            "unreact" => {
+                Unreact::parse(pargs).unwrap().execute(tui_state, ba_tx);
             }
             _ => {}
         }

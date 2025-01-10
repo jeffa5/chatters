@@ -11,6 +11,7 @@ use futures::channel::mpsc;
 use futures::future::Either;
 use futures::pin_mut;
 use futures::{future::select, StreamExt};
+use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::DefaultTerminal;
@@ -55,6 +56,8 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let self_uuid = backend.self_uuid().await;
+
     eprintln!("loaded signal backend");
 
     let mut backend2 = backend.clone();
@@ -74,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
 
     let ui = async move {
         let terminal = ratatui::init();
-        run_ui(terminal, b_tx, f_rx).await;
+        run_ui(terminal, b_tx, f_rx, self_uuid).await;
         ratatui::restore();
     };
     pin_mut!(ui);
@@ -116,6 +119,7 @@ async fn run_ui(
     mut terminal: DefaultTerminal,
     backend_actor_tx: mpsc::UnboundedSender<BackendMessage>,
     mut backend_actor_rx: mpsc::UnboundedReceiver<FrontendMessage>,
+    self_uuid: Uuid,
 ) {
     // select on two channels, one for keyboard events, another for messages from the backend
     // (responses)
@@ -123,6 +127,7 @@ async fn run_ui(
     // handle either action then render the ui again
 
     let mut tui_state = TuiState::default();
+    tui_state.self_uuid = self_uuid;
 
     let mut event_stream = EventStream::new();
 

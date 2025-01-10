@@ -66,7 +66,9 @@ impl Messages {
                     assert_eq!(m.sender, author);
                     let existing_reaction = m.reactions.iter().position(|r| r.author == author);
                     if let Some(existing_reaction) = existing_reaction {
-                        m.reactions.remove(existing_reaction);
+                        if (remove && m.reactions[existing_reaction].emoji == reaction) || !remove {
+                            m.reactions.remove(existing_reaction);
+                        }
                     }
 
                     if !remove {
@@ -118,12 +120,13 @@ pub struct Message {
 
 #[derive(Debug)]
 pub struct Reaction {
-    author: Uuid,
-    emoji: String,
+    pub author: Uuid,
+    pub emoji: String,
 }
 
 #[derive(Debug, Default)]
 pub struct TuiState {
+    pub self_uuid: Uuid,
     pub contact_list_state: TableState,
     pub message_list_state: ListState,
     pub contacts: Vec<Contact>,

@@ -78,6 +78,8 @@ pub trait Backend: Sized {
         contact: Thread,
         body: MessageContent,
     ) -> impl Future<Output = Result<Message>>;
+
+    fn self_uuid(&self) -> impl Future<Output = Uuid>;
 }
 
 #[derive(Debug, Clone)]
@@ -285,6 +287,10 @@ impl Backend for Signal {
         }
         Ok(ui_msg)
     }
+
+    async fn self_uuid(&self) -> Uuid {
+        self.manager.whoami().await.unwrap().aci
+    }
 }
 
 impl Signal {
@@ -318,6 +324,7 @@ impl Signal {
                         content: MessageContent::Text(body.clone()),
                     });
                 } else if let Some(r) = &dm.reaction {
+                    let emoji = r.emoji.clone()?;
                     return Some(Message {
                         timestamp: message.metadata.timestamp,
                         sender,
@@ -325,7 +332,7 @@ impl Signal {
                         content: MessageContent::Reaction(
                             r.target_author_aci.as_ref().unwrap().parse().unwrap(),
                             r.target_sent_timestamp.unwrap(),
-                            r.emoji.clone().unwrap(),
+                            emoji,
                             r.remove(),
                         ),
                     });
