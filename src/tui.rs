@@ -57,22 +57,23 @@ impl Messages {
                         sender: message.sender,
                         thread: message.thread,
                         content,
-                        reactions: BTreeMap::new(),
+                        reactions: Vec::new(),
                     },
                 );
             }
             crate::backends::MessageContent::Reaction(author, ts, reaction, remove) => {
                 if let Some(m) = self.messages_by_ts.get_mut(&ts) {
                     assert_eq!(m.sender, author);
-                    let v = m.reactions.entry(reaction.clone()).or_default();
-                    if remove {
-                        if *v == 1 {
-                            m.reactions.remove(&reaction);
-                        } else {
-                            *v = v.saturating_sub(1);
-                        }
-                    } else {
-                        *v += 1;
+                    let existing_reaction = m.reactions.iter().position(|r| r.author == author);
+                    if let Some(existing_reaction) = existing_reaction {
+                        m.reactions.remove(existing_reaction);
+                    }
+
+                    if !remove {
+                        m.reactions.push(Reaction {
+                            author,
+                            emoji: reaction,
+                        });
                     }
                 }
             }
@@ -112,7 +113,13 @@ pub struct Message {
     pub sender: Uuid,
     pub thread: Thread,
     pub content: String,
-    pub reactions: BTreeMap<String, u8>,
+    pub reactions: Vec<Reaction>,
+}
+
+#[derive(Debug)]
+pub struct Reaction {
+    author: Uuid,
+    emoji: String,
 }
 
 #[derive(Debug, Default)]
@@ -180,11 +187,16 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
             let react_line = m
                 .reactions
                 .iter()
+                .fold(BTreeMap::<_, usize>::new(), |mut map, r| {
+                    *map.entry(&r.emoji).or_default() += 1;
+                    map
+                })
+                .iter()
                 .map(|(r, count)| {
                     if *count > 1 {
                         format!("{r}x{count}")
                     } else {
-                        r.clone()
+                        (*r).to_owned()
                     }
                 })
                 .collect::<Vec<_>>();
