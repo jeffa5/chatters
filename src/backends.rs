@@ -5,6 +5,7 @@ use futures::StreamExt;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
+use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
 use presage::store::Thread;
@@ -31,7 +32,7 @@ pub struct Message {
 #[derive(Debug)]
 pub enum MessageContent {
     Text(String),
-    Reaction(u64, String, bool),
+    Reaction(Uuid, u64, String, bool),
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +76,7 @@ pub trait Backend: Sized {
     fn send_message(
         &mut self,
         contact: Thread,
-        body: String,
+        body: MessageContent,
     ) -> impl Future<Output = Result<Message>>;
 }
 
@@ -241,29 +242,43 @@ impl Backend for Signal {
         Ok(ret)
     }
 
-    async fn send_message(&mut self, contact: Thread, body: String) -> Result<Message> {
-        let ts = timestamp();
-        let content_body = ContentBody::DataMessage(DataMessage {
-            body: Some(body.clone()),
-            timestamp: Some(ts),
-            ..Default::default()
-        });
+    async fn send_message(&mut self, contact: Thread, content: MessageContent) -> Result<Message> {
+        let now = timestamp();
+        let content_body = match &content {
+            MessageContent::Text(t) => ContentBody::DataMessage(DataMessage {
+                body: Some(t.clone()),
+                timestamp: Some(now),
+                ..Default::default()
+            }),
+            MessageContent::Reaction(author, ts, r, remove) => {
+                ContentBody::DataMessage(DataMessage {
+                    reaction: Some(Reaction {
+                        emoji: Some(r.clone()),
+                        remove: Some(*remove),
+                        target_author_aci: Some(author.to_string()),
+                        target_sent_timestamp: Some(*ts),
+                    }),
+                    timestamp: Some(now),
+                    ..Default::default()
+                })
+            }
+        };
         let ui_msg = Message {
-            timestamp: ts,
+            timestamp: now,
             sender: self.self_uuid,
             thread: contact.clone(),
-            content: MessageContent::Text(body),
+            content,
         };
         match contact {
             Thread::Contact(uuid) => {
                 self.manager
-                    .send_message(ServiceId::Aci(uuid.into()), content_body, ts)
+                    .send_message(ServiceId::Aci(uuid.into()), content_body, now)
                     .await
                     .unwrap();
             }
             Thread::Group(key) => {
                 self.manager
-                    .send_message_to_group(&key, content_body, ts)
+                    .send_message_to_group(&key, content_body, now)
                     .await
                     .unwrap();
             }
@@ -308,6 +323,7 @@ impl Signal {
                         sender,
                         thread,
                         content: MessageContent::Reaction(
+                            r.target_author_aci.as_ref().unwrap().parse().unwrap(),
                             r.target_sent_timestamp.unwrap(),
                             r.emoji.clone().unwrap(),
                             r.remove(),
@@ -331,6 +347,7 @@ impl Signal {
                                 sender: self.self_uuid,
                                 thread,
                                 content: MessageContent::Reaction(
+                                    r.target_author_aci.as_ref().unwrap().parse().unwrap(),
                                     r.target_sent_timestamp.unwrap(),
                                     r.emoji.clone().unwrap(),
                                     r.remove(),

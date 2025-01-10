@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use futures::channel::mpsc;
 
 use crate::{
+    backends::MessageContent,
     message::BackendMessage,
     tui::{Mode, TuiState},
 };
@@ -159,7 +160,7 @@ impl Command for SendMessage {
             ba_tx
                 .unbounded_send(BackendMessage::SendMessage(
                     contact.thread_id.clone(),
-                    message_body,
+                    MessageContent::Text(message_body),
                 ))
                 .unwrap();
         }
@@ -167,6 +168,55 @@ impl Command for SendMessage {
 
     fn parse(_args: pico_args::Arguments) -> Option<Self> {
         Some(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct React {
+    reaction: String,
+}
+
+impl Command for React {
+    fn execute(&self, tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+        let Some(e) = emojis::get_by_shortcode(&self.reaction) else {
+            return;
+        };
+
+        let Some(selected_message) = tui_state
+            .message_list_state
+            .selected()
+            .and_then(|i| tui_state.messages.get_by_index(i))
+        else {
+            return;
+        };
+
+        let Some(contact) = tui_state
+            .contact_list_state
+            .selected()
+            .and_then(|i| tui_state.contacts.get(i))
+        else {
+            return;
+        };
+
+        ba_tx
+            .unbounded_send(BackendMessage::SendMessage(
+                contact.thread_id.clone(),
+                MessageContent::Reaction(
+                    selected_message.sender,
+                    selected_message.timestamp,
+                    e.as_str().to_owned(),
+                    false,
+                ),
+            ))
+            .unwrap();
+    }
+
+    fn parse(mut args: pico_args::Arguments) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let reaction = args.free_from_str().ok()?;
+        Some(Self { reaction })
     }
 }
 
@@ -213,6 +263,9 @@ impl Command for ExecuteCommand {
             }
             "send-message" => {
                 SendMessage::parse(pargs).unwrap().execute(tui_state, ba_tx);
+            }
+            "react" => {
+                React::parse(pargs).unwrap().execute(tui_state, ba_tx);
             }
             _ => {}
         }

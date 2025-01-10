@@ -1,12 +1,12 @@
 use presage::store::Thread;
 
-use crate::backends::{Contact, Message};
+use crate::backends::{Contact, Message, MessageContent};
 
 #[derive(Debug)]
 pub enum BackendMessage {
     LoadContacts,
     LoadMessages(Thread),
-    SendMessage(Thread, String),
+    SendMessage(Thread, MessageContent),
 }
 
 #[derive(Debug)]

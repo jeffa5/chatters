@@ -41,7 +41,8 @@ pub enum Mode {
 
 #[derive(Debug, Default)]
 pub struct Messages {
-    messages: BTreeMap<u64, Message>,
+    messages_by_ts: BTreeMap<u64, Message>,
+    messages_by_index: Vec<u64>,
 }
 
 impl Messages {
@@ -49,7 +50,7 @@ impl Messages {
         match message.content {
             crate::backends::MessageContent::Text(content) => {
                 // assume a new message
-                self.messages.insert(
+                self.messages_by_ts.insert(
                     message.timestamp,
                     Message {
                         timestamp: message.timestamp,
@@ -60,8 +61,9 @@ impl Messages {
                     },
                 );
             }
-            crate::backends::MessageContent::Reaction(ts, reaction, remove) => {
-                if let Some(m) = self.messages.get_mut(&ts) {
+            crate::backends::MessageContent::Reaction(author, ts, reaction, remove) => {
+                if let Some(m) = self.messages_by_ts.get_mut(&ts) {
+                    assert_eq!(m.sender, author);
                     let v = m.reactions.entry(reaction.clone()).or_default();
                     if remove {
                         if *v == 1 {
@@ -75,14 +77,22 @@ impl Messages {
                 }
             }
         }
+        self.messages_by_index = self.messages_by_ts.keys().copied().collect();
+    }
+
+    pub fn get_by_index(&self, index: usize) -> Option<&Message> {
+        self.messages_by_index
+            .get(index)
+            .and_then(|ts| self.messages_by_ts.get(ts))
     }
 
     pub fn clear(&mut self) {
-        self.messages.clear()
+        self.messages_by_ts.clear();
+        self.messages_by_index.clear();
     }
 
     pub fn is_empty(&self) -> bool {
-        self.messages.is_empty()
+        self.messages_by_ts.is_empty()
     }
 }
 
@@ -152,7 +162,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .split(main_rect[1]);
 
     let message_width = message_rect[0].width as usize;
-    let message_items = tui_state.messages.messages.values().map(|m| {
+    let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
         let sender_width = 20;
         let age_width = 3;
         let content_width = message_width - sender_width - age_width - 2;
