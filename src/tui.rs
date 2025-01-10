@@ -168,8 +168,8 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .block(b.clone().title("Contacts"));
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
-    let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
-        .split(main_rect[1]);
+    let message_rect =
+        Layout::vertical([Constraint::Percentage(80), Constraint::Length(3)]).split(main_rect[1]);
 
     let message_width = message_rect[0].width as usize;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
@@ -216,12 +216,18 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
 
-    let compose = Paragraph::new(tui_state.compose.value()).block(b.clone().title("Compose"));
+    let compose_width = message_rect[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+    let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
+    let compose = Paragraph::new(tui_state.compose.value())
+        .scroll((0, compose_scroll as u16))
+        .block(b.clone().title("Compose"));
     frame.render_widget(compose, message_rect[1]);
     if matches!(tui_state.mode, Mode::Compose) {
         frame.set_cursor_position((
             // Put cursor past the end of the input text
-            message_rect[1].x + tui_state.compose.visual_cursor() as u16 + 1,
+            message_rect[1].x
+                + ((tui_state.compose.visual_cursor()).max(compose_scroll) - compose_scroll) as u16
+                + 1,
             // Move one line down, from the border to the input line
             message_rect[1].y + 1,
         ))
