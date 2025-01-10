@@ -25,7 +25,13 @@ pub struct Message {
     pub timestamp: u64,
     pub sender: Uuid,
     pub thread: Thread,
-    pub content: String,
+    pub content: MessageContent,
+}
+
+#[derive(Debug)]
+pub enum MessageContent {
+    Text(String),
+    Reaction(u64, String, bool),
 }
 
 #[derive(Debug, Clone)]
@@ -246,7 +252,7 @@ impl Backend for Signal {
             timestamp: ts,
             sender: self.self_uuid,
             thread: contact.clone(),
-            content: body,
+            content: MessageContent::Text(body),
         };
         match contact {
             Thread::Contact(uuid) => {
@@ -294,7 +300,18 @@ impl Signal {
                         timestamp: message.metadata.timestamp,
                         sender,
                         thread,
-                        content: body.clone(),
+                        content: MessageContent::Text(body.clone()),
+                    });
+                } else if let Some(r) = &dm.reaction {
+                    return Some(Message {
+                        timestamp: message.metadata.timestamp,
+                        sender,
+                        thread,
+                        content: MessageContent::Reaction(
+                            r.target_sent_timestamp.unwrap(),
+                            r.emoji.clone().unwrap(),
+                            r.remove(),
+                        ),
                     });
                 }
             }
@@ -306,7 +323,18 @@ impl Signal {
                                 timestamp: sent.timestamp(),
                                 sender: self.self_uuid,
                                 thread,
-                                content: body.clone(),
+                                content: MessageContent::Text(body.clone()),
+                            });
+                        } else if let Some(r) = &dm.reaction {
+                            return Some(Message {
+                                timestamp: message.metadata.timestamp,
+                                sender: self.self_uuid,
+                                thread,
+                                content: MessageContent::Reaction(
+                                    r.target_sent_timestamp.unwrap(),
+                                    r.emoji.clone().unwrap(),
+                                    r.remove(),
+                                ),
                             });
                         }
                     }

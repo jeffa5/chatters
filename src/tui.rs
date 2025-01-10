@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use presage::libsignal_service::prelude::Uuid;
+use presage::store::Thread;
 use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
@@ -22,7 +23,6 @@ use textwrap::Options;
 use tui_input::Input;
 
 use crate::backends::Contact;
-use crate::backends::Message;
 
 fn timestamp() -> u64 {
     std::time::SystemTime::now()
@@ -40,12 +40,78 @@ pub enum Mode {
 }
 
 #[derive(Debug, Default)]
+pub struct Messages {
+    messages: BTreeMap<u64, Message>,
+}
+
+impl Messages {
+    pub fn add(&mut self, message: crate::backends::Message) {
+        match message.content {
+            crate::backends::MessageContent::Text(content) => {
+                // assume a new message
+                self.messages.insert(
+                    message.timestamp,
+                    Message {
+                        timestamp: message.timestamp,
+                        sender: message.sender,
+                        thread: message.thread,
+                        content,
+                        reactions: BTreeMap::new(),
+                    },
+                );
+            }
+            crate::backends::MessageContent::Reaction(ts, reaction, remove) => {
+                if let Some(m) = self.messages.get_mut(&ts) {
+                    let v = m.reactions.entry(reaction.clone()).or_default();
+                    if remove {
+                        if *v == 1 {
+                            m.reactions.remove(&reaction);
+                        } else {
+                            *v = v.saturating_sub(1);
+                        }
+                    } else {
+                        *v += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.messages.clear()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
+}
+
+impl FromIterator<crate::backends::Message> for Messages {
+    fn from_iter<T: IntoIterator<Item = crate::backends::Message>>(iter: T) -> Self {
+        let mut msgs = Self::default();
+        for msg in iter {
+            msgs.add(msg);
+        }
+        msgs
+    }
+}
+
+#[derive(Debug)]
+pub struct Message {
+    pub timestamp: u64,
+    pub sender: Uuid,
+    pub thread: Thread,
+    pub content: String,
+    pub reactions: BTreeMap<String, u8>,
+}
+
+#[derive(Debug, Default)]
 pub struct TuiState {
     pub contact_list_state: TableState,
     pub message_list_state: ListState,
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
-    pub messages: BTreeMap<u64, Message>,
+    pub messages: Messages,
     pub compose: Input,
     pub command: Input,
     pub mode: Mode,
@@ -70,7 +136,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         let age = if c.last_message_timestamp == 0 {
             String::new()
         } else {
-            biggest_duration_string(now - c.last_message_timestamp)
+            biggest_duration_string(now.saturating_sub(c.last_message_timestamp))
         };
         Row::new(vec![
             Text::from(c.name.to_string()),
@@ -86,7 +152,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .split(main_rect[1]);
 
     let message_width = message_rect[0].width as usize;
-    let message_items = tui_state.messages.values().map(|m| {
+    let message_items = tui_state.messages.messages.values().map(|m| {
         let sender_width = 20;
         let age_width = 3;
         let content_width = message_width - sender_width - age_width - 2;
@@ -97,8 +163,26 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
             .unwrap_or(m.sender.to_string());
         let sender = truncate_or_pad(sender, sender_width);
         let age = biggest_duration_string(now - m.timestamp);
+        let content_indent = " ".repeat(message_width - content_width);
         let content = wrap_text(&m.content, content_width, message_width - content_width);
-        format!("{sender} {:>3} {content}", age)
+        let mut line = format!("{sender} {:>3} {content}", age);
+        if !m.reactions.is_empty() {
+            let react_line = m
+                .reactions
+                .iter()
+                .map(|(r, count)| {
+                    if *count > 1 {
+                        format!("{r}x{count}")
+                    } else {
+                        r.clone()
+                    }
+                })
+                .collect::<Vec<_>>();
+            line.push('\n');
+            line.push_str(&content_indent);
+            line.push_str(&react_line.join(" "));
+        }
+        line
     });
     let messages = List::default()
         .items(message_items)
