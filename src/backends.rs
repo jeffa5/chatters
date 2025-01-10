@@ -286,20 +286,20 @@ impl Signal {
 
     fn message_content_to_frontend_message(&self, message: Content) -> Option<Message> {
         let thread = Thread::try_from(&message).unwrap();
-        match message.body {
+        match &message.body {
             ContentBody::DataMessage(dm) => {
                 let sender = message.metadata.sender.raw_uuid();
-                if let Some(body) = dm.body {
+                if let Some(body) = &dm.body {
                     return Some(Message {
                         timestamp: message.metadata.timestamp,
                         sender,
                         thread,
-                        content: body,
+                        content: body.clone(),
                     });
                 }
             }
             ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
-                if let Some(sent) = sm.sent {
+                if let Some(sent) = &sm.sent {
                     if let Some(dm) = &sent.message {
                         if let Some(body) = &dm.body {
                             return Some(Message {
@@ -312,10 +312,9 @@ impl Signal {
                     }
                 }
             }
-            _ => {
-                dbg!(&message);
-            }
+            _ => {}
         }
+        dbg!(&message);
         None
     }
 }

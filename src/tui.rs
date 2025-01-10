@@ -79,6 +79,9 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .block(b.clone().title("Contacts"));
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
+    let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
+        .split(main_rect[1]);
+
     let message_items = tui_state.messages.values().map(|m| {
         let sender = tui_state
             .contacts_by_id
@@ -86,26 +89,23 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
             .map(|c| c.name.clone())
             .unwrap_or(m.sender.to_string());
         let age = biggest_duration_string(now - m.timestamp);
+        let content = wrap_text(&m.content, message_rect[0].width as usize / 2);
         Row::new(vec![
             Text::from(sender),
             Text::from(age).alignment(Alignment::Right),
-            Text::from(m.content.clone()),
+            content,
         ])
         .height(m.content.lines().count() as u16)
     });
-    let messages = Table::new(
-        message_items,
-        [
+    let messages = Table::default()
+        .widths([
             Constraint::Fill(1),
             Constraint::Length(3),
             Constraint::Fill(4),
-        ],
-    )
-    .row_highlight_style(Style::new().reversed())
-    .block(b.clone().title("Messages"));
-
-    let message_rect = Layout::vertical([Constraint::Percentage(80), Constraint::Percentage(20)])
-        .split(main_rect[1]);
+        ])
+        .rows(message_items)
+        .row_highlight_style(Style::new().reversed())
+        .block(b.clone().title("Messages"));
 
     frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
 
@@ -161,4 +161,12 @@ fn biggest_duration_string(duration_ms: u64) -> String {
     } else {
         "now".to_owned()
     }
+}
+
+fn wrap_text(s: &str, width: usize) -> Text {
+    let content = textwrap::wrap(&s, width)
+        .into_iter()
+        .map(|s| Line::from(s.into_owned()))
+        .collect::<Vec<_>>();
+    Text::from(content)
 }
