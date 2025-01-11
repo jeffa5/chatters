@@ -8,6 +8,7 @@ use ratatui::layout::Direction;
 use ratatui::layout::Layout;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
+use ratatui::symbols::border::FULL;
 use ratatui::text::Line;
 use ratatui::text::Text;
 use ratatui::widgets::Block;
@@ -161,11 +162,10 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(1),
-            Constraint::Length(3),
-            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(1),
         ])
         .split(frame.area());
-    let b = Block::default().borders(Borders::all());
 
     let main_rect =
         Layout::horizontal([Constraint::Percentage(25), Constraint::Fill(1)]).split(chunks[0]);
@@ -183,11 +183,11 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     });
     let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
         .row_highlight_style(Style::new().reversed())
-        .block(b.clone().title("Contacts"));
+        .block(Block::new().borders(Borders::RIGHT).border_set(FULL));
     frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
 
     let message_rect =
-        Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(main_rect[1]);
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]).split(main_rect[1]);
 
     let message_width = message_rect[0].width as usize;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
@@ -229,16 +229,15 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     });
     let messages = List::default()
         .items(message_items)
-        .highlight_style(Style::new().reversed())
-        .block(b.clone().title("Messages"));
+        .highlight_style(Style::new().reversed());
 
     frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
 
-    let compose_width = message_rect[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+    let compose_width = message_rect[1].width.max(1) - 1; // keep 2 for borders and 1 for cursor
     let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
     let compose = Paragraph::new(tui_state.compose.value())
         .scroll((0, compose_scroll as u16))
-        .block(b.clone().title("Compose"));
+        .block(Block::new().borders(Borders::TOP).border_set(FULL));
     frame.render_widget(compose, message_rect[1]);
     if matches!(tui_state.mode, Mode::Compose) {
         frame.set_cursor_position((
@@ -251,28 +250,28 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         ))
     }
 
-    let status_line = Paragraph::new(Line::from(format!(
-        "mode:{:?} {:?}",
-        tui_state.mode, tui_state.command_completions
-    )))
-    .block(b.clone().title("Status line"));
+    let completions = tui_state.command_completions.join(" ");
+    let status_line = Paragraph::new(Line::from(format!("{:?} {}", tui_state.mode, completions)))
+        .style(Style::new().reversed());
     frame.render_widget(status_line, chunks[1]);
 
     let (command_string, command_style) = if tui_state.command_error.is_empty() {
-        (format!(":{}", tui_state.command.value()), Style::new())
+        if matches!(tui_state.mode, Mode::Command) {
+            (format!(":{}", tui_state.command.value()), Style::new())
+        } else {
+            (String::new(), Style::new())
+        }
     } else {
         (tui_state.command_error.clone(), Style::new().red())
     };
-    let command_line = Paragraph::new(command_string)
-        .style(command_style)
-        .block(b.title("Exline"));
+    let command_line = Paragraph::new(command_string).style(command_style);
     frame.render_widget(command_line, chunks[2]);
     if matches!(tui_state.mode, Mode::Command) {
         frame.set_cursor_position((
             // Put cursor past the end of the input text
-            chunks[2].x + tui_state.command.visual_cursor() as u16 + 2,
+            chunks[2].x + tui_state.command.visual_cursor() as u16 + 1,
             // Move one line down, from the border to the input line
-            chunks[2].y + 1,
+            chunks[2].y,
         ))
     }
 }
