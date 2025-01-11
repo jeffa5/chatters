@@ -6,6 +6,7 @@ use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
 use ratatui::layout::Layout;
+use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::symbols::border::FULL;
@@ -158,7 +159,7 @@ pub struct TuiState {
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let now = timestamp();
-    let chunks = Layout::default()
+    let vertical_splits = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Min(1),
@@ -167,9 +168,23 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         ])
         .split(frame.area());
 
-    let main_rect =
-        Layout::horizontal([Constraint::Percentage(25), Constraint::Fill(1)]).split(chunks[0]);
+    let contacts_messages =
+        Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)])
+            .split(vertical_splits[0]);
 
+    render_contacts(frame, contacts_messages[0], tui_state, now);
+
+    let message_rect =
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]).split(contacts_messages[1]);
+
+    render_messages(frame, message_rect[0], tui_state, now);
+    render_compose(frame, message_rect[1], tui_state, now);
+
+    render_status(frame, vertical_splits[1], tui_state, now);
+    render_command(frame, vertical_splits[2], tui_state, now);
+}
+
+fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
     let contact_items = tui_state.contacts.iter().map(|c| {
         let age = if c.last_message_timestamp == 0 {
             String::new()
@@ -184,12 +199,11 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
         .row_highlight_style(Style::new().reversed())
         .block(Block::new().borders(Borders::RIGHT).border_set(FULL));
-    frame.render_stateful_widget(contacts, main_rect[0], &mut tui_state.contact_list_state);
+    frame.render_stateful_widget(contacts, rect, &mut tui_state.contact_list_state);
+}
 
-    let message_rect =
-        Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]).split(main_rect[1]);
-
-    let message_width = message_rect[0].width as usize;
+fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
+    let message_width = rect.width as usize;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
         let sender_width = 20;
         let age_width = 3;
@@ -231,30 +245,36 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         .items(message_items)
         .highlight_style(Style::new().reversed());
 
-    frame.render_stateful_widget(messages, message_rect[0], &mut tui_state.message_list_state);
+    frame.render_stateful_widget(messages, rect, &mut tui_state.message_list_state);
+}
 
-    let compose_width = message_rect[1].width.max(1) - 1; // keep 2 for borders and 1 for cursor
+fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
+    let compose_width = rect.width.max(1) - 1; // keep 2 for borders and 1 for cursor
     let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
     let compose = Paragraph::new(tui_state.compose.value())
         .scroll((0, compose_scroll as u16))
         .block(Block::new().borders(Borders::TOP).border_set(FULL));
-    frame.render_widget(compose, message_rect[1]);
+    frame.render_widget(compose, rect);
     if matches!(tui_state.mode, Mode::Compose) {
         frame.set_cursor_position((
             // Put cursor past the end of the input text
-            message_rect[1].x
+            rect.x
                 + ((tui_state.compose.visual_cursor()).max(compose_scroll) - compose_scroll) as u16
                 + 1,
             // Move one line down, from the border to the input line
-            message_rect[1].y + 1,
+            rect.y + 1,
         ))
     }
+}
 
+fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     let completions = tui_state.command_completions.join(" ");
     let status_line = Paragraph::new(Line::from(format!("{:?} {}", tui_state.mode, completions)))
         .style(Style::new().reversed());
-    frame.render_widget(status_line, chunks[1]);
+    frame.render_widget(status_line, rect);
+}
 
+fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     let (command_string, command_style) = if tui_state.command_error.is_empty() {
         if matches!(tui_state.mode, Mode::Command) {
             (format!(":{}", tui_state.command.value()), Style::new())
@@ -265,13 +285,13 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         (tui_state.command_error.clone(), Style::new().red())
     };
     let command_line = Paragraph::new(command_string).style(command_style);
-    frame.render_widget(command_line, chunks[2]);
+    frame.render_widget(command_line, rect);
     if matches!(tui_state.mode, Mode::Command) {
         frame.set_cursor_position((
             // Put cursor past the end of the input text
-            chunks[2].x + tui_state.command.visual_cursor() as u16 + 1,
+            rect.x + tui_state.command.visual_cursor() as u16 + 1,
             // Move one line down, from the border to the input line
-            chunks[2].y,
+            rect.y,
         ))
     }
 }
