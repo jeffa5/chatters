@@ -98,7 +98,11 @@ impl Command for NextContact {
             tui_state.messages.clear();
             tui_state.message_list_state.select(None);
             ba_tx
-                .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
+                .unbounded_send(BackendMessage::LoadMessages {
+                    thread: contact.thread_id.clone(),
+                    start_ts: std::ops::Bound::Unbounded,
+                    end_ts: std::ops::Bound::Unbounded,
+                })
                 .unwrap();
         }
         Ok(ControlFlow::Continue(()))
@@ -135,7 +139,11 @@ impl Command for PrevContact {
             tui_state.messages.clear();
             tui_state.message_list_state.select(None);
             ba_tx
-                .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
+                .unbounded_send(BackendMessage::LoadMessages {
+                    thread: contact.thread_id.clone(),
+                    start_ts: std::ops::Bound::Unbounded,
+                    end_ts: std::ops::Bound::Unbounded,
+                })
                 .unwrap();
         }
         Ok(ControlFlow::Continue(()))

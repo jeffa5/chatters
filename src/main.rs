@@ -270,7 +270,11 @@ fn process_backend_message(
                 .and_then(|i| tui_state.contacts.get(i))
             {
                 ba_tx
-                    .unbounded_send(BackendMessage::LoadMessages(contact.thread_id.clone()))
+                    .unbounded_send(BackendMessage::LoadMessages {
+                        thread: contact.thread_id.clone(),
+                        start_ts: std::ops::Bound::Unbounded,
+                        end_ts: std::ops::Bound::Unbounded,
+                    })
                     .unwrap();
             }
         }

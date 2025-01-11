@@ -15,6 +15,7 @@ use presage::{
 };
 use presage_store_sled::{MigrationConflictStrategy, SledStore};
 use std::future::Future;
+use std::ops::Bound;
 use std::path::Path;
 use url::Url;
 
@@ -70,7 +71,12 @@ pub trait Backend: Sized {
 
     fn groups(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
-    fn messages(&self, contact: Thread) -> impl Future<Output = Result<Vec<Message>>>;
+    fn messages(
+        &self,
+        contact: Thread,
+        start_ts: Bound<u64>,
+        end_ts: Bound<u64>,
+    ) -> impl Future<Output = Result<Vec<Message>>>;
 
     fn send_message(
         &mut self,
@@ -221,9 +227,19 @@ impl Backend for Signal {
         Ok(ret)
     }
 
-    async fn messages(&self, contact: Thread) -> Result<Vec<Message>> {
+    async fn messages(
+        &self,
+        contact: Thread,
+        start_ts: Bound<u64>,
+        end_ts: Bound<u64>,
+    ) -> Result<Vec<Message>> {
         let mut ret = Vec::new();
-        let messages = self.manager.store().messages(&contact, ..).await.unwrap();
+        let messages = self
+            .manager
+            .store()
+            .messages(&contact, (start_ts, end_ts))
+            .await
+            .unwrap();
         for message in messages {
             let message = message.unwrap();
             if let Some(msg) = self.message_content_to_frontend_message(message) {

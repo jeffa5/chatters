@@ -26,8 +26,16 @@ impl<B: Backend> BackendActor<B> {
                         .unbounded_send(FrontendMessage::LoadedContacts(contacts))
                         .unwrap();
                 }
-                BackendMessage::LoadMessages(thread) => {
-                    let messages = self.backend.messages(thread).await.unwrap();
+                BackendMessage::LoadMessages {
+                    thread,
+                    start_ts,
+                    end_ts,
+                } => {
+                    let messages = self
+                        .backend
+                        .messages(thread, start_ts, end_ts)
+                        .await
+                        .unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::LoadedMessages(messages))
                         .unwrap();

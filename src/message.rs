@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use presage::store::Thread;
 
 use crate::backends::{Contact, Message, MessageContent};
@@ -5,7 +7,11 @@ use crate::backends::{Contact, Message, MessageContent};
 #[derive(Debug)]
 pub enum BackendMessage {
     LoadContacts,
-    LoadMessages(Thread),
+    LoadMessages {
+        thread: Thread,
+        start_ts: Bound<u64>,
+        end_ts: Bound<u64>,
+    },
     SendMessage(Thread, MessageContent),
 }
 
