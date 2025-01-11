@@ -136,8 +136,6 @@ async fn run_ui(
         .unbounded_send(BackendMessage::LoadContacts)
         .unwrap();
 
-    let keybinds = KeyBinds::normal_default();
-
     loop {
         // dbg!(&tui_state);
         terminal.draw(|f| render(f, &mut tui_state)).unwrap();
@@ -150,7 +148,7 @@ async fn run_ui(
 
         match select(event_future, backend_future).await {
             Either::Left((event, _)) => {
-                if process_user_event(&mut tui_state, &backend_actor_tx, &keybinds, event) {
+                if process_user_event(&mut tui_state, &backend_actor_tx, event) {
                     break;
                 }
             }
@@ -164,10 +162,10 @@ async fn run_ui(
 fn process_user_event(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    normal_keybinds: &KeyBinds,
     event: Event,
 ) -> bool {
     // dbg!(&event);
+    let normal_keybinds = KeyBinds::normal_default();
     let command_keybinds = KeyBinds::command_default();
     let compose_keybinds = KeyBinds::compose_default();
 
