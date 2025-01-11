@@ -16,7 +16,6 @@ use presage::{
 use presage_store_sled::{MigrationConflictStrategy, SledStore};
 use std::future::Future;
 use std::path::Path;
-use std::time::SystemTime;
 use url::Url;
 
 use crate::message::FrontendMessage;
@@ -224,18 +223,7 @@ impl Backend for Signal {
 
     async fn messages(&self, contact: Thread) -> Result<Vec<Message>> {
         let mut ret = Vec::new();
-        let one_day_seconds = 60 * 60 * 24;
-        let one_day_ago = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            - one_day_seconds;
-        let messages = self
-            .manager
-            .store()
-            .messages(&contact, one_day_ago..)
-            .await
-            .unwrap();
+        let messages = self.manager.store().messages(&contact, ..).await.unwrap();
         for message in messages {
             let message = message.unwrap();
             if let Some(msg) = self.message_content_to_frontend_message(message) {
