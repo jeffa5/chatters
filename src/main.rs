@@ -1,12 +1,12 @@
 use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
-use chatters::commands::Command;
+use chatters::commands::{self, Command};
 use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
 use chatters::tui::{render, Mode, TuiState};
-use crossterm::event::Event;
 use crossterm::event::EventStream;
 use crossterm::event::KeyEvent;
+use crossterm::event::{Event, KeyCode};
 use directories::ProjectDirs;
 use futures::channel::mpsc;
 use futures::future::Either;
@@ -198,6 +198,27 @@ fn process_user_event(
                 if let Some(command) = command_keybinds.get(&code) {
                     if execute_command(command) {
                         return true;
+                    }
+                } else if code == &KeyCode::Tab {
+                    // complete existing command
+                    let cmd = tui_state.command.value();
+                    if cmd.contains(' ') {
+                        return false;
+                    }
+
+                    let commands = commands::commands();
+                    let completions = commands
+                        .into_iter()
+                        .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(cmd)))
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<_>>();
+                    if completions.len() == 1 {
+                        (*tui_state).command = tui_state
+                            .command
+                            .clone()
+                            .with_value(completions[0].to_owned());
+                    } else if completions.len() > 1 {
+                        tui_state.command_completions = completions;
                     }
                 } else {
                     tui_state.command.handle_event(&event);

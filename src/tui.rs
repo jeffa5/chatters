@@ -151,6 +151,7 @@ pub struct TuiState {
     pub compose: Input,
     pub command: Input,
     pub command_error: String,
+    pub command_completions: Vec<String>,
     pub mode: Mode,
 }
 
@@ -250,8 +251,11 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
         ))
     }
 
-    let status_line = Paragraph::new(Line::from(format!("mode:{:?}", tui_state.mode)))
-        .block(b.clone().title("Status line"));
+    let status_line = Paragraph::new(Line::from(format!(
+        "mode:{:?} {:?}",
+        tui_state.mode, tui_state.command_completions
+    )))
+    .block(b.clone().title("Status line"));
     frame.render_widget(status_line, chunks[1]);
 
     let (command_string, command_style) = if tui_state.command_error.is_empty() {
