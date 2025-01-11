@@ -29,9 +29,30 @@ pub trait Command: std::fmt::Debug {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<ControlFlow<()>>;
 
-    fn parse(args: pico_args::Arguments) -> Result<Self>
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()>;
+
+    fn default() -> Self
     where
         Self: Sized;
+
+    fn names(&self) -> Vec<&'static str>;
+}
+
+pub fn commands() -> Vec<Box<dyn Command>> {
+    let mut v: Vec<Box<dyn Command>> = Vec::new();
+    v.push(Box::new(Quit::default()));
+    v.push(Box::new(NextContact::default()));
+    v.push(Box::new(PrevContact::default()));
+    v.push(Box::new(NextMessage::default()));
+    v.push(Box::new(PrevMessage::default()));
+    v.push(Box::new(SelectMessage::default()));
+    v.push(Box::new(NormalMode::default()));
+    v.push(Box::new(CommandMode::default()));
+    v.push(Box::new(ComposeMode::default()));
+    v.push(Box::new(SendMessage::default()));
+    v.push(Box::new(React::default()));
+    v.push(Box::new(Unreact::default()));
+    v
 }
 
 #[derive(Debug)]
@@ -46,8 +67,16 @@ impl Command for Quit {
         Ok(ControlFlow::Break(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["quit"]
     }
 }
 
@@ -75,8 +104,16 @@ impl Command for NextContact {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["next-contact"]
     }
 }
 
@@ -104,8 +141,16 @@ impl Command for PrevContact {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["prev-contact"]
     }
 }
 
@@ -122,8 +167,16 @@ impl Command for NextMessage {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["next-message"]
     }
 }
 
@@ -140,8 +193,16 @@ impl Command for PrevMessage {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["prev-message"]
     }
 }
 
@@ -168,12 +229,21 @@ impl Command for SelectMessage {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(mut args: pico_args::Arguments) -> Result<Self> {
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
         let index = args.free_from_str().map_err(|_e| Error::InvalidArgument {
             arg: "index".to_owned(),
             value: "".to_owned(),
         })?;
-        Ok(Self { index })
+        *self = Self { index };
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self { index: 0 }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["select-message"]
     }
 }
 
@@ -191,8 +261,16 @@ impl Command for NormalMode {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["mode-normal"]
     }
 }
 
@@ -210,8 +288,16 @@ impl Command for CommandMode {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["mode-command"]
     }
 }
 
@@ -228,8 +314,16 @@ impl Command for ComposeMode {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["mode-compose"]
     }
 }
 
@@ -261,8 +355,16 @@ impl Command for SendMessage {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["send-message"]
     }
 }
 
@@ -314,12 +416,20 @@ impl Command for React {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(mut args: pico_args::Arguments) -> Result<Self>
-    where
-        Self: Sized,
-    {
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
         let reaction = args.free_from_str().unwrap();
-        Ok(Self { reaction })
+        *self = Self { reaction };
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self {
+            reaction: String::new(),
+        }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["react"]
     }
 }
 
@@ -371,11 +481,16 @@ impl Command for Unreact {
         Ok(ControlFlow::Continue(()))
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["unreact"]
     }
 }
 
@@ -399,43 +514,30 @@ impl Command for ExecuteCommand {
             .collect();
         let mut pargs = pico_args::Arguments::from_vec(args);
 
-        let ret = match pargs.subcommand().unwrap().unwrap().as_str() {
-            "quit" => Quit::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
-            "next-contact" => NextContact::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "prev-contact" => PrevContact::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "next-message" => NextMessage::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "prev-message" => PrevMessage::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "select-message" => SelectMessage::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "mode-normal" => NormalMode::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "mode-command" => CommandMode::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "mode-compose" => ComposeMode::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "send-message" => SendMessage::parse(pargs)
-                .unwrap()
-                .execute(tui_state, ba_tx)?,
-            "react" => React::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
-            "unreact" => Unreact::parse(pargs).unwrap().execute(tui_state, ba_tx)?,
-            subcmd => return Err(Error::UnknownCommand(subcmd.to_owned())),
-        };
-        Ok(ret)
+        let subcmd = pargs.subcommand().unwrap().unwrap();
+        let commands = commands();
+        let command = commands
+            .into_iter()
+            .find(|c| c.names().contains(&subcmd.as_str()));
+
+        if let Some(mut command) = command {
+            command.parse(pargs).unwrap();
+            let ret = command.execute(tui_state, ba_tx)?;
+            Ok(ret)
+        } else {
+            Err(Error::UnknownCommand(subcmd.to_owned()))
+        }
     }
 
-    fn parse(_args: pico_args::Arguments) -> Result<Self> {
-        Ok(Self)
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["execute-command"]
     }
 }
