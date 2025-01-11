@@ -91,6 +91,7 @@ pub struct Signal {
 
 impl Backend for Signal {
     async fn load(path: &Path) -> Result<Self> {
+        eprintln!("Loading from {path:?}");
         let config_store =
             SledStore::open(path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
                 .await
@@ -289,6 +290,7 @@ impl Backend for Signal {
     }
 
     async fn self_uuid(&self) -> Uuid {
+        eprintln!("Getting self_uuid");
         self.manager.whoami().await.unwrap().aci
     }
 }
