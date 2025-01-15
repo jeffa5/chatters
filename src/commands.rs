@@ -53,6 +53,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(React::default()));
     v.push(Box::new(Unreact::default()));
     v.push(Box::new(ReloadContacts::default()));
+    v.push(Box::new(ReloadMessages::default()));
     v
 }
 
@@ -581,5 +582,48 @@ impl Command for ReloadContacts {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-contacts"]
+    }
+}
+
+#[derive(Debug)]
+pub struct ReloadMessages;
+
+impl Command for ReloadMessages {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<ControlFlow<()>> {
+        tui_state.messages.clear();
+        tui_state.message_list_state.select(None);
+        if let Some(contact) = tui_state
+            .contact_list_state
+            .selected()
+            .and_then(|i| tui_state.contacts.get(i))
+        {
+            ba_tx
+                .unbounded_send(BackendMessage::LoadMessages {
+                    thread: contact.thread_id.clone(),
+                    start_ts: std::ops::Bound::Unbounded,
+                    end_ts: std::ops::Bound::Unbounded,
+                })
+                .unwrap();
+        }
+        Ok(ControlFlow::Continue(()))
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["reload-messages"]
     }
 }
