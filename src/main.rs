@@ -24,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
+
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
     let db_path = project_dirs.data_local_dir();
 
@@ -66,7 +67,6 @@ async fn main() -> anyhow::Result<()> {
     info!("Loaded signal backend");
 
     let mut backend2 = backend.clone();
-
 
     let (b_tx, b_rx) = mpsc::unbounded();
     let (f_tx, f_rx) = mpsc::unbounded();
