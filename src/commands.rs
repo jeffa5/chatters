@@ -52,6 +52,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(SendMessage::default()));
     v.push(Box::new(React::default()));
     v.push(Box::new(Unreact::default()));
+    v.push(Box::new(ReloadContacts::default()));
     v
 }
 
@@ -548,5 +549,37 @@ impl Command for ExecuteCommand {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["execute-command"]
+    }
+}
+
+#[derive(Debug)]
+pub struct ReloadContacts;
+
+impl Command for ReloadContacts {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<ControlFlow<()>> {
+        tui_state.contacts.clear();
+        tui_state.contacts_by_id.clear();
+        tui_state.contact_list_state.select(None);
+        ba_tx.unbounded_send(BackendMessage::LoadContacts).unwrap();
+        Ok(ControlFlow::Continue(()))
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["reload-contacts"]
     }
 }
