@@ -266,6 +266,7 @@ impl Command for NormalMode {
     ) -> Result<ControlFlow<()>> {
         tui_state.mode = Mode::Normal;
         tui_state.command.reset();
+        tui_state.command_completions.clear();
         Ok(ControlFlow::Continue(()))
     }
 
