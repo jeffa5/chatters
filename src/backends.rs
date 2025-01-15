@@ -2,6 +2,8 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::pin_mut;
 use futures::StreamExt;
+use log::debug;
+use log::info;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
@@ -96,7 +98,7 @@ pub struct Signal {
 
 impl Backend for Signal {
     async fn load(path: &Path) -> Result<Self> {
-        eprintln!("Loading from {path:?}");
+        info!(path:? = path; "Loading signal backend");
         let config_store =
             SledStore::open(path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
                 .await
@@ -113,7 +115,7 @@ impl Backend for Signal {
             .unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
-            eprintln!("Received message {message:?}");
+            debug!(message:? = message; "Received message");
         }
 
         let self_uuid = manager.whoami().await.unwrap().aci;
@@ -170,7 +172,7 @@ impl Backend for Signal {
             .unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
-            eprintln!("Received message {message:?}");
+            debug!(message:? = message; "Received message");
             if let Some(msg) = self.message_content_to_frontend_message(message) {
                 ba_tx
                     .unbounded_send(FrontendMessage::NewMessage(msg))
@@ -196,7 +198,7 @@ impl Backend for Signal {
             let last_message_timestamp = self
                 .last_message_timestamp(&Thread::Contact(contact.uuid))
                 .await;
-            eprintln!("{:?}", contact);
+            debug!(contact:? = contact; "Found contact");
             ret.push(Contact {
                 thread_id: Thread::Contact(contact.uuid),
                 name,
@@ -216,7 +218,7 @@ impl Backend for Signal {
         for group in groups {
             let (key, group) = group.unwrap();
             let last_message_timestamp = self.last_message_timestamp(&Thread::Group(key)).await;
-            eprintln!("{:?}", group);
+            debug!(group:? = group; "Found group");
             ret.push(Contact {
                 thread_id: Thread::Group(key),
                 name: group.title,
@@ -294,7 +296,7 @@ impl Backend for Signal {
     }
 
     async fn self_uuid(&self) -> Uuid {
-        eprintln!("Getting self_uuid");
+        debug!("Getting self_uuid");
         self.manager.whoami().await.unwrap().aci
     }
 }
@@ -372,7 +374,7 @@ impl Signal {
             }
             _ => {}
         }
-        dbg!(&message);
+        debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
         None
     }
 }

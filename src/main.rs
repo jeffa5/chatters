@@ -12,6 +12,7 @@ use futures::channel::mpsc;
 use futures::future::Either;
 use futures::pin_mut;
 use futures::{future::select, StreamExt};
+use log::{info, warn};
 use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
@@ -20,6 +21,9 @@ use tui_input::backend::crossterm::EventHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
     let db_path = project_dirs.data_local_dir();
 
@@ -48,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
                             std::fs::write(qr_path, qr_svg.as_bytes()).unwrap();
                             open::that(qr_path).unwrap();
                         }
-                        Err(error) => eprintln!("linking device was cancelled: {}", error),
+                        Err(error) => warn!(error:% = error; "Linking device was cancelled"),
                     }
                 },
             )
@@ -59,13 +63,10 @@ async fn main() -> anyhow::Result<()> {
 
     let self_uuid = backend.self_uuid().await;
 
-    eprintln!("loaded signal backend");
+    info!("Loaded signal backend");
 
     let mut backend2 = backend.clone();
 
-    // eprintln!("syncing contacts");
-    // backend.sync_contacts().await.unwrap();
-    // eprintln!("synced contacts");
 
     let (b_tx, b_rx) = mpsc::unbounded();
     let (f_tx, f_rx) = mpsc::unbounded();
@@ -102,6 +103,9 @@ async fn main() -> anyhow::Result<()> {
     pin_mut!(actor);
 
     let sync = async move {
+        info!("Synchronising contacts");
+        backend2.sync_contacts().await.unwrap();
+        info!("Starting background sync");
         backend2.background_sync(f_tx).await.unwrap();
     };
     pin_mut!(sync);
@@ -235,7 +239,7 @@ fn process_user_event(
             }
         },
         e => {
-            eprintln!("unhandled event {e:?}");
+            warn!(event:? = e; "Unhandled event");
         }
     }
     false

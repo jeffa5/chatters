@@ -5,6 +5,7 @@ use crate::{
     message::{BackendMessage, FrontendMessage},
 };
 use futures::StreamExt;
+use log::info;
 
 pub struct BackendActor<B> {
     pub backend: B,
@@ -14,7 +15,7 @@ pub struct BackendActor<B> {
 
 impl<B: Backend> BackendActor<B> {
     pub async fn run(&mut self) {
-        eprintln!("Started backend actor");
+        info!("Started backend actor");
         while let Some(message) = self.message_rx.next().await {
             match message {
                 BackendMessage::LoadContacts => {
@@ -48,6 +49,6 @@ impl<B: Backend> BackendActor<B> {
                 }
             }
         }
-        eprintln!("Closing backend actor");
+        info!("Closing backend actor");
     }
 }
