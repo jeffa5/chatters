@@ -249,7 +249,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
 }
 
 fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let compose_width = rect.width.max(1) - 1; // keep 2 for borders and 1 for cursor
+    let compose_width = rect.width;
     let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
     let compose = Paragraph::new(tui_state.compose.value())
         .scroll((0, compose_scroll as u16))
@@ -259,8 +259,7 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
         frame.set_cursor_position((
             // Put cursor past the end of the input text
             rect.x
-                + ((tui_state.compose.visual_cursor()).max(compose_scroll) - compose_scroll) as u16
-                + 1,
+                + ((tui_state.compose.visual_cursor()).max(compose_scroll) - compose_scroll) as u16,
             // Move one line down, from the border to the input line
             rect.y + 1,
         ))
