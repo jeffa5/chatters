@@ -223,6 +223,7 @@ fn process_user_event(
                             .with_value(completions[0].to_owned());
                     } else if completions.len() > 1 {
                         tui_state.command_completions = completions;
+                        tui_state.command_completions.sort();
                     }
                 } else {
                     tui_state.command.handle_event(&event);
