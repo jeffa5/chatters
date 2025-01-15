@@ -349,7 +349,7 @@ impl Command for SendMessage {
     ) -> Result<ControlFlow<()>> {
         let message_body = tui_state.compose.value().to_owned();
         tui_state.compose.reset();
-        tui_state.mode = Mode::Normal;
+        NormalMode.execute(tui_state, ba_tx).unwrap();
 
         if let Some(contact) = tui_state
             .contact_list_state
@@ -516,7 +516,7 @@ impl Command for ExecuteCommand {
     ) -> Result<ControlFlow<()>> {
         let value = tui_state.command.value().to_owned();
         tui_state.command.reset();
-        tui_state.mode = Mode::Normal;
+        NormalMode.execute(tui_state, ba_tx).unwrap();
 
         let args = shell_words::split(&value)
             .unwrap()
