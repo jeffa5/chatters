@@ -9,7 +9,6 @@ use ratatui::layout::Layout;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
-use ratatui::symbols::border::FULL;
 use ratatui::text::Line;
 use ratatui::text::Text;
 use ratatui::widgets::Block;
@@ -198,7 +197,7 @@ fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
     });
     let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
         .row_highlight_style(Style::new().reversed())
-        .block(Block::new().borders(Borders::RIGHT).border_set(FULL));
+        .block(Block::new().borders(Borders::RIGHT));
     frame.render_stateful_widget(contacts, rect, &mut tui_state.contact_list_state);
 }
 
@@ -253,7 +252,7 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
     let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
     let compose = Paragraph::new(tui_state.compose.value())
         .scroll((0, compose_scroll as u16))
-        .block(Block::new().borders(Borders::TOP).border_set(FULL));
+        .block(Block::new().borders(Borders::TOP));
     frame.render_widget(compose, rect);
     if matches!(tui_state.mode, Mode::Compose) {
         frame.set_cursor_position((
