@@ -109,13 +109,15 @@ impl Backend for Signal {
             Err(_err) => return Err(Error::Unlinked),
         };
 
-        let messages = manager
-            .receive_messages(presage::manager::ReceivingMode::InitialSync)
-            .await
-            .unwrap();
+        let messages = manager.receive_messages().await.unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
             debug!(message:? = message; "Received message");
+            match message {
+                presage::model::messages::Received::QueueEmpty => break,
+                presage::model::messages::Received::Contacts => continue,
+                presage::model::messages::Received::Content(_) => {}
+            }
         }
 
         let self_uuid = manager.whoami().await.unwrap().aci;
@@ -157,7 +159,16 @@ impl Backend for Signal {
     }
 
     async fn sync_contacts(&mut self) -> Result<()> {
-        self.manager.sync_contacts().await.unwrap();
+        let messages = self.manager.receive_messages().await.unwrap();
+        pin_mut!(messages);
+        while let Some(message) = messages.next().await {
+            debug!(message:? = message; "Received message");
+            match message {
+                presage::model::messages::Received::QueueEmpty => {}
+                presage::model::messages::Received::Contacts => break,
+                presage::model::messages::Received::Content(_) => {}
+            }
+        }
         Ok(())
     }
 
@@ -165,18 +176,20 @@ impl Backend for Signal {
         &mut self,
         ba_tx: mpsc::UnboundedSender<FrontendMessage>,
     ) -> Result<()> {
-        let messages = self
-            .manager
-            .receive_messages(presage::manager::ReceivingMode::Forever)
-            .await
-            .unwrap();
+        let messages = self.manager.receive_messages().await.unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
             debug!(message:? = message; "Received message");
-            if let Some(msg) = self.message_content_to_frontend_message(message) {
-                ba_tx
-                    .unbounded_send(FrontendMessage::NewMessage(msg))
-                    .unwrap();
+            match message {
+                presage::model::messages::Received::QueueEmpty => {}
+                presage::model::messages::Received::Contacts => {}
+                presage::model::messages::Received::Content(message) => {
+                    if let Some(msg) = self.message_content_to_frontend_message(*message) {
+                        ba_tx
+                            .unbounded_send(FrontendMessage::NewMessage(msg))
+                            .unwrap();
+                    }
+                }
             }
         }
         Ok(())
