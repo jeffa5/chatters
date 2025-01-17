@@ -14,7 +14,7 @@ use futures::channel::mpsc;
 use futures::future::Either;
 use futures::pin_mut;
 use futures::{future::select, StreamExt};
-use log::{info, warn};
+use log::{debug, info, warn};
 use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
@@ -193,21 +193,26 @@ fn process_user_event(
         false
     };
 
-    match &event {
-        Event::Key(key_event @ KeyEvent { code, .. }) => match mode {
+    debug!(event:? = event; "Received event");
+    match event {
+        Event::Key(
+            key_event @ KeyEvent {
+                code, modifiers, ..
+            },
+        ) => match mode {
             Mode::Normal => {
-                if let Some(command) = normal_keybinds.get(&code) {
+                if let Some(command) = normal_keybinds.get(code, modifiers) {
                     if execute_command(command) {
                         return true;
                     }
                 }
             }
             Mode::Command => {
-                if let Some(command) = command_keybinds.get(&code) {
+                if let Some(command) = command_keybinds.get(code, modifiers) {
                     if execute_command(command) {
                         return true;
                     }
-                } else if code == &KeyCode::Tab {
+                } else if code == KeyCode::Tab {
                     // complete existing command
                     let cmd = tui_state.command.lines().join("\n");
                     if cmd.contains(' ') {
@@ -221,22 +226,23 @@ fn process_user_event(
                         .map(|s| s.to_owned())
                         .collect::<Vec<_>>();
                     if completions.len() == 1 {
-                        (*tui_state).command = TextArea::new(completions[0].lines().map(|l| l.to_owned()).collect());
+                        (*tui_state).command =
+                            TextArea::new(completions[0].lines().map(|l| l.to_owned()).collect());
                     } else if completions.len() > 1 {
                         tui_state.command_completions = completions;
                         tui_state.command_completions.sort();
                     }
                 } else {
-                    tui_state.command.input(*key_event);
+                    tui_state.command.input(key_event);
                 }
             }
             Mode::Compose => {
-                if let Some(command) = compose_keybinds.get(&code) {
+                if let Some(command) = compose_keybinds.get(code, modifiers) {
                     if execute_command(command) {
                         return true;
                     }
                 } else {
-                    tui_state.compose.input(*key_event);
+                    tui_state.compose.input(key_event);
                 }
             }
         },

@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::commands::{
     Command, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand, NextContact, NextMessage,
@@ -8,41 +6,97 @@ use crate::commands::{
 };
 
 #[derive(Debug)]
+pub enum KeyMods {
+    Modifiers(KeyModifiers),
+    Any,
+}
+
+impl PartialEq for KeyMods {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Modifiers(l0), Self::Modifiers(r0)) => l0 == r0,
+            (Self::Any, Self::Modifiers(_)) => true,
+            (Self::Modifiers(_), Self::Any) => true,
+            (Self::Any, Self::Any) => true,
+        }
+    }
+}
+
+impl Eq for KeyMods {}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct KeyEvent {
+    code: KeyCode,
+    modifiers: KeyMods,
+}
+
+#[derive(Debug)]
 pub struct KeyBinds {
-    pub bindings: HashMap<KeyCode, Box<dyn Command>>,
+    pub bindings: Vec<(KeyEvent, Box<dyn Command>)>,
 }
 
 impl KeyBinds {
     pub fn normal_default() -> Self {
-        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
-        bindings.insert(KeyCode::Char('q'), Box::new(Quit));
-        bindings.insert(KeyCode::Char('J'), Box::new(NextContact));
-        bindings.insert(KeyCode::Char('K'), Box::new(PrevContact));
-        bindings.insert(KeyCode::Char('j'), Box::new(NextMessage));
-        bindings.insert(KeyCode::Char('k'), Box::new(PrevMessage));
-        bindings.insert(KeyCode::Char(':'), Box::new(CommandMode));
-        bindings.insert(KeyCode::Char('i'), Box::new(ComposeMode));
-        bindings.insert(KeyCode::Char('g'), Box::new(SelectMessage { index: 0 }));
-        bindings.insert(KeyCode::Char('G'), Box::new(SelectMessage { index: -1 }));
-        bindings.insert(KeyCode::Char('I'), Box::new(ComposeInEditor));
+        let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
+        bindings.push((char('q'), Box::new(Quit)));
+        bindings.push((char('J'), Box::new(NextContact)));
+        bindings.push((char('K'), Box::new(PrevContact)));
+        bindings.push((char('j'), Box::new(NextMessage)));
+        bindings.push((char('k'), Box::new(PrevMessage)));
+        bindings.push((char(':'), Box::new(CommandMode)));
+        bindings.push((char('i'), Box::new(ComposeMode)));
+        bindings.push((char('g'), Box::new(SelectMessage { index: 0 })));
+        bindings.push((char('G'), Box::new(SelectMessage { index: -1 })));
+        bindings.push((char('I'), Box::new(ComposeInEditor)));
+        bindings.push((code(KeyCode::Enter), Box::new(SendMessage)));
         Self { bindings }
     }
 
     pub fn command_default() -> Self {
-        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
-        bindings.insert(KeyCode::Esc, Box::new(NormalMode));
-        bindings.insert(KeyCode::Enter, Box::new(ExecuteCommand));
+        let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
+        bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
+        bindings.push((any_code(KeyCode::Enter), Box::new(ExecuteCommand)));
         Self { bindings }
     }
 
     pub fn compose_default() -> Self {
-        let mut bindings: HashMap<KeyCode, Box<dyn Command>> = HashMap::new();
-        bindings.insert(KeyCode::Esc, Box::new(NormalMode));
-        bindings.insert(KeyCode::Enter, Box::new(SendMessage));
+        let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
+        bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
         Self { bindings }
     }
 
-    pub fn get(&self, s: &KeyCode) -> Option<&Box<dyn Command>> {
-        self.bindings.get(s)
+    pub fn get(&self, code: KeyCode, mods: KeyModifiers) -> Option<&Box<dyn Command>> {
+        let key_event = &KeyEvent {
+            code,
+            modifiers: KeyMods::Modifiers(mods),
+        };
+        self.bindings
+            .iter()
+            .find_map(|(ke, c)| if ke == key_event { Some(c) } else { None })
+    }
+}
+
+fn char(c: char) -> KeyEvent {
+    KeyEvent {
+        code: KeyCode::Char(c),
+        modifiers: KeyMods::Modifiers(if c.is_uppercase() {
+            KeyModifiers::SHIFT
+        } else {
+            KeyModifiers::NONE
+        }),
+    }
+}
+
+fn code(code: KeyCode) -> KeyEvent {
+    KeyEvent {
+        code,
+        modifiers: KeyMods::Modifiers(KeyModifiers::NONE),
+    }
+}
+
+fn any_code(code: KeyCode) -> KeyEvent {
+    KeyEvent {
+        code,
+        modifiers: KeyMods::Any,
     }
 }
