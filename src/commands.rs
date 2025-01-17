@@ -5,7 +5,7 @@ use std::{
 
 use futures::channel::mpsc;
 use log::warn;
-use tui_input::Input;
+use tui_textarea::TextArea;
 
 use crate::{
     backends::MessageContent,
@@ -279,7 +279,7 @@ impl Command for NormalMode {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Normal;
-        tui_state.command.reset();
+        tui_state.command = TextArea::default();
         tui_state.command_completions.clear();
         Ok(CommandSuccess::Nothing)
     }
@@ -359,8 +359,8 @@ impl Command for SendMessage {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let message_body = tui_state.compose.value().to_owned();
-        tui_state.compose.reset();
+        let message_body = tui_state.compose.lines().join("\n");
+        tui_state.compose = TextArea::default();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
         if message_body.is_empty() {
@@ -530,8 +530,8 @@ impl Command for ExecuteCommand {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let value = tui_state.command.value().to_owned();
-        tui_state.command.reset();
+        let value = tui_state.command.lines().join("\n");
+        tui_state.command = TextArea::default();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
         let args = shell_words::split(&value)
@@ -653,7 +653,7 @@ impl Command for ComposeInEditor {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let compose_content = tui_state.compose.value();
+        let compose_content = tui_state.compose.lines().join("\n");
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         tmpfile.write_all(compose_content.as_bytes()).unwrap();
         let editor = std::env::var("EDITOR").unwrap_or("vim".to_owned());
@@ -665,7 +665,8 @@ impl Command for ComposeInEditor {
             let mut compose_content = String::new();
             tmpfile.seek(std::io::SeekFrom::Start(0)).unwrap();
             tmpfile.read_to_string(&mut compose_content).unwrap();
-            (*tui_state).compose = Input::new(compose_content);
+            let compose_lines = compose_content.lines().map(|l| l.to_owned()).collect();
+            (*tui_state).compose = TextArea::new(compose_lines);
         } else {
             warn!("Not using compose content from external editor due to error status");
         }

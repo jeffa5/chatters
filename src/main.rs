@@ -20,7 +20,7 @@ use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
-use tui_input::backend::crossterm::EventHandler;
+use tui_textarea::TextArea;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -194,7 +194,7 @@ fn process_user_event(
     };
 
     match &event {
-        Event::Key(KeyEvent { code, .. }) => match mode {
+        Event::Key(key_event @ KeyEvent { code, .. }) => match mode {
             Mode::Normal => {
                 if let Some(command) = normal_keybinds.get(&code) {
                     if execute_command(command) {
@@ -209,7 +209,7 @@ fn process_user_event(
                     }
                 } else if code == &KeyCode::Tab {
                     // complete existing command
-                    let cmd = tui_state.command.value();
+                    let cmd = tui_state.command.lines().join("\n");
                     if cmd.contains(' ') {
                         return false;
                     }
@@ -217,20 +217,17 @@ fn process_user_event(
                     let commands = commands::commands();
                     let completions = commands
                         .into_iter()
-                        .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(cmd)))
+                        .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(&cmd)))
                         .map(|s| s.to_owned())
                         .collect::<Vec<_>>();
                     if completions.len() == 1 {
-                        (*tui_state).command = tui_state
-                            .command
-                            .clone()
-                            .with_value(completions[0].to_owned());
+                        (*tui_state).command = TextArea::new(completions[0].lines().map(|l| l.to_owned()).collect());
                     } else if completions.len() > 1 {
                         tui_state.command_completions = completions;
                         tui_state.command_completions.sort();
                     }
                 } else {
-                    tui_state.command.handle_event(&event);
+                    tui_state.command.input(*key_event);
                 }
             }
             Mode::Compose => {
@@ -239,7 +236,7 @@ fn process_user_event(
                         return true;
                     }
                 } else {
-                    tui_state.compose.handle_event(&event);
+                    tui_state.compose.input(*key_event);
                 }
             }
         },

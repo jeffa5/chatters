@@ -8,6 +8,7 @@ use ratatui::layout::Direction;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
+use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Text;
@@ -21,7 +22,7 @@ use ratatui::widgets::Table;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
 use textwrap::Options;
-use tui_input::Input;
+use tui_textarea::TextArea;
 
 use crate::backends::Contact;
 
@@ -149,8 +150,8 @@ pub struct TuiState {
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: Messages,
-    pub compose: Input,
-    pub command: Input,
+    pub compose: TextArea<'static>,
+    pub command: TextArea<'static>,
     pub command_error: String,
     pub command_completions: Vec<String>,
     pub mode: Mode,
@@ -173,8 +174,9 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     render_contacts(frame, contacts_messages[0], tui_state, now);
 
-    let message_rect =
-        Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]).split(contacts_messages[1]);
+    let compose_height = tui_state.compose.lines().len().max(1) as u16 + 1; // 1 for top border
+    let message_rect = Layout::vertical([Constraint::Fill(1), Constraint::Length(compose_height)])
+        .split(contacts_messages[1]);
 
     render_messages(frame, message_rect[0], tui_state, now);
     render_compose(frame, message_rect[1], tui_state, now);
@@ -248,21 +250,21 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
 }
 
 fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let compose_width = rect.width;
-    let compose_scroll = tui_state.compose.visual_scroll(compose_width as usize);
-    let compose = Paragraph::new(tui_state.compose.value())
-        .scroll((0, compose_scroll as u16))
-        .block(Block::new().borders(Borders::TOP));
-    frame.render_widget(compose, rect);
+    tui_state
+        .compose
+        .set_block(Block::new().borders(Borders::TOP));
     if matches!(tui_state.mode, Mode::Compose) {
-        frame.set_cursor_position((
-            // Put cursor past the end of the input text
-            rect.x
-                + ((tui_state.compose.visual_cursor()).max(compose_scroll) - compose_scroll) as u16,
-            // Move one line down, from the border to the input line
-            rect.y + 1,
-        ))
+        // show cursor
+        tui_state.compose.set_cursor_style(Style::new().reversed());
+        tui_state
+            .compose
+            .set_cursor_line_style(Style::new().underlined());
+    } else {
+        // hide cursor
+        tui_state.compose.set_cursor_style(Style::new());
+        tui_state.compose.set_cursor_line_style(Style::new());
     }
+    frame.render_widget(&tui_state.compose, rect);
 }
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
@@ -273,25 +275,20 @@ fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _n
 }
 
 fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let (command_string, command_style) = if tui_state.command_error.is_empty() {
+    if tui_state.command_error.is_empty() {
         if matches!(tui_state.mode, Mode::Command) {
-            (format!(":{}", tui_state.command.value()), Style::new())
+            let value = tui_state.command.lines().join("\n");
+            (format!(":{}", value), Style::new());
+            frame.render_widget(&tui_state.command, rect);
         } else {
-            (String::new(), Style::new())
+            frame.render_widget(ratatui::widgets::Clear::default(), rect);
         }
     } else {
-        (tui_state.command_error.clone(), Style::new().red())
+        frame.render_widget(
+            Paragraph::new(tui_state.command_error.clone()).set_style(Style::new().red()),
+            rect,
+        );
     };
-    let command_line = Paragraph::new(command_string).style(command_style);
-    frame.render_widget(command_line, rect);
-    if matches!(tui_state.mode, Mode::Command) {
-        frame.set_cursor_position((
-            // Put cursor past the end of the input text
-            rect.x + tui_state.command.visual_cursor() as u16 + 1,
-            // Move one line down, from the border to the input line
-            rect.y,
-        ))
-    }
 }
 
 fn biggest_duration_string(duration_ms: u64) -> String {

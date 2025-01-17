@@ -23,7 +23,7 @@ tempfile = "3.15.0"
 textwrap = "0.16.1"
 thiserror = "2.0.9"
 tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
-tui-input = "0.11.1"
+tui-textarea = "0.7.0"
 url = "2.5.4"
 
 [patch.crates-io]
