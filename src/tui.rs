@@ -279,7 +279,13 @@ fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
         if matches!(tui_state.mode, Mode::Command) {
             let value = tui_state.command.lines().join("\n");
             (format!(":{}", value), Style::new());
-            frame.render_widget(&tui_state.command, rect);
+            frame.render_widget(Line::from(":"), rect);
+            let inner_rect = rect.inner(ratatui::layout::Margin {
+                horizontal: 1,
+                vertical: 0,
+            });
+            tui_state.command.set_cursor_line_style(Style::new());
+            frame.render_widget(&tui_state.command, inner_rect);
         } else {
             frame.render_widget(ratatui::widgets::Clear::default(), rect);
         }
