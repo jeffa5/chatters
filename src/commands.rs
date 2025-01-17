@@ -68,6 +68,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ReloadContacts::default()));
     v.push(Box::new(ReloadMessages::default()));
     v.push(Box::new(ComposeInEditor::default()));
+    v.push(Box::new(ClearCompose::default()));
     v
 }
 
@@ -689,5 +690,34 @@ impl Command for ComposeInEditor {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["compose-in-editor"]
+    }
+}
+
+#[derive(Debug)]
+pub struct ClearCompose;
+
+impl Command for ClearCompose {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        tui_state.compose = TextArea::default();
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["clear-compose"]
     }
 }
