@@ -363,6 +363,10 @@ impl Command for SendMessage {
         tui_state.compose.reset();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
+        if message_body.is_empty() {
+            return Ok(CommandSuccess::Nothing);
+        }
+
         if let Some(contact) = tui_state
             .contact_list_state
             .selected()
