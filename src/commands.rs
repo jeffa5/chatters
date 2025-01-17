@@ -359,7 +359,7 @@ impl Command for SendMessage {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let message_body = tui_state.compose.lines().join("\n");
+        let message_body = tui_state.compose.lines().join("\n").trim().to_owned();
         tui_state.compose = TextArea::default();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
