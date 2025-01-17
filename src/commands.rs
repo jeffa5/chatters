@@ -1,12 +1,23 @@
-use std::{ffi::OsString, ops::ControlFlow};
+use std::{
+    ffi::OsString,
+    io::{Read, Seek, Write as _},
+};
 
 use futures::channel::mpsc;
+use log::warn;
+use tui_input::Input;
 
 use crate::{
     backends::MessageContent,
     message::BackendMessage,
     tui::{Mode, TuiState},
 };
+
+pub enum CommandSuccess {
+    Nothing,
+    Quit,
+    Clear,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -27,7 +38,7 @@ pub trait Command: std::fmt::Debug {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>>;
+    ) -> Result<CommandSuccess>;
 
     fn parse(&mut self, args: pico_args::Arguments) -> Result<()>;
 
@@ -54,6 +65,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Unreact::default()));
     v.push(Box::new(ReloadContacts::default()));
     v.push(Box::new(ReloadMessages::default()));
+    v.push(Box::new(ComposeInEditor::default()));
     v
 }
 
@@ -65,8 +77,8 @@ impl Command for Quit {
         &self,
         _tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
-        Ok(ControlFlow::Break(()))
+    ) -> Result<CommandSuccess> {
+        Ok(CommandSuccess::Quit)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -90,7 +102,7 @@ impl Command for NextContact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.contact_list_state.select_next();
         if let Some(contact) = tui_state
             .contact_list_state
@@ -107,7 +119,7 @@ impl Command for NextContact {
                 })
                 .unwrap();
         }
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -131,7 +143,7 @@ impl Command for PrevContact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.contact_list_state.select_previous();
         if let Some(contact) = tui_state
             .contact_list_state
@@ -148,7 +160,7 @@ impl Command for PrevContact {
                 })
                 .unwrap();
         }
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -172,9 +184,9 @@ impl Command for NextMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.message_list_state.select_next();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -198,9 +210,9 @@ impl Command for PrevMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.message_list_state.select_previous();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -226,7 +238,7 @@ impl Command for SelectMessage {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         let abs_index: usize = self.index.abs().try_into().unwrap();
         if self.index < 0 {
             let num_messages = tui_state.messages.len();
@@ -236,7 +248,7 @@ impl Command for SelectMessage {
         } else {
             tui_state.message_list_state.select(Some(abs_index));
         }
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
@@ -265,11 +277,11 @@ impl Command for NormalMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Normal;
         tui_state.command.reset();
         tui_state.command_completions.clear();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -293,10 +305,10 @@ impl Command for CommandMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Command;
         tui_state.command_error.clear();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -320,9 +332,9 @@ impl Command for ComposeMode {
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Compose;
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -346,7 +358,7 @@ impl Command for SendMessage {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         let message_body = tui_state.compose.value().to_owned();
         tui_state.compose.reset();
         NormalMode.execute(tui_state, ba_tx).unwrap();
@@ -363,7 +375,7 @@ impl Command for SendMessage {
                 ))
                 .unwrap();
         }
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -389,7 +401,7 @@ impl Command for React {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         let Some(e) = emojis::get_by_shortcode(&self.reaction) else {
             return Err(Error::InvalidArgument {
                 arg: "reaction".to_owned(),
@@ -424,7 +436,7 @@ impl Command for React {
                 ),
             ))
             .unwrap();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
@@ -452,7 +464,7 @@ impl Command for Unreact {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         let Some(contact) = tui_state
             .contact_list_state
             .selected()
@@ -475,7 +487,7 @@ impl Command for Unreact {
             .find(|r| r.author == tui_state.self_uuid)
             .map(|r| r.emoji.clone())
         else {
-            return Ok(ControlFlow::Continue(()));
+            return Ok(CommandSuccess::Nothing);
         };
 
         ba_tx
@@ -489,7 +501,7 @@ impl Command for Unreact {
                 ),
             ))
             .unwrap();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -513,7 +525,7 @@ impl Command for ExecuteCommand {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         let value = tui_state.command.value().to_owned();
         tui_state.command.reset();
         NormalMode.execute(tui_state, ba_tx).unwrap();
@@ -561,12 +573,12 @@ impl Command for ReloadContacts {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.contacts.clear();
         tui_state.contacts_by_id.clear();
         tui_state.contact_list_state.select(None);
         ba_tx.unbounded_send(BackendMessage::LoadContacts).unwrap();
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -593,7 +605,7 @@ impl Command for ReloadMessages {
         &self,
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
-    ) -> Result<ControlFlow<()>> {
+    ) -> Result<CommandSuccess> {
         tui_state.messages.clear();
         tui_state.message_list_state.select(None);
         if let Some(contact) = tui_state
@@ -609,7 +621,7 @@ impl Command for ReloadMessages {
                 })
                 .unwrap();
         }
-        Ok(ControlFlow::Continue(()))
+        Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
@@ -625,5 +637,49 @@ impl Command for ReloadMessages {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-messages"]
+    }
+}
+
+#[derive(Debug)]
+pub struct ComposeInEditor;
+
+impl Command for ComposeInEditor {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let compose_content = tui_state.compose.value();
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        tmpfile.write_all(compose_content.as_bytes()).unwrap();
+        let editor = std::env::var("EDITOR").unwrap_or("vim".to_owned());
+        let status = std::process::Command::new(editor)
+            .arg(tmpfile.path())
+            .status()
+            .unwrap();
+        if status.success() {
+            let mut compose_content = String::new();
+            tmpfile.seek(std::io::SeekFrom::Start(0)).unwrap();
+            tmpfile.read_to_string(&mut compose_content).unwrap();
+            (*tui_state).compose = Input::new(compose_content);
+        } else {
+            warn!("Not using compose content from external editor due to error status");
+        }
+        Ok(CommandSuccess::Clear)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["compose-in-editor"]
     }
 }

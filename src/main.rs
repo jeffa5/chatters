@@ -1,3 +1,5 @@
+use std::io::Stdout;
+
 use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
 use chatters::commands::{self, Command};
@@ -16,14 +18,13 @@ use log::{info, warn};
 use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
-use ratatui::DefaultTerminal;
+use ratatui::prelude::CrosstermBackend;
+use ratatui::{DefaultTerminal, Terminal};
 use tui_input::backend::crossterm::EventHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::init();
 
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
     let db_path = project_dirs.data_local_dir();
@@ -152,7 +153,7 @@ async fn run_ui(
 
         match select(event_future, backend_future).await {
             Either::Left((event, _)) => {
-                if process_user_event(&mut tui_state, &backend_actor_tx, event) {
+                if process_user_event(&mut tui_state, &backend_actor_tx, &mut terminal, event) {
                     break;
                 }
             }
@@ -166,6 +167,7 @@ async fn run_ui(
 fn process_user_event(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     event: Event,
 ) -> bool {
     // dbg!(&event);
@@ -177,11 +179,13 @@ fn process_user_event(
 
     let mut execute_command = |cmd: &Box<dyn Command>| {
         match cmd.execute(tui_state, ba_tx) {
-            Ok(cf) => {
-                if cf.is_break() {
-                    return true;
+            Ok(cs) => match cs {
+                commands::CommandSuccess::Nothing => {}
+                commands::CommandSuccess::Quit => return true,
+                commands::CommandSuccess::Clear => {
+                    terminal.clear().unwrap();
                 }
-            }
+            },
             Err(error) => {
                 tui_state.command_error = error.to_string();
             }
