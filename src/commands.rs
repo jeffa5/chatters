@@ -21,6 +21,8 @@ pub enum CommandSuccess {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Missing argument {0}")]
+    MissingArgument(String),
     #[error("Invalid argument {arg:?} with value {value:?}")]
     InvalidArgument { arg: String, value: String },
     #[error("No contact selected")]
@@ -252,10 +254,9 @@ impl Command for SelectMessage {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args.free_from_str().map_err(|_e| Error::InvalidArgument {
-            arg: "index".to_owned(),
-            value: "".to_owned(),
-        })?;
+        let index = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
         *self = Self { index };
         Ok(())
     }
@@ -397,7 +398,7 @@ impl Command for SendMessage {
 
 #[derive(Debug)]
 pub struct React {
-    reaction: String,
+    emoji: String,
 }
 
 impl Command for React {
@@ -406,10 +407,10 @@ impl Command for React {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(e) = emojis::get_by_shortcode(&self.reaction) else {
+        let Some(e) = emojis::get_by_shortcode(&self.emoji) else {
             return Err(Error::InvalidArgument {
-                arg: "reaction".to_owned(),
-                value: self.reaction.clone(),
+                arg: "emoji".to_owned(),
+                value: self.emoji.clone(),
             });
         };
 
@@ -444,14 +445,16 @@ impl Command for React {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let reaction = args.free_from_str().unwrap();
-        *self = Self { reaction };
+        let emoji = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("emoji".to_owned()))?;
+        *self = Self { emoji };
         Ok(())
     }
 
     fn default() -> Self {
         Self {
-            reaction: String::new(),
+            emoji: String::new(),
         }
     }
 
