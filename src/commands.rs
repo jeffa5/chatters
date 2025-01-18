@@ -49,6 +49,8 @@ pub trait Command: std::fmt::Debug {
         Self: Sized;
 
     fn names(&self) -> Vec<&'static str>;
+
+    fn complete(&self) -> Vec<String>;
 }
 
 pub fn commands() -> Vec<Box<dyn Command>> {
@@ -96,6 +98,10 @@ impl Command for Quit {
     fn names(&self) -> Vec<&'static str> {
         vec!["quit"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -136,6 +142,10 @@ impl Command for NextContact {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["next-contact"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -178,6 +188,10 @@ impl Command for PrevContact {
     fn names(&self) -> Vec<&'static str> {
         vec!["prev-contact"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -204,6 +218,10 @@ impl Command for NextMessage {
     fn names(&self) -> Vec<&'static str> {
         vec!["next-message"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -229,6 +247,10 @@ impl Command for PrevMessage {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["prev-message"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -270,6 +292,10 @@ impl Command for SelectMessage {
     fn names(&self) -> Vec<&'static str> {
         vec!["select-message"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -298,6 +324,10 @@ impl Command for NormalMode {
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-normal"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -325,6 +355,10 @@ impl Command for CommandMode {
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-command"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -350,6 +384,10 @@ impl Command for ComposeMode {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-compose"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -395,6 +433,10 @@ impl Command for SendMessage {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["send-message"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -463,6 +505,18 @@ impl Command for React {
     fn names(&self) -> Vec<&'static str> {
         vec!["react"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        if self.emoji.is_empty() {
+            return Vec::new();
+        }
+        emojis::iter()
+            .flat_map(|e| e.shortcodes())
+            .filter(|s| s.starts_with(&self.emoji))
+            .map(|s| s.to_owned())
+            .take(10)
+            .collect()
+    }
 }
 
 #[derive(Debug)]
@@ -524,6 +578,10 @@ impl Command for Unreact {
     fn names(&self) -> Vec<&'static str> {
         vec!["unreact"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -582,6 +640,10 @@ impl Command for ExecuteCommand {
     fn names(&self) -> Vec<&'static str> {
         vec!["execute-command"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -613,6 +675,10 @@ impl Command for ReloadContacts {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-contacts"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -656,6 +722,10 @@ impl Command for ReloadMessages {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-messages"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 
@@ -702,6 +772,10 @@ impl Command for ComposeInEditor {
     fn names(&self) -> Vec<&'static str> {
         vec!["compose-in-editor"]
     }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug)]
@@ -730,5 +804,9 @@ impl Command for ClearCompose {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["clear-compose"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
     }
 }

@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::io::Stdout;
 
 use chatters::backend_actor::BackendActor;
@@ -216,21 +217,39 @@ fn process_user_event(
                     // complete existing command
                     let cmd = tui_state.command.lines().join("\n");
                     if cmd.contains(' ') {
-                        return false;
-                    }
-
-                    let commands = commands::commands();
-                    let completions = commands
-                        .into_iter()
-                        .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(&cmd)))
-                        .map(|s| s.to_owned())
-                        .collect::<Vec<_>>();
-                    if completions.len() == 1 {
-                        (*tui_state).command =
-                            TextArea::new(completions[0].lines().map(|l| l.to_owned()).collect());
-                    } else if completions.len() > 1 {
+                        let args = shell_words::split(&cmd)
+                            .unwrap()
+                            .into_iter()
+                            .map(|s| OsString::from(s))
+                            .collect();
+                        let mut pargs = pico_args::Arguments::from_vec(args);
+                        let subcmd = pargs.subcommand().unwrap().unwrap();
+                        let cmds = commands::commands();
+                        let Some(mut command) = cmds
+                            .into_iter()
+                            .find(|c| c.names().contains(&subcmd.as_str()))
+                        else {
+                            return false;
+                        };
+                        let _ = command.parse(pargs);
+                        let completions = command.complete();
                         tui_state.command_completions = completions;
                         tui_state.command_completions.sort();
+                    } else {
+                        let commands = commands::commands();
+                        let completions = commands
+                            .into_iter()
+                            .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(&cmd)))
+                            .map(|s| s.to_owned())
+                            .collect::<Vec<_>>();
+                        if completions.len() == 1 {
+                            (*tui_state).command = TextArea::new(
+                                completions[0].lines().map(|l| l.to_owned()).collect(),
+                            );
+                        } else if completions.len() > 1 {
+                            tui_state.command_completions = completions;
+                            tui_state.command_completions.sort();
+                        }
                     }
                 } else {
                     tui_state.command.input(key_event);
