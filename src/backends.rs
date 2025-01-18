@@ -334,53 +334,42 @@ impl Signal {
 
     fn message_content_to_frontend_message(&self, message: Content) -> Option<Message> {
         let thread = Thread::try_from(&message).unwrap();
+        let data_message_to_message = |dm: &DataMessage, sender: Uuid| {
+            if let Some(body) = &dm.body {
+                return Some(Message {
+                    timestamp: message.metadata.timestamp,
+                    sender,
+                    thread,
+                    content: MessageContent::Text(body.clone()),
+                });
+            } else if let Some(r) = &dm.reaction {
+                let emoji = r.emoji.clone()?;
+                return Some(Message {
+                    timestamp: message.metadata.timestamp,
+                    sender,
+                    thread,
+                    content: MessageContent::Reaction(
+                        r.target_author_aci.as_ref().unwrap().parse().unwrap(),
+                        r.target_sent_timestamp.unwrap(),
+                        emoji,
+                        r.remove(),
+                    ),
+                });
+            }
+            None
+        };
         match &message.body {
             ContentBody::DataMessage(dm) => {
                 let sender = message.metadata.sender.raw_uuid();
-                if let Some(body) = &dm.body {
-                    return Some(Message {
-                        timestamp: message.metadata.timestamp,
-                        sender,
-                        thread,
-                        content: MessageContent::Text(body.clone()),
-                    });
-                } else if let Some(r) = &dm.reaction {
-                    let emoji = r.emoji.clone()?;
-                    return Some(Message {
-                        timestamp: message.metadata.timestamp,
-                        sender,
-                        thread,
-                        content: MessageContent::Reaction(
-                            r.target_author_aci.as_ref().unwrap().parse().unwrap(),
-                            r.target_sent_timestamp.unwrap(),
-                            emoji,
-                            r.remove(),
-                        ),
-                    });
+                if let Some(m) = data_message_to_message(dm, sender) {
+                    return Some(m);
                 }
             }
             ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
                 if let Some(sent) = &sm.sent {
                     if let Some(dm) = &sent.message {
-                        if let Some(body) = &dm.body {
-                            return Some(Message {
-                                timestamp: sent.timestamp(),
-                                sender: self.self_uuid,
-                                thread,
-                                content: MessageContent::Text(body.clone()),
-                            });
-                        } else if let Some(r) = &dm.reaction {
-                            return Some(Message {
-                                timestamp: message.metadata.timestamp,
-                                sender: self.self_uuid,
-                                thread,
-                                content: MessageContent::Reaction(
-                                    r.target_author_aci.as_ref().unwrap().parse().unwrap(),
-                                    r.target_sent_timestamp.unwrap(),
-                                    r.emoji.clone().unwrap(),
-                                    r.remove(),
-                                ),
-                            });
+                        if let Some(m) = data_message_to_message(dm, self.self_uuid) {
+                            return Some(m);
                         }
                     }
                 }
