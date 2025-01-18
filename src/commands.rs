@@ -4,7 +4,7 @@ use std::{
 };
 
 use futures::channel::mpsc;
-use log::warn;
+use log::{debug, warn};
 use tui_textarea::TextArea;
 
 use crate::{
@@ -69,6 +69,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ReloadMessages::default()));
     v.push(Box::new(ComposeInEditor::default()));
     v.push(Box::new(ClearCompose::default()));
+    v.push(Box::new(ExecuteCommand::default()));
     v
 }
 
@@ -545,7 +546,17 @@ impl Command for ExecuteCommand {
             .collect();
         let mut pargs = pico_args::Arguments::from_vec(args);
 
-        let subcmd = pargs.subcommand().unwrap().unwrap();
+        debug!(pargs:? = pargs; "Parsed arguments for command");
+        let subcmd = loop {
+            let Some(subcmd) = pargs.subcommand().unwrap() else {
+                return Ok(CommandSuccess::Nothing);
+            };
+            if self.names().contains(&subcmd.as_str()) {
+                continue;
+            } else {
+                break subcmd;
+            }
+        };
         let commands = commands();
         let command = commands
             .into_iter()
