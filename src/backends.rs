@@ -1,3 +1,4 @@
+use chrono::Local;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::pin_mut;
@@ -10,6 +11,7 @@ use presage::libsignal_service::prelude::Uuid;
 use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
+use presage::proto::AttachmentPointer;
 use presage::store::Thread;
 use presage::{
     libsignal_service::configuration::SignalServers, manager::Registered,
@@ -33,8 +35,15 @@ pub struct Message {
 
 #[derive(Debug)]
 pub enum MessageContent {
-    Text(String),
+    Text(String, Vec<MessageAttachment>),
     Reaction(Uuid, u64, String, bool),
+}
+
+#[derive(Debug)]
+pub struct MessageAttachment {
+    pub name: String,
+    pub size: u32,
+    pub index: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -74,7 +83,7 @@ pub trait Backend: Sized {
     fn groups(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
     fn messages(
-        &self,
+        &mut self,
         contact: Thread,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
@@ -94,6 +103,7 @@ pub struct Signal {
     manager: Manager<SledStore, Registered>,
     self_uuid: Uuid,
     self_name: String,
+    attachment_pointers: Vec<AttachmentPointer>,
 }
 
 impl Backend for Signal {
@@ -127,6 +137,7 @@ impl Backend for Signal {
             manager,
             self_uuid,
             self_name,
+            attachment_pointers: Vec::new(),
         })
     }
 
@@ -155,6 +166,7 @@ impl Backend for Signal {
             manager,
             self_uuid,
             self_name,
+            attachment_pointers: Vec::new(),
         })
     }
 
@@ -243,7 +255,7 @@ impl Backend for Signal {
     }
 
     async fn messages(
-        &self,
+        &mut self,
         contact: Thread,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
@@ -267,7 +279,7 @@ impl Backend for Signal {
     async fn send_message(&mut self, contact: Thread, content: MessageContent) -> Result<Message> {
         let now = timestamp();
         let content_body = match &content {
-            MessageContent::Text(t) => ContentBody::DataMessage(DataMessage {
+            MessageContent::Text(t, _attachments) => ContentBody::DataMessage(DataMessage {
                 body: Some(t.clone()),
                 timestamp: Some(now),
                 ..Default::default()
@@ -324,68 +336,85 @@ impl Signal {
             .rev()
             .map(|m| m.unwrap())
             .filter(|m| {
-                self.message_content_to_frontend_message(m.clone())
-                    .is_some()
+                extract_data_message(m).map_or(false, |dm| {
+                    !dm.attachments.is_empty() || dm.body.is_some() || dm.reaction.is_some()
+                })
             })
             .next()
             .map(|m| m.metadata.timestamp)
             .unwrap_or_default()
     }
 
-    fn message_content_to_frontend_message(&self, message: Content) -> Option<Message> {
+    fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
         let thread = Thread::try_from(&message).unwrap();
         let sender = message.metadata.sender.raw_uuid();
         let data_message_to_message = |dm: &DataMessage| {
-            if let Some(body) = &dm.body {
+            let mut message = Message {
+                timestamp: message.metadata.timestamp,
+                sender,
+                thread,
+                content: MessageContent::Text(String::new(), Vec::new()),
+            };
+
+            if dm.body.is_some() || !dm.attachments.is_empty() {
                 assert!(dm.reaction.is_none());
-                assert!(dm.attachments.is_empty());
-                return Some(Message {
-                    timestamp: message.metadata.timestamp,
-                    sender,
-                    thread,
-                    content: MessageContent::Text(body.clone()),
-                });
+                let attachments = dm
+                    .attachments
+                    .iter()
+                    .map(|attachment_pointer| {
+                        let attachment_index = self.attachment_pointers.len();
+                        let filename = attachment_pointer.file_name.clone().unwrap_or_else(|| {
+                            Local::now().format("%Y-%m-%d-%H-%M-%s").to_string()
+                        });
+                        let size = attachment_pointer.size.unwrap();
+                        self.attachment_pointers.push(attachment_pointer.clone());
+                        MessageAttachment {
+                            name: filename,
+                            size,
+                            index: attachment_index,
+                        }
+                    })
+                    .collect();
+                let body = dm.body().to_owned();
+                message.content = MessageContent::Text(body, attachments);
+                return Some(message);
             } else if let Some(r) = &dm.reaction {
                 assert!(dm.body.is_none());
                 assert!(dm.attachments.is_empty());
                 let emoji = r.emoji.clone()?;
-                return Some(Message {
-                    timestamp: message.metadata.timestamp,
-                    sender,
-                    thread,
-                    content: MessageContent::Reaction(
-                        r.target_author_aci.as_ref().unwrap().parse().unwrap(),
-                        r.target_sent_timestamp.unwrap(),
-                        emoji,
-                        r.remove(),
-                    ),
-                });
-            } else if !dm.attachments.is_empty() {
-                assert!(dm.body.is_none());
-                assert!(dm.reaction.is_none());
+                message.content = MessageContent::Reaction(
+                    r.target_author_aci.as_ref().unwrap().parse().unwrap(),
+                    r.target_sent_timestamp.unwrap(),
+                    emoji,
+                    r.remove(),
+                );
+                return Some(message);
             }
             None
         };
-        match &message.body {
-            ContentBody::DataMessage(dm) => {
-                if let Some(m) = data_message_to_message(dm) {
-                    return Some(m);
-                }
+        if let Some(dm) = extract_data_message(&message) {
+            if let Some(m) = data_message_to_message(dm) {
+                return Some(m);
             }
-            ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
-                if let Some(sent) = &sm.sent {
-                    if let Some(dm) = &sent.message {
-                        if let Some(m) = data_message_to_message(dm) {
-                            return Some(m);
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
         debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
         None
     }
+}
+
+fn extract_data_message(content: &Content) -> Option<&DataMessage> {
+    match &content.body {
+        ContentBody::DataMessage(dm) => return Some(dm),
+        ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
+            if let Some(sent) = &sm.sent {
+                if let Some(dm) = &sent.message {
+                    return Some(dm);
+                }
+            }
+        }
+        _ => {}
+    }
+    None
 }
 
 async fn self_name(manager: &mut Manager<SledStore, Registered>) -> String {

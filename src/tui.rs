@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use log::warn;
 use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use ratatui::layout::Alignment;
@@ -55,16 +56,25 @@ impl Messages {
     pub fn add_multiple(&mut self, messages: impl IntoIterator<Item = crate::backends::Message>) {
         for message in messages {
             match message.content {
-                crate::backends::MessageContent::Text(content) => {
+                crate::backends::MessageContent::Text(content, attachments) => {
+                    let attachments = attachments
+                        .into_iter()
+                        .map(|a| Attachment {
+                            name: a.name,
+                            size: a.size,
+                            handle: a.index,
+                        })
+                        .collect();
                     // assume a new message
                     self.messages_by_ts.insert(
                         message.timestamp,
                         Message {
                             timestamp: message.timestamp,
                             sender: message.sender,
-                            thread: message.thread,
+                            thread: message.thread.clone(),
                             content,
                             reactions: Vec::new(),
+                            attachments,
                         },
                     );
                 }
@@ -134,12 +144,20 @@ pub struct Message {
     pub thread: Thread,
     pub content: String,
     pub reactions: Vec<Reaction>,
+    pub attachments: Vec<Attachment>,
 }
 
 #[derive(Debug)]
 pub struct Reaction {
     pub author: Uuid,
     pub emoji: String,
+}
+
+#[derive(Debug)]
+pub struct Attachment {
+    pub name: String,
+    pub size: u32,
+    pub handle: usize,
 }
 
 #[derive(Debug, Default)]
@@ -217,8 +235,17 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         let sender = truncate_or_pad(sender, sender_width);
         let age = biggest_duration_string(now - m.timestamp);
         let content_indent = " ".repeat(message_width - content_width);
-        let content = wrap_text(&m.content, content_width, message_width - content_width);
-        let mut line = format!("{sender} {:>3} {content}", age);
+        let mut lines = Vec::new();
+        let sender_time = format!("{sender} {age:>3} ");
+        if !m.content.is_empty() {
+            let content = wrap_text(&m.content, content_width, message_width - content_width);
+            lines.push(content.to_string());
+        }
+        if !m.attachments.is_empty() {
+            for attachment in &m.attachments {
+                lines.push(format!("{} {}B", attachment.name, attachment.size));
+            }
+        }
         if !m.reactions.is_empty() {
             let react_line = m
                 .reactions
@@ -236,11 +263,20 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                     }
                 })
                 .collect::<Vec<_>>();
-            line.push('\n');
-            line.push_str(&content_indent);
-            line.push_str(&react_line.join(" "));
+            lines.push(react_line.join(" "));
         }
-        line
+
+        for (i, line) in lines.iter_mut().enumerate() {
+            if i == 0 {
+                line.insert_str(0, &sender_time);
+            } else {
+                line.insert_str(0, &content_indent);
+            }
+        }
+        if lines.is_empty() {
+            warn!(message:? = m; "Message with no information...");
+        }
+        lines.join("\n")
     });
     let messages = List::default()
         .items(message_items)

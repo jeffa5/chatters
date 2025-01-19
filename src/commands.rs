@@ -408,6 +408,8 @@ impl Command for SendMessage {
             return Ok(CommandSuccess::Nothing);
         }
 
+        let attachments = Vec::new();
+
         if let Some(contact) = tui_state
             .contact_list_state
             .selected()
@@ -416,7 +418,7 @@ impl Command for SendMessage {
             ba_tx
                 .unbounded_send(BackendMessage::SendMessage(
                     contact.thread_id.clone(),
-                    MessageContent::Text(message_body),
+                    MessageContent::Text(message_body, attachments),
                 ))
                 .unwrap();
         }
