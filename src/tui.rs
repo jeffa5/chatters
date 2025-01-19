@@ -225,8 +225,6 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
     let message_width = rect.width as usize;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
         let sender_width = 20;
-        let age_width = 3;
-        let content_width = message_width - sender_width - age_width - 2;
         let sender = tui_state
             .contacts_by_id
             .get(&m.sender)
@@ -234,16 +232,19 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             .unwrap_or(m.sender.to_string());
         let sender = truncate_or_pad(sender, sender_width);
         let age = biggest_duration_string(now - m.timestamp);
-        let content_indent = " ".repeat(message_width - content_width);
-        let mut lines = Vec::new();
         let sender_time = format!("{sender} {age:>3} ");
+
+        let content_width = message_width - sender_time.len();
+        let content_indent = " ".repeat(sender_time.len());
+
+        let mut lines = Vec::new();
         if !m.content.is_empty() {
             let content = wrap_text(&m.content, content_width, message_width - content_width);
             lines.push(content.to_string());
         }
         if !m.attachments.is_empty() {
             for attachment in &m.attachments {
-                lines.push(format!("{} {}B", attachment.name, attachment.size));
+                lines.push(format!("+{} {}B", attachment.name, attachment.size));
             }
         }
         if !m.reactions.is_empty() {
