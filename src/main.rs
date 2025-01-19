@@ -1,5 +1,7 @@
 use std::ffi::OsString;
+use std::fs::File;
 use std::io::Stdout;
+use std::path::Path;
 
 use chatters::backend_actor::BackendActor;
 use chatters::backends::{Backend, Error, Signal};
@@ -23,12 +25,39 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
 use tui_textarea::TextArea;
 
+pub struct LogTarget {
+    file: File,
+}
+
+impl LogTarget {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        Self {
+            file: File::create(path).unwrap(),
+        }
+    }
+}
+
+impl std::io::Write for LogTarget {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.file.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.flush()
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
-
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
-    let db_path = project_dirs.data_local_dir();
+    let db_path = project_dirs.data_local_dir().join("db");
+
+    let log_path = project_dirs.data_local_dir().join("logs");
+
+    let log_target = LogTarget::new(log_path);
+    env_logger::builder()
+        .target(env_logger::Target::Pipe(Box::new(log_target)))
+        .init();
 
     let device_name = "chatters-test".to_owned();
 
