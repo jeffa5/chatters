@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
     let db_path = project_dirs.data_local_dir().join("db");
 
-    let log_path = project_dirs.data_local_dir().join("logs");
+    let log_path = project_dirs.data_local_dir().join("logs.log");
 
     let log_target = LogTarget::new(log_path);
     env_logger::builder()
