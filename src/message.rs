@@ -1,4 +1,4 @@
-use std::ops::Bound;
+use std::{ops::Bound, path::PathBuf};
 
 use presage::store::Thread;
 
@@ -13,6 +13,7 @@ pub enum BackendMessage {
         end_ts: Bound<u64>,
     },
     SendMessage(Thread, MessageContent),
+    DownloadAttachment(Thread, u64, usize),
 }
 
 #[derive(Debug)]
@@ -20,5 +21,6 @@ pub enum FrontendMessage {
     LoadedContacts(Vec<Contact>),
     LoadedMessages(Vec<Message>),
     NewMessage(Message),
+    DownloadedAttachment(Thread, u64, usize, PathBuf),
     Tick,
 }

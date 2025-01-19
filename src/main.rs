@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::Stdout;
 use std::path::Path;
 
@@ -31,6 +31,8 @@ pub struct LogTarget {
 
 impl LogTarget {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        let path = path.as_ref();
+        create_dir_all(path.parent().unwrap()).unwrap();
         Self {
             file: File::create(path).unwrap(),
         }
@@ -90,6 +92,9 @@ async fn main() -> anyhow::Result<()> {
             )
             .await;
             backend.0.unwrap()
+        }
+        Err(_) => {
+            unimplemented!()
         }
     };
 
@@ -358,6 +363,25 @@ fn process_backend_message(
                     tui_state.contact_list_state.select(Some(0));
 
                     tui_state.messages.add_single(m);
+                }
+            }
+        }
+        FrontendMessage::DownloadedAttachment(thread, timestamp, index, path) => {
+            if let Some(contact) = tui_state
+                .contact_list_state
+                .selected()
+                .and_then(|i| tui_state.contacts.get_mut(i))
+            {
+                if thread == contact.thread_id {
+                    if let Some(msg) = tui_state.messages.get_mut_by_timestamp(timestamp) {
+                        // mark attachment as downloaded
+                        let attachment = msg
+                            .attachments
+                            .iter_mut()
+                            .find(|a| a.handle == index)
+                            .unwrap();
+                        attachment.downloaded_path = Some(path);
+                    }
                 }
             }
         }

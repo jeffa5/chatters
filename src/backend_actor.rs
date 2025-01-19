@@ -47,6 +47,14 @@ impl<B: Backend> BackendActor<B> {
                         .unbounded_send(FrontendMessage::NewMessage(msg))
                         .unwrap();
                 }
+                BackendMessage::DownloadAttachment(thread, timestamp, index) => {
+                    let path = self.backend.download_attachment(index).await.unwrap();
+                    self.message_tx
+                        .unbounded_send(FrontendMessage::DownloadedAttachment(
+                            thread, timestamp, index, path,
+                        ))
+                        .unwrap();
+                }
             }
         }
         info!("Closing backend actor");

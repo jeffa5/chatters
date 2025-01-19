@@ -5,6 +5,7 @@ use futures::pin_mut;
 use futures::StreamExt;
 use log::debug;
 use log::info;
+use log::warn;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
@@ -21,6 +22,7 @@ use presage_store_sled::{MigrationConflictStrategy, SledStore};
 use std::future::Future;
 use std::ops::Bound;
 use std::path::Path;
+use std::path::PathBuf;
 use url::Url;
 
 use crate::message::FrontendMessage;
@@ -44,6 +46,7 @@ pub struct MessageAttachment {
     pub name: String,
     pub size: u32,
     pub index: usize,
+    pub downloaded_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +61,10 @@ pub struct Contact {
 pub enum Error {
     #[error("unlinked")]
     Unlinked,
+    #[error("Unknown attachment with index {0}")]
+    UnknownAttachment(usize),
+    #[error("An unknown failure occurred")]
+    Failure,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -96,6 +103,9 @@ pub trait Backend: Sized {
     ) -> impl Future<Output = Result<Message>>;
 
     fn self_uuid(&self) -> impl Future<Output = Uuid>;
+
+    fn download_attachment(&self, attachment_index: usize)
+        -> impl Future<Output = Result<PathBuf>>;
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +114,7 @@ pub struct Signal {
     self_uuid: Uuid,
     self_name: String,
     attachment_pointers: Vec<AttachmentPointer>,
+    attachments_dir: PathBuf,
 }
 
 impl Backend for Signal {
@@ -138,6 +149,7 @@ impl Backend for Signal {
             self_uuid,
             self_name,
             attachment_pointers: Vec::new(),
+            attachments_dir: path.parent().unwrap().join("attachments"),
         })
     }
 
@@ -167,6 +179,7 @@ impl Backend for Signal {
             self_uuid,
             self_name,
             attachment_pointers: Vec::new(),
+            attachments_dir: path.parent().unwrap().join("attachments"),
         })
     }
 
@@ -324,6 +337,31 @@ impl Backend for Signal {
         debug!("Getting self_uuid");
         self.manager.whoami().await.unwrap().aci
     }
+
+    async fn download_attachment(&self, attachment_index: usize) -> Result<PathBuf> {
+        let Some(attachment_pointer) = self.attachment_pointers.get(attachment_index) else {
+            return Err(Error::UnknownAttachment(attachment_index));
+        };
+        let Ok(attachment_data) = self.manager.get_attachment(attachment_pointer).await else {
+            warn!(attachment:? = attachment_pointer; "failed to fetch attachment");
+            return Err(Error::Failure);
+        };
+
+        let file_path = self.attachment_path(attachment_pointer);
+
+        if file_path.is_file() {
+            // already downloaded
+            return Ok(file_path);
+        }
+
+        match std::fs::write(&file_path, &attachment_data) {
+            Ok(()) => Ok(file_path),
+            Err(e) => {
+                warn!(error:% = e; "Failed to save attachment");
+                Err(Error::Failure)
+            }
+        }
+    }
 }
 
 impl Signal {
@@ -368,10 +406,17 @@ impl Signal {
                         });
                         let size = attachment_pointer.size.unwrap();
                         self.attachment_pointers.push(attachment_pointer.clone());
+                        let attachment_path = self.attachment_path(attachment_pointer);
+                        let downloaded_path = if attachment_path.is_file() {
+                            Some(attachment_path)
+                        } else {
+                            None
+                        };
                         MessageAttachment {
                             name: filename,
                             size,
                             index: attachment_index,
+                            downloaded_path,
                         }
                     })
                     .collect();
@@ -399,6 +444,23 @@ impl Signal {
         }
         debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
         None
+    }
+
+    fn attachment_path(&self, attachment_pointer: &AttachmentPointer) -> PathBuf {
+        let extensions = mime_guess::get_mime_extensions_str(
+            attachment_pointer
+                .content_type
+                .as_deref()
+                .unwrap_or("application/octet-stream"),
+        );
+        let extension = extensions.and_then(|e| e.first()).unwrap_or(&"bin");
+        let filename = format!(
+            "{}-{}-{}",
+            attachment_pointer.upload_timestamp(),
+            hex::encode(attachment_pointer.digest()),
+            attachment_pointer.file_name()
+        );
+        self.attachments_dir.join(format!("{filename}.{extension}"))
     }
 }
 

@@ -71,6 +71,8 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ReloadMessages::default()));
     v.push(Box::new(ComposeInEditor::default()));
     v.push(Box::new(ClearCompose::default()));
+    v.push(Box::new(DownloadAttachments::default()));
+    v.push(Box::new(OpenAttachment::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -809,6 +811,117 @@ impl Command for ClearCompose {
     }
 
     fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct DownloadAttachments {
+    index: Option<usize>,
+}
+
+impl Command for DownloadAttachments {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        if let Some(message) = tui_state.selected_message() {
+            if let Some(index) = self.index {
+                if let Some(attachment) = message.attachments.get(index) {
+                    ba_tx
+                        .unbounded_send(BackendMessage::DownloadAttachment(
+                            message.thread.clone(),
+                            message.timestamp,
+                            attachment.handle,
+                        ))
+                        .unwrap();
+                }
+            } else {
+                for attachment in &message.attachments {
+                    ba_tx
+                        .unbounded_send(BackendMessage::DownloadAttachment(
+                            message.thread.clone(),
+                            message.timestamp,
+                            attachment.handle,
+                        ))
+                        .unwrap();
+                }
+            }
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let index = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
+        *self = Self { index: Some(index) };
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self { index: None }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["download-attachments"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct OpenAttachment {
+    index: Option<usize>,
+}
+
+impl Command for OpenAttachment {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(index) = self.index else {
+            return Err(Error::MissingArgument("index".to_owned()));
+        };
+        let Some(message) = tui_state.selected_message() else {
+            return Err(Error::NoMessageSelected);
+        };
+        if let Some(attachment) = message.attachments.get(index) {
+            if let Some(path) = &attachment.downloaded_path {
+                open::that_detached(path).unwrap();
+            }
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let index = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
+        *self = Self { index: Some(index) };
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self { index: None }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["open-attachment"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        // TODO: get tui_state here and present the indices of attachments
         Vec::new()
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use log::warn;
 use presage::libsignal_service::prelude::Uuid;
@@ -63,6 +64,7 @@ impl Messages {
                             name: a.name,
                             size: a.size,
                             handle: a.index,
+                            downloaded_path: a.downloaded_path,
                         })
                         .collect();
                     // assume a new message
@@ -107,6 +109,10 @@ impl Messages {
         self.messages_by_index
             .get(index)
             .and_then(|ts| self.messages_by_ts.get(ts))
+    }
+
+    pub fn get_mut_by_timestamp(&mut self, timestamp: u64) -> Option<&mut Message> {
+        self.messages_by_ts.get_mut(&timestamp)
     }
 
     pub fn clear(&mut self) {
@@ -158,6 +164,7 @@ pub struct Attachment {
     pub name: String,
     pub size: u32,
     pub handle: usize,
+    pub downloaded_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Default)]
@@ -173,6 +180,20 @@ pub struct TuiState {
     pub command_error: String,
     pub command_completions: Vec<String>,
     pub mode: Mode,
+}
+
+impl TuiState {
+    pub fn selected_contact(&self) -> Option<&Contact> {
+        self.contact_list_state
+            .selected()
+            .and_then(|i| self.contacts.get(i))
+    }
+
+    pub fn selected_message(&self) -> Option<&Message> {
+        self.message_list_state
+            .selected()
+            .and_then(|i| self.messages.get_by_index(i))
+    }
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -244,7 +265,15 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         }
         if !m.attachments.is_empty() {
             for attachment in &m.attachments {
-                lines.push(format!("+{} {}B", attachment.name, attachment.size));
+                let downloaded = attachment
+                    .downloaded_path
+                    .clone()
+                    .map(|d| d.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "not downloaded".to_owned());
+                lines.push(format!(
+                    "+{} {}B ({})",
+                    attachment.name, attachment.size, downloaded
+                ));
             }
         }
         if !m.reactions.is_empty() {
