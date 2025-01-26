@@ -51,7 +51,32 @@ impl Backend for Local {
         _start_ts: std::ops::Bound<u64>,
         _end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
-        Ok(Vec::new())
+        let now = timestamp();
+        Ok(vec![
+            super::Message {
+                timestamp: now - 100,
+                sender: Uuid::nil(),
+                thread: Thread::Contact(Uuid::nil()),
+                content: super::MessageContent::Text("Message 1".to_owned(), Vec::new()),
+            },
+            super::Message {
+                timestamp: now - 90,
+                sender: Uuid::nil(),
+                thread: Thread::Contact(Uuid::nil()),
+                content: super::MessageContent::Text("Message 2".to_owned(), Vec::new()),
+            },
+            super::Message {
+                timestamp: now - 80,
+                sender: Uuid::nil(),
+                thread: Thread::Contact(Uuid::nil()),
+                content: super::MessageContent::Reaction(
+                    Uuid::nil(),
+                    now - 100,
+                    "🚀".to_owned(),
+                    false,
+                ),
+            },
+        ])
     }
 
     async fn send_message(
