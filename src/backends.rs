@@ -10,6 +10,7 @@ use url::Url;
 
 use crate::message::FrontendMessage;
 
+pub mod local;
 pub mod signal;
 
 #[derive(Debug)]

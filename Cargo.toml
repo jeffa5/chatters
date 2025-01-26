@@ -38,3 +38,7 @@ curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag 
 [[bin]]
 name = "chatters-signal"
 path = "src/main-signal.rs"
+
+[[bin]]
+name = "chatters-local"
+path = "src/main-local.rs"
