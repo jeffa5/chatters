@@ -5,3 +5,4 @@ pub mod commands;
 pub mod keybinds;
 pub mod message;
 pub mod tui;
+pub mod util;
