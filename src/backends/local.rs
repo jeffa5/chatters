@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use presage::libsignal_service::prelude::Uuid;
+use presage::{libsignal_service::prelude::Uuid, store::Thread};
 
-use super::Backend;
+use super::{timestamp, Backend};
 
 #[derive(Clone)]
 pub struct Local {}
@@ -17,7 +17,7 @@ impl Backend for Local {
         _device_name: &str,
         _provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
     ) -> super::Result<Self> {
-        Ok(Self {})
+        unimplemented!()
     }
 
     async fn sync_contacts(&mut self) -> super::Result<()> {
@@ -33,7 +33,12 @@ impl Backend for Local {
     }
 
     async fn contacts(&self) -> super::Result<Vec<super::Contact>> {
-        Ok(Vec::new())
+        Ok(vec![super::Contact {
+            thread_id: Thread::Contact(Uuid::nil()),
+            name: "Self".to_owned(),
+            address: "no address".to_owned(),
+            last_message_timestamp: 0,
+        }])
     }
 
     async fn groups(&self) -> super::Result<Vec<super::Contact>> {
@@ -54,16 +59,17 @@ impl Backend for Local {
         contact: presage::store::Thread,
         body: super::MessageContent,
     ) -> super::Result<super::Message> {
-        Ok(super::Message {
-            timestamp: 0,
-            sender: Uuid::default(),
+        let msg = super::Message {
+            timestamp: timestamp(),
+            sender: Uuid::nil(),
             thread: contact,
             content: body,
-        })
+        };
+        Ok(msg)
     }
 
     async fn self_uuid(&self) -> presage::libsignal_service::prelude::Uuid {
-        Uuid::default()
+        Uuid::nil()
     }
 
     async fn download_attachment(
