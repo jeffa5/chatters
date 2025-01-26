@@ -7,8 +7,8 @@ use crate::{
     backends::{Backend, Error},
     message::FrontendMessage,
 };
-use crossterm::event::{KeyCode, KeyEvent};
 use crossterm::event::{Event, EventStream};
+use crossterm::event::{KeyCode, KeyEvent};
 use directories::ProjectDirs;
 use futures::channel::mpsc;
 use futures::future::Either;
@@ -20,9 +20,9 @@ use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
-use tui_textarea::TextArea;
 use std::ffi::OsString;
 use std::io::Stdout;
+use tui_textarea::TextArea;
 
 pub async fn run<B: Backend + Clone>(device_name: &str, project_dirs: &ProjectDirs) {
     let db_path = project_dirs.data_local_dir().join("db");

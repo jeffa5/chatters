@@ -1,4 +1,7 @@
-use std::{fs::{create_dir_all, File}, path::Path};
+use std::{
+    fs::{create_dir_all, File},
+    path::Path,
+};
 
 pub struct LogTarget {
     file: File,
