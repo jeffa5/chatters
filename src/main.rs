@@ -1,15 +1,10 @@
-use clap::Parser;
-use std::ffi::OsString;
-use std::fs::{create_dir_all, File};
-use std::io::Stdout;
-use std::path::Path;
-
 use chatters::backend_actor::BackendActor;
-use chatters::backends::{Backend, Error, Signal};
+use chatters::backends::{signal::Signal, Backend, Error};
 use chatters::commands::{self, Command};
 use chatters::keybinds::KeyBinds;
 use chatters::message::{BackendMessage, FrontendMessage};
 use chatters::tui::{render, Mode, TuiState};
+use clap::Parser;
 use crossterm::event::EventStream;
 use crossterm::event::KeyEvent;
 use crossterm::event::{Event, KeyCode};
@@ -24,6 +19,10 @@ use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
+use std::ffi::OsString;
+use std::fs::{create_dir_all, File};
+use std::io::Stdout;
+use std::path::Path;
 use tui_textarea::TextArea;
 
 pub struct LogTarget {
