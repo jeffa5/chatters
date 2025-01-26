@@ -1,3 +1,4 @@
+use clap::Parser;
 use std::ffi::OsString;
 use std::fs::{create_dir_all, File};
 use std::io::Stdout;
@@ -49,6 +50,13 @@ impl std::io::Write for LogTarget {
     }
 }
 
+#[derive(Debug, Parser)]
+#[clap(name = "chatters-signal")]
+pub struct Options {
+    #[clap(long, default_value = "chatters-signal")]
+    device_name: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
@@ -61,14 +69,14 @@ async fn main() -> anyhow::Result<()> {
         .target(env_logger::Target::Pipe(Box::new(log_target)))
         .init();
 
-    let device_name = "chatters-test".to_owned();
+    let opts = Options::parse();
 
     let backend = match Signal::load(&db_path).await {
         Ok(b) => b,
         Err(Error::Unlinked) => {
             let (provisioning_link_tx, provisioning_link_rx) = futures::channel::oneshot::channel();
             let backend = futures::future::join(
-                Signal::link(&db_path, &device_name, provisioning_link_tx),
+                Signal::link(&db_path, &opts.device_name, provisioning_link_tx),
                 async move {
                     match provisioning_link_rx.await {
                         Ok(url) => {
