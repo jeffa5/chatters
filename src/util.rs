@@ -9,7 +9,6 @@ use crate::{
 };
 use crossterm::event::{Event, EventStream};
 use crossterm::event::{KeyCode, KeyEvent};
-use directories::ProjectDirs;
 use futures::channel::mpsc;
 use futures::future::Either;
 use futures::StreamExt as _;
@@ -22,16 +21,23 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
 use std::ffi::OsString;
 use std::io::Stdout;
+use std::path::PathBuf;
 use tui_textarea::TextArea;
 
-pub async fn run<B: Backend + Clone>(device_name: &str, project_dirs: &ProjectDirs) {
-    let db_path = project_dirs.data_local_dir().join("db");
+#[derive(Debug, Clone)]
+pub struct Options {
+    pub device_name: String,
+    pub data_local_dir: PathBuf,
+}
+
+pub async fn run<B: Backend + Clone>(options: Options) {
+    let db_path = options.data_local_dir.join("db");
     let backend = match B::load(&db_path).await {
         Ok(b) => b,
         Err(Error::Unlinked) => {
             let (provisioning_link_tx, provisioning_link_rx) = futures::channel::oneshot::channel();
             let backend = futures::future::join(
-                B::link(&db_path, device_name, provisioning_link_tx),
+                B::link(&db_path, &options.device_name, provisioning_link_tx),
                 async move {
                     match provisioning_link_rx.await {
                         Ok(url) => {
