@@ -625,7 +625,10 @@ impl Command for ExecuteCommand {
             .find(|c| c.names().contains(&subcmd.as_str()));
 
         if let Some(mut command) = command {
-            command.parse(pargs).unwrap();
+            if let Err(error) = command.parse(pargs) {
+                tui_state.command_error = error.to_string();
+                return Ok(CommandSuccess::Nothing);
+            }
             let ret = command.execute(tui_state, ba_tx)?;
             Ok(ret)
         } else {
