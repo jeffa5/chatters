@@ -49,8 +49,8 @@ pub enum Error {
     Unlinked,
     #[error("Unknown attachment with index {0}")]
     UnknownAttachment(usize),
-    #[error("An unknown failure occurred")]
-    Failure,
+    #[error("A failure occurred: {0}")]
+    Failure(String),
 }
 
 type Result<T> = std::result::Result<T, Error>;

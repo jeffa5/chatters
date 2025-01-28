@@ -271,7 +271,7 @@ impl Backend for Signal {
         };
         let Ok(attachment_data) = self.manager.get_attachment(attachment_pointer).await else {
             warn!(attachment:? = attachment_pointer; "failed to fetch attachment");
-            return Err(Error::Failure);
+            return Err(Error::Failure("Failed to fetch attachment".to_owned()));
         };
 
         let file_path = self.attachment_path(attachment_pointer);
@@ -285,7 +285,7 @@ impl Backend for Signal {
             Ok(()) => Ok(file_path),
             Err(e) => {
                 warn!(error:% = e; "Failed to save attachment");
-                Err(Error::Failure)
+                Err(Error::Failure(format!("Failed to save attachment: {e}")))
             }
         }
     }
