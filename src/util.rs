@@ -108,8 +108,6 @@ pub async fn run<B: Backend + Clone>(options: Options) {
     pin_mut!(actor);
 
     let sync = async move {
-        info!("Synchronising contacts");
-        backend2.sync_contacts().await.unwrap();
         info!("Starting background sync");
         backend2.background_sync(f_tx).await.unwrap();
     };

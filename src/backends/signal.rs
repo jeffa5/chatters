@@ -61,7 +61,7 @@ impl Backend for Signal {
         let messages = manager.receive_messages().await.unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
-            debug!(message:? = message; "Received message");
+            debug!(message:? = message; "Received message during load");
             match message {
                 presage::model::messages::Received::QueueEmpty => break,
                 presage::model::messages::Received::Contacts => continue,
@@ -121,7 +121,7 @@ impl Backend for Signal {
         let messages = self.manager.receive_messages().await.unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
-            debug!(message:? = message; "Received message");
+            debug!(message:? = message; "Received message during sync_contacts");
             match message {
                 presage::model::messages::Received::QueueEmpty => {}
                 presage::model::messages::Received::Contacts => break,
@@ -138,7 +138,7 @@ impl Backend for Signal {
         let messages = self.manager.receive_messages().await.unwrap();
         pin_mut!(messages);
         while let Some(message) = messages.next().await {
-            debug!(message:? = message; "Received message");
+            debug!(message:? = message; "Received message during background_sync");
             match message {
                 presage::model::messages::Received::QueueEmpty => {}
                 presage::model::messages::Received::Contacts => {}
