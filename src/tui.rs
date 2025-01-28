@@ -252,7 +252,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             .map(|c| c.name.clone())
             .unwrap_or(m.sender.to_string());
         let sender = truncate_or_pad(sender, sender_width);
-        let age = biggest_duration_string(now - m.timestamp);
+        let age = biggest_duration_string(now.saturating_sub(m.timestamp));
         let sender_time = format!("{sender} {age:>3} ");
 
         let content_width = message_width - sender_time.len();
