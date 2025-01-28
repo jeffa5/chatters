@@ -394,12 +394,11 @@ impl Signal {
             .chars()
             .take(16)
             .collect();
-        let filename = format!(
-            "{}-{}-{}",
-            attachment_pointer.upload_timestamp(),
-            hash,
-            attachment_pointer.file_name()
-        );
+        let mut filename = format!("{}-{}", attachment_pointer.upload_timestamp(), hash);
+        if let Some(name) = &attachment_pointer.file_name {
+            filename.push('-');
+            filename.push_str(name)
+        }
         format!("{filename}.{extension}")
     }
 }
