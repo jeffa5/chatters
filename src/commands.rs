@@ -856,10 +856,8 @@ impl Command for DownloadAttachments {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args
-            .free_from_str()
-            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
-        *self = Self { index: Some(index) };
+        let index = args.opt_free_from_str().unwrap();
+        *self = Self { index };
         Ok(())
     }
 
@@ -897,7 +895,7 @@ impl Command for OpenAttachment {
             return Err(Error::NoMessageSelected);
         };
         if let Some(attachment) = message.attachments.get(index) {
-            if let Some(path) = &attachment.downloaded_path {
+            if let Some(path) = &attachment.downloaded_file_name {
                 open::that_detached(path).unwrap();
             }
         }

@@ -48,10 +48,10 @@ impl<B: Backend> BackendActor<B> {
                         .unwrap();
                 }
                 BackendMessage::DownloadAttachment(thread, timestamp, index) => {
-                    let path = self.backend.download_attachment(index).await.unwrap();
+                    let file_name = self.backend.download_attachment(index).await.unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::DownloadedAttachment(
-                            thread, timestamp, index, path,
+                            thread, timestamp, index, file_name,
                         ))
                         .unwrap();
                 }

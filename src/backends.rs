@@ -5,7 +5,6 @@ use presage::store::Thread;
 use std::future::Future;
 use std::ops::Bound;
 use std::path::Path;
-use std::path::PathBuf;
 use url::Url;
 
 use crate::message::FrontendMessage;
@@ -32,7 +31,7 @@ pub struct MessageAttachment {
     pub name: String,
     pub size: u32,
     pub index: usize,
-    pub downloaded_path: Option<PathBuf>,
+    pub downloaded_path: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -90,8 +89,7 @@ pub trait Backend: Sized {
 
     fn self_uuid(&self) -> impl Future<Output = Uuid>;
 
-    fn download_attachment(&self, attachment_index: usize)
-        -> impl Future<Output = Result<PathBuf>>;
+    fn download_attachment(&self, attachment_index: usize) -> impl Future<Output = Result<String>>;
 }
 
 fn timestamp() -> u64 {

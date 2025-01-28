@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use log::warn;
 use presage::libsignal_service::prelude::Uuid;
@@ -64,7 +63,7 @@ impl Messages {
                             name: a.name,
                             size: a.size,
                             handle: a.index,
-                            downloaded_path: a.downloaded_path,
+                            downloaded_file_name: a.downloaded_path,
                         })
                         .collect();
                     // assume a new message
@@ -164,12 +163,13 @@ pub struct Attachment {
     pub name: String,
     pub size: u32,
     pub handle: usize,
-    pub downloaded_path: Option<PathBuf>,
+    pub downloaded_file_name: Option<String>,
 }
 
 #[derive(Debug, Default)]
 pub struct TuiState {
     pub self_uuid: Uuid,
+    pub attachments_path: String,
     pub contact_list_state: TableState,
     pub message_list_state: ListState,
     pub contacts: Vec<Contact>,
@@ -266,9 +266,8 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         if !m.attachments.is_empty() {
             for attachment in &m.attachments {
                 let downloaded = attachment
-                    .downloaded_path
+                    .downloaded_file_name
                     .clone()
-                    .map(|d| d.to_string_lossy().into_owned())
                     .unwrap_or_else(|| "not downloaded".to_owned());
                 lines.push(format!(
                     "+{} {}B ({})",

@@ -333,7 +333,7 @@ fn process_backend_message(
                 }
             }
         }
-        FrontendMessage::DownloadedAttachment(thread, timestamp, index, path) => {
+        FrontendMessage::DownloadedAttachment(thread, timestamp, index, file_name) => {
             if let Some(contact) = tui_state
                 .contact_list_state
                 .selected()
@@ -347,7 +347,7 @@ fn process_backend_message(
                             .iter_mut()
                             .find(|a| a.handle == index)
                             .unwrap();
-                        attachment.downloaded_path = Some(path);
+                        attachment.downloaded_file_name = Some(file_name);
                     }
                 }
             }

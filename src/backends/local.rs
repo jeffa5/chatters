@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use presage::{libsignal_service::prelude::Uuid, store::Thread};
 
 use super::{timestamp, Backend};
@@ -97,10 +95,7 @@ impl Backend for Local {
         Uuid::nil()
     }
 
-    async fn download_attachment(
-        &self,
-        _attachment_index: usize,
-    ) -> super::Result<std::path::PathBuf> {
-        Ok(PathBuf::new())
+    async fn download_attachment(&self, _attachment_index: usize) -> super::Result<String> {
+        Ok(String::new())
     }
 }

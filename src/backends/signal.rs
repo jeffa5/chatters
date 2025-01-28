@@ -19,6 +19,7 @@ use presage::{
     model::identity::OnNewIdentity, store::ContentsStore, Manager,
 };
 use presage_store_sled::{MigrationConflictStrategy, SledStore};
+use std::fs::create_dir_all;
 use std::ops::Bound;
 use std::path::Path;
 use std::path::PathBuf;
@@ -71,12 +72,15 @@ impl Backend for Signal {
         let self_uuid = manager.whoami().await.unwrap().aci;
         let self_name = self_name(&mut manager).await;
 
+        let attachments_dir = path.parent().unwrap().join("attachments");
+        create_dir_all(&attachments_dir).unwrap();
+
         Ok(Signal {
             manager,
             self_uuid,
             self_name,
             attachment_pointers: Vec::new(),
-            attachments_dir: path.parent().unwrap().join("attachments"),
+            attachments_dir,
         })
     }
 
@@ -101,12 +105,15 @@ impl Backend for Signal {
         let self_uuid = manager.whoami().await.unwrap().aci;
         let self_name = self_name(&mut manager).await;
 
+        let attachments_dir = path.parent().unwrap().join("attachments");
+        create_dir_all(&attachments_dir).unwrap();
+
         Ok(Self {
             manager,
             self_uuid,
             self_name,
             attachment_pointers: Vec::new(),
-            attachments_dir: path.parent().unwrap().join("attachments"),
+            attachments_dir,
         })
     }
 
@@ -265,7 +272,7 @@ impl Backend for Signal {
         self.manager.whoami().await.unwrap().aci
     }
 
-    async fn download_attachment(&self, attachment_index: usize) -> Result<PathBuf> {
+    async fn download_attachment(&self, attachment_index: usize) -> Result<String> {
         let Some(attachment_pointer) = self.attachment_pointers.get(attachment_index) else {
             return Err(Error::UnknownAttachment(attachment_index));
         };
@@ -274,15 +281,16 @@ impl Backend for Signal {
             return Err(Error::Failure("Failed to fetch attachment".to_owned()));
         };
 
-        let file_path = self.attachment_path(attachment_pointer);
+        let file_name = self.attachment_name(attachment_pointer);
+        let file_path = self.attachments_dir.join(&file_name);
 
         if file_path.is_file() {
             // already downloaded
-            return Ok(file_path);
+            return Ok(file_name);
         }
 
         match std::fs::write(&file_path, &attachment_data) {
-            Ok(()) => Ok(file_path),
+            Ok(()) => Ok(file_name),
             Err(e) => {
                 warn!(error:% = e; "Failed to save attachment");
                 Err(Error::Failure(format!("Failed to save attachment: {e}")))
@@ -333,9 +341,10 @@ impl Signal {
                         });
                         let size = attachment_pointer.size.unwrap();
                         self.attachment_pointers.push(attachment_pointer.clone());
-                        let attachment_path = self.attachment_path(attachment_pointer);
+                        let attachment_name = self.attachment_name(attachment_pointer);
+                        let attachment_path = self.attachments_dir.join(&attachment_name);
                         let downloaded_path = if attachment_path.is_file() {
-                            Some(attachment_path)
+                            Some(attachment_name)
                         } else {
                             None
                         };
@@ -373,7 +382,7 @@ impl Signal {
         None
     }
 
-    fn attachment_path(&self, attachment_pointer: &AttachmentPointer) -> PathBuf {
+    fn attachment_name(&self, attachment_pointer: &AttachmentPointer) -> String {
         let extensions = mime_guess::get_mime_extensions_str(
             attachment_pointer
                 .content_type
@@ -387,7 +396,7 @@ impl Signal {
             hex::encode(attachment_pointer.digest()),
             attachment_pointer.file_name()
         );
-        self.attachments_dir.join(format!("{filename}.{extension}"))
+        format!("{filename}.{extension}")
     }
 }
 
