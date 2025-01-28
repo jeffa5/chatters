@@ -390,10 +390,14 @@ impl Signal {
                 .unwrap_or("application/octet-stream"),
         );
         let extension = extensions.and_then(|e| e.first()).unwrap_or(&"bin");
+        let hash: String = hex::encode(attachment_pointer.digest())
+            .chars()
+            .take(16)
+            .collect();
         let filename = format!(
             "{}-{}-{}",
             attachment_pointer.upload_timestamp(),
-            hex::encode(attachment_pointer.digest()),
+            hash,
             attachment_pointer.file_name()
         );
         format!("{filename}.{extension}")
