@@ -266,6 +266,7 @@ impl Backend for Signal {
             content,
             quote,
         };
+        debug!(contact:? = contact, content:? = content_body; "Sending message");
         match contact {
             Thread::Contact(uuid) => {
                 self.manager
