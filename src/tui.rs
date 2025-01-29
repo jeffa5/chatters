@@ -315,7 +315,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                     }
                 })
                 .collect::<Vec<_>>();
-            lines.push(format!("e {}", react_line.join(" ")));
+            lines.push(format!("  {}", react_line.join(" ")));
         }
 
         for (i, line) in lines.iter_mut().enumerate() {
