@@ -825,6 +825,7 @@ impl Command for ClearCompose {
 
 #[derive(Debug)]
 pub struct DownloadAttachments {
+    // TODO: change to vec of indices
     index: Option<usize>,
 }
 
@@ -884,6 +885,7 @@ impl Command for DownloadAttachments {
 
 #[derive(Debug)]
 pub struct OpenAttachments {
+    // TODO: change to vec of indices
     index: Option<usize>,
 }
 
