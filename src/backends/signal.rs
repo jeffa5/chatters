@@ -12,7 +12,9 @@ use presage::libsignal_service::prelude::Uuid;
 use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
+use presage::proto::body_range::AssociatedValue;
 use presage::proto::AttachmentPointer;
+use presage::proto::BodyRange;
 use presage::store::Thread;
 use presage::{
     libsignal_service::configuration::SignalServers, manager::Registered,
@@ -144,7 +146,7 @@ impl Backend for Signal {
                 presage::model::messages::Received::QueueEmpty => {}
                 presage::model::messages::Received::Contacts => {}
                 presage::model::messages::Received::Content(message) => {
-                    if let Some(msg) = self.message_content_to_frontend_message(*message) {
+                    if let Some(msg) = self.message_content_to_frontend_message(*message).await {
                         ba_tx
                             .unbounded_send(FrontendMessage::NewMessage(msg))
                             .unwrap();
@@ -217,7 +219,7 @@ impl Backend for Signal {
             .unwrap();
         for message in messages {
             let message = message.unwrap();
-            if let Some(msg) = self.message_content_to_frontend_message(message) {
+            if let Some(msg) = self.message_content_to_frontend_message(message).await {
                 ret.push(msg)
             }
         }
@@ -335,23 +337,42 @@ impl Signal {
             .unwrap_or_default()
     }
 
-    fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
+    async fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
         debug!(message:? = message; "Converting message to frontend message");
+        let timestamp = message.metadata.timestamp;
         let thread = Thread::try_from(&message).unwrap();
         let sender = message.metadata.sender.raw_uuid();
-        let data_message_to_message = |dm: &DataMessage| {
-            let mut message = Message {
-                timestamp: message.metadata.timestamp,
-                sender,
-                thread,
-                content: MessageContent::Text(String::new(), Vec::new()),
-                quote: None,
-            };
+        if let Some(dm) = extract_data_message(&message) {
+            if let Some(m) = self
+                .data_message_to_message(timestamp, sender, thread, dm)
+                .await
+            {
+                return Some(m);
+            }
+        }
+        debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
+        None
+    }
 
-            if dm.body.is_some() || !dm.attachments.is_empty() || dm.quote.is_some() {
-                assert!(dm.reaction.is_none());
-                let attachments = dm
-                    .attachments
+    async fn data_message_to_message(
+        &mut self,
+        timestamp: u64,
+        sender: Uuid,
+        thread: Thread,
+        dm: &DataMessage,
+    ) -> Option<Message> {
+        let mut message = Message {
+            timestamp,
+            sender,
+            thread,
+            content: MessageContent::Text(String::new(), Vec::new()),
+            quote: None,
+        };
+
+        if dm.body.is_some() || !dm.attachments.is_empty() || dm.quote.is_some() {
+            assert!(dm.reaction.is_none());
+            let attachments =
+                dm.attachments
                     .iter()
                     .map(|attachment_pointer| {
                         let attachment_index = self.attachment_pointers.len();
@@ -381,37 +402,58 @@ impl Signal {
                         }
                     })
                     .collect();
-                let body = dm.body().to_owned();
-                message.content = MessageContent::Text(body, attachments);
-                if let Some(quote) = &dm.quote {
-                    message.quote = Some(Quote {
-                        timestamp: quote.id(),
-                        sender: quote.author_aci().parse().unwrap(),
-                        text: quote.text().to_owned(),
-                    });
-                }
-                return Some(message);
-            } else if let Some(r) = &dm.reaction {
-                assert!(dm.body.is_none());
-                assert!(dm.attachments.is_empty());
-                let emoji = r.emoji.clone()?;
-                message.content = MessageContent::Reaction(
-                    r.target_author_aci.as_ref().unwrap().parse().unwrap(),
-                    r.target_sent_timestamp.unwrap(),
-                    emoji,
-                    r.remove(),
-                );
-                return Some(message);
+
+            let mut body = dm.body().to_owned();
+            self.add_body_ranges(&mut body, &dm.body_ranges).await;
+
+            message.content = MessageContent::Text(body, attachments);
+            if let Some(quote) = &dm.quote {
+                let mut text = quote.text().to_owned();
+                self.add_body_ranges(&mut text, &quote.body_ranges).await;
+                message.quote = Some(Quote {
+                    timestamp: quote.id(),
+                    sender: quote.author_aci().parse().unwrap(),
+                    text,
+                });
             }
-            None
-        };
-        if let Some(dm) = extract_data_message(&message) {
-            if let Some(m) = data_message_to_message(dm) {
-                return Some(m);
+            return Some(message);
+        } else if let Some(r) = &dm.reaction {
+            assert!(dm.body.is_none());
+            assert!(dm.attachments.is_empty());
+            let emoji = r.emoji.clone()?;
+            message.content = MessageContent::Reaction(
+                r.target_author_aci.as_ref().unwrap().parse().unwrap(),
+                r.target_sent_timestamp.unwrap(),
+                emoji,
+                r.remove(),
+            );
+            return Some(message);
+        }
+        None
+    }
+
+    async fn add_body_ranges(&self, body: &mut String, ranges: &[BodyRange]) {
+        for body_range in ranges {
+            if let Some(AssociatedValue::MentionAci(aci)) = &body_range.associated_value {
+                let user_uuid: Uuid = aci.parse().unwrap();
+                if let Some(user) = self
+                    .manager
+                    .store()
+                    .contact_by_id(&user_uuid)
+                    .await
+                    .unwrap()
+                {
+                    let username = format!("@{:?}", user.name);
+                    let start = body_range.start.unwrap() as usize;
+                    let end = start + body_range.length.unwrap() as usize;
+                    let char_indices = body.char_indices().collect::<Vec<_>>();
+                    let start_boundary = body.char_indices().skip(start).next().unwrap().0;
+                    let end_boundary = body.char_indices().skip(end).next().unwrap().0;
+                    debug!(body:?, start:?, end:?, username:?, char_indices:?, start_boundary:?, end_boundary:?; "Replacing body range");
+                    body.replace_range(start_boundary..end_boundary, &username);
+                }
             }
         }
-        debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
-        None
     }
 
     fn attachment_name(&self, attachment_pointer: &AttachmentPointer) -> String {
