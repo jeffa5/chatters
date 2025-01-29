@@ -276,7 +276,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
 
         let mut lines = Vec::new();
         if let Some(quote) = &m.quote {
-            for line in quote.text.lines() {
+            if let Some(line) = quote.text.lines().next() {
                 lines.push(format!("> {line}"));
             }
         }
