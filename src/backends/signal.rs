@@ -336,6 +336,7 @@ impl Signal {
     }
 
     fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
+        debug!(message:? = message; "Converting message to frontend message");
         let thread = Thread::try_from(&message).unwrap();
         let sender = message.metadata.sender.raw_uuid();
         let data_message_to_message = |dm: &DataMessage| {
