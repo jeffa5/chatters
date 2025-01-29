@@ -1,6 +1,7 @@
 use std::{
     ffi::OsString,
     io::{Read, Seek, Write as _},
+    path::PathBuf,
 };
 
 use futures::channel::mpsc;
@@ -72,7 +73,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ComposeInEditor::default()));
     v.push(Box::new(ClearCompose::default()));
     v.push(Box::new(DownloadAttachments::default()));
-    v.push(Box::new(OpenAttachment::default()));
+    v.push(Box::new(OpenAttachments::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -882,36 +883,40 @@ impl Command for DownloadAttachments {
 }
 
 #[derive(Debug)]
-pub struct OpenAttachment {
+pub struct OpenAttachments {
     index: Option<usize>,
 }
 
-impl Command for OpenAttachment {
+impl Command for OpenAttachments {
     fn execute(
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(index) = self.index else {
-            return Err(Error::MissingArgument("index".to_owned()));
-        };
         let Some(message) = tui_state.selected_message() else {
             return Err(Error::NoMessageSelected);
         };
-        if let Some(attachment) = message.attachments.get(index) {
-            if let Some(path) = &attachment.downloaded_file_path {
+        let open_attachment = |path: &Option<PathBuf>| {
+            if let Some(path) = path {
                 debug!(path:? = path; "Opening attachment");
                 open::that_detached(path).unwrap();
+            }
+        };
+        if let Some(index) = self.index {
+            if let Some(attachment) = message.attachments.get(index) {
+                open_attachment(&attachment.downloaded_file_path);
+            }
+        } else {
+            for attachment in &message.attachments {
+                open_attachment(&attachment.downloaded_file_path);
             }
         }
         Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args
-            .free_from_str()
-            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
-        *self = Self { index: Some(index) };
+        let index = args.opt_free_from_str().unwrap();
+        *self = Self { index };
         Ok(())
     }
 
@@ -923,7 +928,7 @@ impl Command for OpenAttachment {
     }
 
     fn names(&self) -> Vec<&'static str> {
-        vec!["open-attachment"]
+        vec!["open-attachments"]
     }
 
     fn complete(&self) -> Vec<String> {
