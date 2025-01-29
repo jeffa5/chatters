@@ -421,6 +421,8 @@ impl Command for SendMessage {
                 .unbounded_send(BackendMessage::SendMessage(
                     contact.thread_id.clone(),
                     MessageContent::Text(message_body, attachments),
+                    // TODO: enable sending replies to messages
+                    None,
                 ))
                 .unwrap();
         }
@@ -487,6 +489,7 @@ impl Command for React {
                     e.as_str().to_owned(),
                     false,
                 ),
+                None
             ))
             .unwrap();
         Ok(CommandSuccess::Nothing)
@@ -566,6 +569,7 @@ impl Command for Unreact {
                     reaction,
                     true,
                 ),
+                None
             ))
             .unwrap();
         Ok(CommandSuccess::Nothing)

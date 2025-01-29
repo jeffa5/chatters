@@ -56,12 +56,14 @@ impl Backend for Local {
                 sender: Uuid::nil(),
                 thread: Thread::Contact(Uuid::nil()),
                 content: super::MessageContent::Text("Message 1".to_owned(), Vec::new()),
+                quote: None,
             },
             super::Message {
                 timestamp: now - 90,
                 sender: Uuid::nil(),
                 thread: Thread::Contact(Uuid::nil()),
                 content: super::MessageContent::Text("Message 2".to_owned(), Vec::new()),
+                quote: None,
             },
             super::Message {
                 timestamp: now - 80,
@@ -73,6 +75,7 @@ impl Backend for Local {
                     "🚀".to_owned(),
                     false,
                 ),
+                quote: None,
             },
         ])
     }
@@ -81,12 +84,14 @@ impl Backend for Local {
         &mut self,
         contact: presage::store::Thread,
         body: super::MessageContent,
+        _quoted: Option<&super::Message>,
     ) -> super::Result<super::Message> {
         let msg = super::Message {
             timestamp: timestamp(),
             sender: Uuid::nil(),
             thread: contact,
             content: body,
+            quote: None,
         };
         Ok(msg)
     }

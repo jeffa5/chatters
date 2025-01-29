@@ -26,6 +26,7 @@ use std::path::PathBuf;
 use url::Url;
 
 use crate::backends::MessageAttachment;
+use crate::backends::Quote;
 use crate::message::FrontendMessage;
 
 use super::timestamp;
@@ -223,7 +224,12 @@ impl Backend for Signal {
         Ok(ret)
     }
 
-    async fn send_message(&mut self, contact: Thread, content: MessageContent) -> Result<Message> {
+    async fn send_message(
+        &mut self,
+        contact: Thread,
+        content: MessageContent,
+        quoting: Option<&Message>,
+    ) -> Result<Message> {
         let now = timestamp();
         let content_body = match &content {
             MessageContent::Text(t, _attachments) => ContentBody::DataMessage(DataMessage {
@@ -244,11 +250,21 @@ impl Backend for Signal {
                 })
             }
         };
+        let quote = if let Some(quoted) = quoting {
+            Some(Quote {
+                timestamp: quoted.timestamp,
+                sender: quoted.sender,
+                text: quoted.content.to_string(),
+            })
+        } else {
+            None
+        };
         let ui_msg = Message {
             timestamp: now,
             sender: self.self_uuid,
             thread: contact.clone(),
             content,
+            quote,
         };
         match contact {
             Thread::Contact(uuid) => {
@@ -327,9 +343,10 @@ impl Signal {
                 sender,
                 thread,
                 content: MessageContent::Text(String::new(), Vec::new()),
+                quote: None,
             };
 
-            if dm.body.is_some() || !dm.attachments.is_empty() {
+            if dm.body.is_some() || !dm.attachments.is_empty() || dm.quote.is_some() {
                 assert!(dm.reaction.is_none());
                 let attachments = dm
                     .attachments
@@ -358,6 +375,13 @@ impl Signal {
                     .collect();
                 let body = dm.body().to_owned();
                 message.content = MessageContent::Text(body, attachments);
+                if let Some(quote) = &dm.quote {
+                    message.quote = Some(Quote {
+                        timestamp: quote.id(),
+                        sender: quote.author_aci().parse().unwrap(),
+                        text: quote.text().to_owned(),
+                    });
+                }
                 return Some(message);
             } else if let Some(r) = &dm.reaction {
                 assert!(dm.body.is_none());

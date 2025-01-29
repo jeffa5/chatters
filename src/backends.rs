@@ -18,6 +18,7 @@ pub struct Message {
     pub sender: Uuid,
     pub thread: Thread,
     pub content: MessageContent,
+    pub quote: Option<Quote>,
 }
 
 #[derive(Debug)]
@@ -26,12 +27,28 @@ pub enum MessageContent {
     Reaction(Uuid, u64, String, bool),
 }
 
+impl ToString for MessageContent {
+    fn to_string(&self) -> String {
+        match self {
+            MessageContent::Text(t, _) => t,
+            MessageContent::Reaction(_, _, r, _) => r,
+        }.to_owned()
+    }
+}
+
 #[derive(Debug)]
 pub struct MessageAttachment {
     pub name: String,
     pub size: u32,
     pub index: usize,
     pub downloaded_path: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct Quote {
+    pub timestamp: u64,
+    pub sender: Uuid,
+    pub text: String,
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +102,7 @@ pub trait Backend: Sized {
         &mut self,
         contact: Thread,
         body: MessageContent,
+        quoting: Option<&Message>,
     ) -> impl Future<Output = Result<Message>>;
 
     fn self_uuid(&self) -> impl Future<Output = Uuid>;

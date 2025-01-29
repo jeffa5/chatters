@@ -76,6 +76,11 @@ impl Messages {
                             content,
                             reactions: Vec::new(),
                             attachments,
+                            quote: message.quote.map(|q| Quote {
+                                timestamp: q.timestamp,
+                                sender: q.sender,
+                                text: q.text,
+                            }),
                         },
                     );
                 }
@@ -150,6 +155,14 @@ pub struct Message {
     pub content: String,
     pub reactions: Vec<Reaction>,
     pub attachments: Vec<Attachment>,
+    pub quote: Option<Quote>,
+}
+
+#[derive(Debug)]
+pub struct Quote {
+    pub timestamp: u64,
+    pub sender: Uuid,
+    pub text: String,
 }
 
 #[derive(Debug)]
@@ -259,9 +272,16 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         let content_indent = " ".repeat(sender_time.len());
 
         let mut lines = Vec::new();
+        if let Some(quote) = &m.quote {
+            for line in quote.text.lines() {
+                lines.push(format!("> {line}"));
+            }
+        }
         if !m.content.is_empty() {
             let content = wrap_text(&m.content, content_width, message_width - content_width);
-            lines.push(content.to_string());
+            for line in content.lines {
+                lines.push(format!("  {line}"));
+            }
         }
         if !m.attachments.is_empty() {
             for attachment in &m.attachments {
@@ -270,7 +290,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                     .clone()
                     .unwrap_or_else(|| "not downloaded".to_owned());
                 lines.push(format!(
-                    "+{} {}B ({})",
+                    "+ {} {}B ({})",
                     attachment.name, attachment.size, downloaded
                 ));
             }
@@ -292,7 +312,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                     }
                 })
                 .collect::<Vec<_>>();
-            lines.push(react_line.join(" "));
+            lines.push(format!("  {}", react_line.join(" ")));
         }
 
         for (i, line) in lines.iter_mut().enumerate() {

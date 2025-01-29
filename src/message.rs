@@ -12,7 +12,7 @@ pub enum BackendMessage {
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     },
-    SendMessage(Thread, MessageContent),
+    SendMessage(Thread, MessageContent, Option<Message>),
     DownloadAttachment(Thread, u64, usize),
 }
 
