@@ -489,7 +489,7 @@ impl Command for React {
                     e.as_str().to_owned(),
                     false,
                 ),
-                None
+                None,
             ))
             .unwrap();
         Ok(CommandSuccess::Nothing)
@@ -569,7 +569,7 @@ impl Command for Unreact {
                     reaction,
                     true,
                 ),
-                None
+                None,
             ))
             .unwrap();
         Ok(CommandSuccess::Nothing)

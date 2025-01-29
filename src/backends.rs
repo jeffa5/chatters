@@ -33,7 +33,8 @@ impl ToString for MessageContent {
         match self {
             MessageContent::Text(t, _) => t,
             MessageContent::Reaction(_, _, r, _) => r,
-        }.to_owned()
+        }
+        .to_owned()
     }
 }
 

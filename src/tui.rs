@@ -281,7 +281,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             }
         }
         if !m.content.is_empty() {
-            let content = wrap_text(&m.content, content_width, message_width - content_width);
+            let content = wrap_text(&m.content, content_width);
             for line in content.lines {
                 lines.push(format!("  {line}"));
             }
@@ -412,14 +412,11 @@ fn biggest_duration_string(duration_ms: u64) -> String {
     }
 }
 
-fn wrap_text(s: &str, width: usize, wrap_indent_width: usize) -> Text {
-    let content = textwrap::wrap(
-        &s,
-        Options::new(width).subsequent_indent(&" ".repeat(wrap_indent_width)),
-    )
-    .into_iter()
-    .map(|s| Line::from(s.into_owned()))
-    .collect::<Vec<_>>();
+fn wrap_text(s: &str, width: usize) -> Text {
+    let content = textwrap::wrap(&s, Options::new(width))
+        .into_iter()
+        .map(|s| Line::from(s.into_owned()))
+        .collect::<Vec<_>>();
     Text::from(content)
 }
 

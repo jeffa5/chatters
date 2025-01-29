@@ -42,7 +42,11 @@ impl<B: Backend> BackendActor<B> {
                         .unwrap();
                 }
                 BackendMessage::SendMessage(thread, body, quoted) => {
-                    let msg = self.backend.send_message(thread, body, quoted.as_ref()).await.unwrap();
+                    let msg = self
+                        .backend
+                        .send_message(thread, body, quoted.as_ref())
+                        .await
+                        .unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::NewMessage(msg))
                         .unwrap();
