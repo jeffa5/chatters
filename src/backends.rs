@@ -5,6 +5,7 @@ use presage::store::Thread;
 use std::future::Future;
 use std::ops::Bound;
 use std::path::Path;
+use std::path::PathBuf;
 use url::Url;
 
 use crate::message::FrontendMessage;
@@ -41,7 +42,8 @@ pub struct MessageAttachment {
     pub name: String,
     pub size: u32,
     pub index: usize,
-    pub downloaded_path: Option<String>,
+    pub downloaded_name: Option<String>,
+    pub downloaded_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]

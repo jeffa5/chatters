@@ -360,8 +360,13 @@ impl Signal {
                         self.attachment_pointers.push(attachment_pointer.clone());
                         let attachment_name = self.attachment_name(attachment_pointer);
                         let attachment_path = self.attachments_dir.join(&attachment_name);
-                        let downloaded_path = if attachment_path.is_file() {
+                        let downloaded_name = if attachment_path.is_file() {
                             Some(attachment_name)
+                        } else {
+                            None
+                        };
+                        let downloaded_path = if attachment_path.is_file() {
+                            Some(attachment_path)
                         } else {
                             None
                         };
@@ -369,6 +374,7 @@ impl Signal {
                             name: filename,
                             size,
                             index: attachment_index,
+                            downloaded_name,
                             downloaded_path,
                         }
                     })
@@ -407,13 +413,6 @@ impl Signal {
     }
 
     fn attachment_name(&self, attachment_pointer: &AttachmentPointer) -> String {
-        let extensions = mime_guess::get_mime_extensions_str(
-            attachment_pointer
-                .content_type
-                .as_deref()
-                .unwrap_or("application/octet-stream"),
-        );
-        let extension = extensions.and_then(|e| e.first()).unwrap_or(&"bin");
         let hash: String = hex::encode(attachment_pointer.digest())
             .chars()
             .take(16)
@@ -423,6 +422,25 @@ impl Signal {
             filename.push('-');
             filename.push_str(name)
         }
+
+        let has_extension = attachment_pointer
+            .file_name
+            .as_ref()
+            .map_or(false, |f| PathBuf::from(f).extension().is_some());
+        if has_extension {
+            return filename;
+        }
+
+        let extensions = mime_guess::get_mime_extensions_str(
+            attachment_pointer
+                .content_type
+                .as_deref()
+                .unwrap_or("application/octet-stream"),
+        );
+        let extension = extensions
+            .and_then(|e| e.first())
+            .map_or("bin", |v| v)
+            .to_owned();
         format!("{filename}.{extension}")
     }
 }

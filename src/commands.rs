@@ -899,7 +899,8 @@ impl Command for OpenAttachment {
             return Err(Error::NoMessageSelected);
         };
         if let Some(attachment) = message.attachments.get(index) {
-            if let Some(path) = &attachment.downloaded_file_name {
+            if let Some(path) = &attachment.downloaded_file_path {
+                debug!(path:? = path; "Opening attachment");
                 open::that_detached(path).unwrap();
             }
         }

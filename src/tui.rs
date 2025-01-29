@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use log::warn;
 use presage::libsignal_service::prelude::Uuid;
@@ -63,7 +64,8 @@ impl Messages {
                             name: a.name,
                             size: a.size,
                             handle: a.index,
-                            downloaded_file_name: a.downloaded_path,
+                            downloaded_file_name: a.downloaded_name,
+                            downloaded_file_path: a.downloaded_path,
                         })
                         .collect();
                     // assume a new message
@@ -177,6 +179,7 @@ pub struct Attachment {
     pub size: u32,
     pub handle: usize,
     pub downloaded_file_name: Option<String>,
+    pub downloaded_file_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Default)]
@@ -312,7 +315,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                     }
                 })
                 .collect::<Vec<_>>();
-            lines.push(format!("  {}", react_line.join(" ")));
+            lines.push(format!("e {}", react_line.join(" ")));
         }
 
         for (i, line) in lines.iter_mut().enumerate() {
