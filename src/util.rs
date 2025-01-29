@@ -322,8 +322,8 @@ fn process_backend_message(
                 .selected()
                 .and_then(|i| tui_state.contacts.get_mut(i).map(|c| (i, c)))
             {
+                contact.last_message_timestamp = m.timestamp;
                 if m.thread == contact.thread_id {
-                    contact.last_message_timestamp = m.timestamp;
                     let c = tui_state.contacts.remove(i);
                     tui_state.contacts.insert(0, c);
                     tui_state.contact_list_state.select(Some(0));
