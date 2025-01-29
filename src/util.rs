@@ -245,6 +245,7 @@ fn process_user_event(
                             (*tui_state).command = TextArea::new(
                                 completions[0].lines().map(|l| l.to_owned()).collect(),
                             );
+                            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
                         } else if completions.len() > 1 {
                             tui_state.command_completions = completions;
                             tui_state.command_completions.sort();
