@@ -29,6 +29,7 @@ use textwrap::Options;
 use tui_textarea::TextArea;
 
 use crate::backends::Contact;
+use crate::compose::Compose;
 
 fn timestamp() -> u64 {
     std::time::SystemTime::now()
@@ -252,7 +253,7 @@ pub struct TuiState {
     pub contacts: Vec<Contact>,
     pub contacts_by_id: BTreeMap<Uuid, Contact>,
     pub messages: Messages,
-    pub compose: TextArea<'static>,
+    pub compose: Compose,
     pub command: TextArea<'static>,
     pub command_error: String,
     pub command_completions: Vec<String>,

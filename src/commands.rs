@@ -456,7 +456,7 @@ impl Command for SendMessage {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         let message_body = tui_state.compose.lines().join("\n").trim().to_owned();
-        tui_state.compose = TextArea::default();
+        tui_state.compose.clear();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
         if message_body.is_empty() {
@@ -816,7 +816,7 @@ impl Command for ComposeInEditor {
             tmpfile.seek(std::io::SeekFrom::Start(0)).unwrap();
             tmpfile.read_to_string(&mut compose_content).unwrap();
             let compose_lines = compose_content.lines().map(|l| l.to_owned()).collect();
-            tui_state.compose = TextArea::new(compose_lines);
+            tui_state.compose.set_text(compose_lines);
         } else {
             warn!("Not using compose content from external editor due to error status");
         }
@@ -852,7 +852,7 @@ impl Command for ClearCompose {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.compose = TextArea::default();
+        tui_state.compose.clear();
         Ok(CommandSuccess::Nothing)
     }
 
