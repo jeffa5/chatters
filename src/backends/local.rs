@@ -1,4 +1,5 @@
-use presage::{libsignal_service::prelude::Uuid, store::Thread};
+use presage::store::Thread;
+use uuid::Uuid;
 
 use super::{timestamp, Backend};
 
@@ -97,7 +98,7 @@ impl Backend for Local {
         Ok(msg)
     }
 
-    async fn self_uuid(&self) -> presage::libsignal_service::prelude::Uuid {
+    async fn self_uuid(&self) -> Uuid {
         Uuid::nil()
     }
 

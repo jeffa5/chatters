@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use log::warn;
-use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
@@ -27,6 +26,7 @@ use ratatui::widgets::TableState;
 use ratatui::Frame;
 use textwrap::Options;
 use tui_textarea::TextArea;
+use uuid::Uuid;
 
 use crate::backends::Contact;
 use crate::compose::Compose;

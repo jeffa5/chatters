@@ -8,7 +8,6 @@ use log::info;
 use log::warn;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
-use presage::libsignal_service::prelude::Uuid;
 use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
@@ -26,6 +25,7 @@ use std::ops::Bound;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
+use uuid::Uuid;
 
 use crate::backends::MessageAttachment;
 use crate::backends::Quote;

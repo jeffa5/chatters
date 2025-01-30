@@ -14,7 +14,6 @@ use futures::future::Either;
 use futures::StreamExt as _;
 use futures::{future::select, pin_mut};
 use log::{debug, info, warn};
-use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
@@ -23,6 +22,7 @@ use std::ffi::OsString;
 use std::io::Stdout;
 use std::path::PathBuf;
 use tui_textarea::TextArea;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct Options {

@@ -411,6 +411,7 @@ dependencies = [
  "tokio",
  "tui-textarea",
  "url",
+ "uuid",
 ]
 
 [[package]]

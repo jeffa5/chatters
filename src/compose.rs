@@ -1,11 +1,11 @@
 use crossterm::event::KeyEvent;
-use presage::libsignal_service::prelude::Uuid;
 use ratatui::{
     layout::{Constraint, Layout},
     style::Style,
     widgets::{Block, Paragraph},
 };
 use tui_textarea::TextArea;
+use uuid::Uuid;
 
 #[derive(Debug, Default)]
 pub struct Compose {

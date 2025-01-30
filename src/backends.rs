@@ -1,12 +1,12 @@
 use futures::channel::mpsc;
 use futures::channel::oneshot;
-use presage::libsignal_service::prelude::Uuid;
 use presage::store::Thread;
 use std::future::Future;
 use std::ops::Bound;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
+use uuid::Uuid;
 
 use crate::message::FrontendMessage;
 
