@@ -15,6 +15,7 @@
         pkgs.rustc
         pkgs.cargo
         pkgs.rustfmt
+        pkgs.clippy
       ];
 
       PROTOC = "${pkgs.protobuf}/bin/protoc";

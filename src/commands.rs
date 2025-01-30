@@ -609,7 +609,7 @@ impl Command for ExecuteCommand {
         let args = shell_words::split(&value)
             .unwrap()
             .into_iter()
-            .map(|s| OsString::from(s))
+            .map(OsString::from)
             .collect();
         let mut pargs = pico_args::Arguments::from_vec(args);
 
@@ -763,7 +763,7 @@ impl Command for ComposeInEditor {
             tmpfile.seek(std::io::SeekFrom::Start(0)).unwrap();
             tmpfile.read_to_string(&mut compose_content).unwrap();
             let compose_lines = compose_content.lines().map(|l| l.to_owned()).collect();
-            (*tui_state).compose = TextArea::new(compose_lines);
+            tui_state.compose = TextArea::new(compose_lines);
         } else {
             warn!("Not using compose content from external editor due to error status");
         }

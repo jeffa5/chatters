@@ -219,7 +219,7 @@ fn process_user_event(
                         let args = shell_words::split(&cmd)
                             .unwrap()
                             .into_iter()
-                            .map(|s| OsString::from(s))
+                            .map(OsString::from)
                             .collect();
                         let mut pargs = pico_args::Arguments::from_vec(args);
                         let subcmd = pargs.subcommand().unwrap().unwrap();
@@ -242,7 +242,7 @@ fn process_user_event(
                             .map(|s| s.to_owned())
                             .collect::<Vec<_>>();
                         if completions.len() == 1 {
-                            (*tui_state).command = TextArea::new(
+                            tui_state.command = TextArea::new(
                                 completions[0].lines().map(|l| l.to_owned()).collect(),
                             );
                             tui_state.command.move_cursor(tui_textarea::CursorMove::End);

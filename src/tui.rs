@@ -375,7 +375,7 @@ fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
             tui_state.command.set_cursor_line_style(Style::new());
             frame.render_widget(&tui_state.command, inner_rect);
         } else {
-            frame.render_widget(ratatui::widgets::Clear::default(), rect);
+            frame.render_widget(ratatui::widgets::Clear, rect);
         }
     } else {
         frame.render_widget(
@@ -413,7 +413,7 @@ fn biggest_duration_string(duration_ms: u64) -> String {
 }
 
 fn wrap_text(s: &str, width: usize) -> Text {
-    let content = textwrap::wrap(&s, Options::new(width))
+    let content = textwrap::wrap(s, Options::new(width))
         .into_iter()
         .map(|s| Line::from(s.into_owned()))
         .collect::<Vec<_>>();

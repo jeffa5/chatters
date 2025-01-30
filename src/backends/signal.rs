@@ -252,15 +252,11 @@ impl Backend for Signal {
                 })
             }
         };
-        let quote = if let Some(quoted) = quoting {
-            Some(Quote {
+        let quote = quoting.map(|quoted| Quote {
                 timestamp: quoted.timestamp,
                 sender: quoted.sender,
                 text: quoted.content.to_string(),
-            })
-        } else {
-            None
-        };
+            });
         let ui_msg = Message {
             timestamp: now,
             sender: self.self_uuid,
@@ -447,8 +443,8 @@ impl Signal {
                     let start = body_range.start.unwrap() as usize;
                     let end = start + body_range.length.unwrap() as usize;
                     let char_indices = body.char_indices().collect::<Vec<_>>();
-                    let start_boundary = body.char_indices().skip(start).next().unwrap().0;
-                    let end_boundary = body.char_indices().skip(end).next().unwrap().0;
+                    let start_boundary = body.char_indices().nth(start).unwrap().0;
+                    let end_boundary = body.char_indices().nth(end).unwrap().0;
                     debug!(body:?, start:?, end:?, username:?, char_indices:?, start_boundary:?, end_boundary:?; "Replacing body range");
                     body.replace_range(start_boundary..end_boundary, &username);
                 }
