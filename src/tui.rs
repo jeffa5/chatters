@@ -30,6 +30,7 @@ use uuid::Uuid;
 
 use crate::backends::Contact;
 use crate::compose::Compose;
+use crate::contacts::Contacts;
 
 fn timestamp() -> u64 {
     std::time::SystemTime::now()
@@ -250,8 +251,7 @@ pub struct TuiState {
     pub attachments_path: String,
     pub contact_list_state: TableState,
     pub message_list_state: ListState,
-    pub contacts: Vec<Contact>,
-    pub contacts_by_id: BTreeMap<Uuid, Contact>,
+    pub contacts: Contacts,
     pub messages: Messages,
     pub compose: Compose,
     pub command: TextArea<'static>,
@@ -265,7 +265,7 @@ impl TuiState {
     pub fn selected_contact(&self) -> Option<&Contact> {
         self.contact_list_state
             .selected()
-            .and_then(|i| self.contacts.get(i))
+            .and_then(|i| self.contacts.contact_or_group_by_index(i))
     }
 
     pub fn selected_message(&self) -> Option<&Message> {
@@ -307,7 +307,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 }
 
 fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
-    let contact_items = tui_state.contacts.iter().map(|c| {
+    let contact_items = tui_state.contacts.iter_contacts_and_groups().map(|c| {
         let age = if c.last_message_timestamp == 0 {
             String::new()
         } else {
@@ -329,8 +329,8 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
         let sender_width = 20;
         let sender = tui_state
-            .contacts_by_id
-            .get(&m.sender)
+            .contacts
+            .contact_by_id(&m.sender)
             .map(|c| c.name.clone())
             .unwrap_or(m.sender.to_string());
         let sender = truncate_or_pad(sender, sender_width);
@@ -467,7 +467,7 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
         Popup::ContactInfo { thread } => {
             let contact = tui_state
                 .contacts
-                .iter()
+                .iter_contacts_and_groups()
                 .find(|c| &c.thread_id == thread)
                 .unwrap();
             render_contact_info(frame, area, contact);
@@ -484,8 +484,8 @@ fn render_message_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, 
     )
     .unwrap();
     let sender_name = tui_state
-        .contacts_by_id
-        .get(&message.sender)
+        .contacts
+        .contact_by_id(&message.sender)
         .unwrap()
         .name
         .to_string();

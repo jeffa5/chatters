@@ -292,7 +292,7 @@ impl Command for SelectContact {
         let index = if let Some(name) = &self.name {
             let Some(index) = tui_state
                 .contacts
-                .iter()
+                .iter_contacts_and_groups()
                 .position(|c| c.name.starts_with(name))
             else {
                 return Err(Error::InvalidArgument {
@@ -468,11 +468,7 @@ impl Command for SendMessage {
         // TODO: enable sending attachments
         let attachments = Vec::new();
 
-        if let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        {
+        if let Some(contact) = tui_state.selected_contact() {
             ba_tx
                 .unbounded_send(BackendMessage::SendMessage(
                     contact.thread_id.clone(),
@@ -523,11 +519,7 @@ impl Command for React {
             });
         };
 
-        let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        else {
+        let Some(contact) = tui_state.selected_contact() else {
             return Err(Error::NoContactSelected);
         };
 
@@ -594,11 +586,7 @@ impl Command for Unreact {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        else {
+        let Some(contact) = tui_state.selected_contact() else {
             return Err(Error::NoContactSelected);
         };
 
@@ -726,7 +714,6 @@ impl Command for ReloadContacts {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.contacts.clear();
-        tui_state.contacts_by_id.clear();
         tui_state.contact_list_state.select(None);
         ba_tx.unbounded_send(BackendMessage::LoadContacts).unwrap();
         Ok(CommandSuccess::Nothing)
@@ -763,11 +750,7 @@ impl Command for ReloadMessages {
     ) -> Result<CommandSuccess> {
         tui_state.messages.clear();
         tui_state.message_list_state.select(None);
-        if let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        {
+        if let Some(contact) = tui_state.selected_contact() {
             ba_tx
                 .unbounded_send(BackendMessage::LoadMessages {
                     thread: contact.thread_id.clone(),
@@ -1114,11 +1097,7 @@ impl Command for Reply {
 }
 
 fn after_contact_changed(tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
-    if let Some(contact) = tui_state
-        .contact_list_state
-        .selected()
-        .and_then(|i| tui_state.contacts.get(i))
-    {
+    if let Some(contact) = tui_state.selected_contact().cloned() {
         tui_state.messages.clear();
         tui_state.message_list_state.select(None);
         ba_tx

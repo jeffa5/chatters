@@ -1,4 +1,5 @@
 use crate::commands::{self, Command};
+use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
 use crate::message::BackendMessage;
 use crate::tui::{render, Mode, TuiState};
@@ -14,7 +15,6 @@ use futures::future::Either;
 use futures::StreamExt as _;
 use futures::{future::select, pin_mut};
 use log::{debug, info, warn};
-use presage::store::Thread;
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
@@ -283,23 +283,8 @@ fn process_backend_message(
             if tui_state.contacts.is_empty() && !vec.is_empty() {
                 tui_state.contact_list_state.select_next();
             }
-            tui_state.contacts = vec;
-            tui_state.contacts_by_id = tui_state
-                .contacts
-                .iter()
-                .filter_map(|c| {
-                    if let Thread::Contact(uuid) = c.thread_id {
-                        Some((uuid, c.clone()))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            if let Some(contact) = tui_state
-                .contact_list_state
-                .selected()
-                .and_then(|i| tui_state.contacts.get(i))
-            {
+            tui_state.contacts = Contacts::new(vec);
+            if let Some(contact) = tui_state.selected_contact() {
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages {
                         thread: contact.thread_id.clone(),
@@ -317,15 +302,15 @@ fn process_backend_message(
             tui_state.messages.extend(vec);
         }
         FrontendMessage::NewMessage(m) => {
-            if let Some((i, contact)) = tui_state
-                .contact_list_state
-                .selected()
-                .and_then(|i| tui_state.contacts.get_mut(i).map(|c| (i, c)))
-            {
+            if let Some((i, contact)) = tui_state.contact_list_state.selected().and_then(|i| {
+                tui_state
+                    .contacts
+                    .contact_or_group_by_index_mut(i)
+                    .map(|c| (i, c))
+            }) {
                 contact.last_message_timestamp = m.timestamp;
                 if m.thread == contact.thread_id {
-                    let c = tui_state.contacts.remove(i);
-                    tui_state.contacts.insert(0, c);
+                    tui_state.contacts.move_by_index(i, 0);
                     tui_state.contact_list_state.select(Some(0));
 
                     tui_state.messages.add_single(m);
@@ -336,7 +321,7 @@ fn process_backend_message(
             if let Some(contact) = tui_state
                 .contact_list_state
                 .selected()
-                .and_then(|i| tui_state.contacts.get_mut(i))
+                .and_then(|i| tui_state.contacts.contact_or_group_by_index_mut(i))
             {
                 if thread == contact.thread_id {
                     if let Some(msg) = tui_state.messages.get_mut_by_timestamp(timestamp) {
