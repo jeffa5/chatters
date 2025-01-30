@@ -182,6 +182,7 @@ impl Backend for Signal {
                     .map(|n| n.to_string())
                     .unwrap_or_default(),
                 last_message_timestamp,
+                description: String::new(),
             });
         }
         Ok(ret)
@@ -199,6 +200,7 @@ impl Backend for Signal {
                 name: group.title,
                 address: String::new(),
                 last_message_timestamp,
+                description: group.description.unwrap_or_default(),
             });
         }
         Ok(ret)

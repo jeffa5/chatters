@@ -515,6 +515,7 @@ fn render_contact_info(frame: &mut Frame<'_>, area: Rect, contact: &Contact) {
         format!("Name:              {}", contact.name),
         format!("Id:                {}", contact.thread_id),
         format!("Last message time: {}", time.to_rfc3339()),
+        format!("Description:       {}", contact.description),
     ]
     .join("\n");
     let block = Block::bordered().title("Contact info");

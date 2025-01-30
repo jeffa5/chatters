@@ -60,6 +60,7 @@ pub struct Contact {
     pub name: String,
     pub address: String,
     pub last_message_timestamp: u64,
+    pub description: String,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -36,6 +36,7 @@ impl Backend for Local {
             name: "Self".to_owned(),
             address: "no address".to_owned(),
             last_message_timestamp: 0,
+            description: "some description".to_owned(),
         }])
     }
 
