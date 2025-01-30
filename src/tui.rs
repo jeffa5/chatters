@@ -293,7 +293,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     render_contacts(frame, contacts_messages[0], tui_state, now);
 
-    let compose_height = tui_state.compose.lines().len().max(1) as u16 + 1; // 1 for top border
+    let compose_height = tui_state.compose.height();
     let message_rect = Layout::vertical([Constraint::Fill(1), Constraint::Length(compose_height)])
         .split(contacts_messages[1]);
 

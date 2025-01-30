@@ -2,7 +2,7 @@ use std::ops::Bound;
 
 use presage::store::Thread;
 
-use crate::backends::{Contact, Message, MessageContent};
+use crate::backends::{Contact, Message, MessageContent, Quote};
 
 #[derive(Debug)]
 pub enum BackendMessage {
@@ -12,7 +12,7 @@ pub enum BackendMessage {
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     },
-    SendMessage(Thread, MessageContent, Option<Message>),
+    SendMessage(Thread, MessageContent, Option<Quote>),
     DownloadAttachment(Thread, u64, usize),
 }
 

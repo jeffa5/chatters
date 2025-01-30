@@ -77,6 +77,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(OpenAttachments::default()));
     v.push(Box::new(MessageInfo::default()));
     v.push(Box::new(ContactInfo::default()));
+    v.push(Box::new(Reply::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -456,6 +457,7 @@ impl Command for SendMessage {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         let message_body = tui_state.compose.lines().join("\n").trim().to_owned();
+        let quoting = tui_state.compose.reply().clone();
         tui_state.compose.clear();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
@@ -475,8 +477,11 @@ impl Command for SendMessage {
                 .unbounded_send(BackendMessage::SendMessage(
                     contact.thread_id.clone(),
                     MessageContent::Text(message_body, attachments),
-                    // TODO: enable sending replies to messages
-                    None,
+                    quoting.map(|m| crate::backends::Quote {
+                        timestamp: m.timestamp,
+                        sender: m.sender,
+                        text: m.text,
+                    }),
                 ))
                 .unwrap();
         }
@@ -1061,6 +1066,46 @@ impl Command for ContactInfo {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["contact-info"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct Reply;
+
+impl Command for Reply {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(selected_message) = tui_state.selected_message() else {
+            return Err(Error::NoMessageSelected);
+        };
+        tui_state.compose.set_reply(crate::compose::Reply {
+            sender: selected_message.sender,
+            timestamp: selected_message.timestamp,
+            text: selected_message.content.clone(),
+        });
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["reply"]
     }
 
     fn complete(&self) -> Vec<String> {

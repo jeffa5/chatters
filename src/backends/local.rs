@@ -85,7 +85,7 @@ impl Backend for Local {
         &mut self,
         contact: presage::store::Thread,
         body: super::MessageContent,
-        _quoted: Option<&super::Message>,
+        _quoted: Option<&super::Quote>,
     ) -> super::Result<super::Message> {
         let msg = super::Message {
             timestamp: timestamp(),

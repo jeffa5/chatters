@@ -106,7 +106,7 @@ pub trait Backend: Sized {
         &mut self,
         contact: Thread,
         body: MessageContent,
-        quoting: Option<&Message>,
+        quoting: Option<&Quote>,
     ) -> impl Future<Output = Result<Message>>;
 
     fn self_uuid(&self) -> impl Future<Output = Uuid>;

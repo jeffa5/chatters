@@ -232,13 +232,22 @@ impl Backend for Signal {
         &mut self,
         contact: Thread,
         content: MessageContent,
-        quoting: Option<&Message>,
+        quoting: Option<&Quote>,
     ) -> Result<Message> {
         let now = timestamp();
+        let quote = quoting.map(|q| presage::proto::data_message::Quote {
+            id: Some(q.timestamp),
+            author_aci: Some(q.sender.to_string()),
+            text: Some(q.text.clone()),
+            attachments: Vec::new(),
+            body_ranges: Vec::new(),
+            r#type: Some(presage::proto::data_message::quote::Type::Normal as i32),
+        });
         let content_body = match &content {
             MessageContent::Text(t, _attachments) => ContentBody::DataMessage(DataMessage {
                 body: Some(t.clone()),
                 timestamp: Some(now),
+                quote,
                 ..Default::default()
             }),
             MessageContent::Reaction(author, ts, r, remove) => {
@@ -250,6 +259,7 @@ impl Backend for Signal {
                         target_sent_timestamp: Some(*ts),
                     }),
                     timestamp: Some(now),
+                    quote,
                     ..Default::default()
                 })
             }
@@ -257,7 +267,7 @@ impl Backend for Signal {
         let quote = quoting.map(|quoted| Quote {
             timestamp: quoted.timestamp,
             sender: quoted.sender,
-            text: quoted.content.to_string(),
+            text: quoted.text.clone(),
         });
         let ui_msg = Message {
             timestamp: now,
