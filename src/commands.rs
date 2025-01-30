@@ -11,7 +11,7 @@ use tui_textarea::TextArea;
 use crate::{
     backends::MessageContent,
     message::BackendMessage,
-    tui::{Mode, TuiState},
+    tui::{Mode, Popup, TuiState},
 };
 
 pub enum CommandSuccess {
@@ -74,6 +74,8 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ClearCompose::default()));
     v.push(Box::new(DownloadAttachments::default()));
     v.push(Box::new(OpenAttachments::default()));
+    v.push(Box::new(MessageInfo::default()));
+    v.push(Box::new(ContactInfo::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -313,6 +315,7 @@ impl Command for NormalMode {
         tui_state.mode = Mode::Normal;
         tui_state.command = TextArea::default();
         tui_state.command_completions.clear();
+        tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -344,6 +347,7 @@ impl Command for CommandMode {
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Command;
         tui_state.command_error.clear();
+        tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -374,6 +378,7 @@ impl Command for ComposeMode {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Compose;
+        tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -935,6 +940,82 @@ impl Command for OpenAttachments {
 
     fn complete(&self) -> Vec<String> {
         // TODO: get tui_state here and present the indices of attachments
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct MessageInfo;
+
+impl Command for MessageInfo {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(selected_message) = tui_state.selected_message() else {
+            return Err(Error::NoMessageSelected);
+        };
+        tui_state.popup = Some(Popup::MessageInfo {
+            timestamp: selected_message.timestamp,
+        });
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["message-info"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct ContactInfo;
+
+impl Command for ContactInfo {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(selected_contact) = tui_state.selected_contact() else {
+            return Err(Error::NoContactSelected);
+        };
+        tui_state.popup = Some(Popup::ContactInfo {
+            thread: selected_contact.thread_id.clone(),
+        });
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["contact-info"]
+    }
+
+    fn complete(&self) -> Vec<String> {
         Vec::new()
     }
 }

@@ -7,6 +7,7 @@ use presage::store::Thread;
 use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
+use ratatui::layout::Flex;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
@@ -16,6 +17,7 @@ use ratatui::text::Line;
 use ratatui::text::Text;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
+use ratatui::widgets::Clear;
 use ratatui::widgets::List;
 use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
@@ -117,6 +119,10 @@ impl Messages {
             .and_then(|ts| self.messages_by_ts.get(ts))
     }
 
+    pub fn get_by_timestamp(&self, timestamp: u64) -> Option<&Message> {
+        self.messages_by_ts.get(&timestamp)
+    }
+
     pub fn get_mut_by_timestamp(&mut self, timestamp: u64) -> Option<&mut Message> {
         self.messages_by_ts.get_mut(&timestamp)
     }
@@ -160,6 +166,55 @@ pub struct Message {
     pub quote: Option<Quote>,
 }
 
+impl Message {
+    pub fn render(&self, width: usize) -> Vec<String> {
+        let mut lines = Vec::new();
+        if let Some(quote) = &self.quote {
+            if let Some(line) = quote.text.lines().next() {
+                lines.push(format!("> {line}"));
+            }
+        }
+        if !self.content.is_empty() {
+            let content = wrap_text(&self.content, width);
+            for line in content.lines {
+                lines.push(format!("  {line}"));
+            }
+        }
+        if !self.attachments.is_empty() {
+            for attachment in &self.attachments {
+                let downloaded = attachment
+                    .downloaded_file_name
+                    .clone()
+                    .unwrap_or_else(|| "not downloaded".to_owned());
+                lines.push(format!(
+                    "+ {} {}B ({})",
+                    attachment.name, attachment.size, downloaded
+                ));
+            }
+        }
+        if !self.reactions.is_empty() {
+            let react_line = self
+                .reactions
+                .iter()
+                .fold(BTreeMap::<_, usize>::new(), |mut map, r| {
+                    *map.entry(&r.emoji).or_default() += 1;
+                    map
+                })
+                .iter()
+                .map(|(r, count)| {
+                    if *count > 1 {
+                        format!("{r}x{count}")
+                    } else {
+                        (*r).to_owned()
+                    }
+                })
+                .collect::<Vec<_>>();
+            lines.push(format!("  {}", react_line.join(" ")));
+        }
+        lines
+    }
+}
+
 #[derive(Debug)]
 pub struct Quote {
     pub timestamp: u64,
@@ -182,6 +237,12 @@ pub struct Attachment {
     pub downloaded_file_path: Option<PathBuf>,
 }
 
+#[derive(Debug)]
+pub enum Popup {
+    MessageInfo { timestamp: u64 },
+    ContactInfo { thread: Thread },
+}
+
 #[derive(Debug, Default)]
 pub struct TuiState {
     pub self_uuid: Uuid,
@@ -196,6 +257,7 @@ pub struct TuiState {
     pub command_error: String,
     pub command_completions: Vec<String>,
     pub mode: Mode,
+    pub popup: Option<Popup>,
 }
 
 impl TuiState {
@@ -214,6 +276,7 @@ impl TuiState {
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     let now = timestamp();
+    let area = frame.area();
     let vertical_splits = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -221,7 +284,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
             Constraint::Length(1),
             Constraint::Length(1),
         ])
-        .split(frame.area());
+        .split(area);
 
     let contacts_messages =
         Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)])
@@ -238,6 +301,8 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 
     render_status(frame, vertical_splits[1], tui_state, now);
     render_command(frame, vertical_splits[2], tui_state, now);
+
+    render_popup(frame, area, &tui_state);
 }
 
 fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
@@ -274,49 +339,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         let content_width = message_width - sender_time.len();
         let content_indent = " ".repeat(sender_time.len());
 
-        let mut lines = Vec::new();
-        if let Some(quote) = &m.quote {
-            if let Some(line) = quote.text.lines().next() {
-                lines.push(format!("> {line}"));
-            }
-        }
-        if !m.content.is_empty() {
-            let content = wrap_text(&m.content, content_width);
-            for line in content.lines {
-                lines.push(format!("  {line}"));
-            }
-        }
-        if !m.attachments.is_empty() {
-            for attachment in &m.attachments {
-                let downloaded = attachment
-                    .downloaded_file_name
-                    .clone()
-                    .unwrap_or_else(|| "not downloaded".to_owned());
-                lines.push(format!(
-                    "+ {} {}B ({})",
-                    attachment.name, attachment.size, downloaded
-                ));
-            }
-        }
-        if !m.reactions.is_empty() {
-            let react_line = m
-                .reactions
-                .iter()
-                .fold(BTreeMap::<_, usize>::new(), |mut map, r| {
-                    *map.entry(&r.emoji).or_default() += 1;
-                    map
-                })
-                .iter()
-                .map(|(r, count)| {
-                    if *count > 1 {
-                        format!("{r}x{count}")
-                    } else {
-                        (*r).to_owned()
-                    }
-                })
-                .collect::<Vec<_>>();
-            lines.push(format!("  {}", react_line.join(" ")));
-        }
+        let mut lines = m.render(content_width);
 
         for (i, line) in lines.iter_mut().enumerate() {
             if i == 0 {
@@ -427,4 +450,82 @@ fn truncate_or_pad(mut s: String, width: usize) -> String {
         s.push_str(&" ".repeat(width - s.len()));
         s
     }
+}
+
+fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
+    let Some(popup) = &tui_state.popup else {
+        return;
+    };
+    let area = popup_area(area, 60, 50);
+    frame.render_widget(Clear, area); // this clears out the background
+    match popup {
+        Popup::MessageInfo { timestamp } => {
+            let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
+            render_message_info(frame, area, tui_state, message);
+        }
+        Popup::ContactInfo { thread } => {
+            let contact = tui_state
+                .contacts
+                .iter()
+                .find(|c| &c.thread_id == thread)
+                .unwrap();
+            render_contact_info(frame, area, contact);
+        }
+    }
+}
+
+fn render_message_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, message: &Message) {
+    let ts_seconds = message.timestamp / 1_000;
+    let ts_nanos = (message.timestamp % 1_000) * 1_000_000;
+    let time = chrono::DateTime::from_timestamp(
+        ts_seconds.try_into().unwrap(),
+        ts_nanos.try_into().unwrap(),
+    )
+    .unwrap();
+    let sender_name = tui_state
+        .contacts_by_id
+        .get(&message.sender)
+        .unwrap()
+        .name
+        .to_string();
+    let text = vec![
+        format!("Sender name: {}", sender_name),
+        format!("Sender id:   {}", message.sender),
+        format!("Time:        {}", time.to_rfc3339()),
+        String::new(),
+        message
+            .render(area.width.saturating_sub(2) as usize)
+            .join("\n"),
+    ]
+    .join("\n");
+    let block = Block::bordered().title("Message info");
+    let list = Paragraph::new(text).block(block);
+    frame.render_widget(list, area);
+}
+
+fn render_contact_info(frame: &mut Frame<'_>, area: Rect, contact: &Contact) {
+    let ts_seconds = contact.last_message_timestamp / 1_000;
+    let ts_nanos = (contact.last_message_timestamp % 1_000) * 1_000_000;
+    let time = chrono::DateTime::from_timestamp(
+        ts_seconds.try_into().unwrap(),
+        ts_nanos.try_into().unwrap(),
+    )
+    .unwrap();
+    let text = vec![
+        format!("Name:              {}", contact.name),
+        format!("Id:                {}", contact.thread_id),
+        format!("Last message time: {}", time.to_rfc3339()),
+    ]
+    .join("\n");
+    let block = Block::bordered().title("Contact info");
+    let list = Paragraph::new(text).block(block);
+    frame.render_widget(list, area);
+}
+
+fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
+    let vertical = Layout::vertical([Constraint::Percentage(percent_y)]).flex(Flex::Center);
+    let horizontal = Layout::horizontal([Constraint::Percentage(percent_x)]).flex(Flex::Center);
+    let [area] = vertical.areas(area);
+    let [area] = horizontal.areas(area);
+    area
 }

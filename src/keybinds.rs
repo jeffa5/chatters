@@ -38,6 +38,7 @@ pub struct KeyBinds {
 impl KeyBinds {
     pub fn normal_default() -> Self {
         let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
+        bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
         bindings.push((char('q'), Box::new(Quit)));
         bindings.push((char('J'), Box::new(NextContact)));
         bindings.push((char('K'), Box::new(PrevContact)));

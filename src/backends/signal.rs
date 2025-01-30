@@ -253,10 +253,10 @@ impl Backend for Signal {
             }
         };
         let quote = quoting.map(|quoted| Quote {
-                timestamp: quoted.timestamp,
-                sender: quoted.sender,
-                text: quoted.content.to_string(),
-            });
+            timestamp: quoted.timestamp,
+            sender: quoted.sender,
+            text: quoted.content.to_string(),
+        });
         let ui_msg = Message {
             timestamp: now,
             sender: self.self_uuid,
