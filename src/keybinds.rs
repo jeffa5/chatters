@@ -41,9 +41,13 @@ impl KeyBinds {
         bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
         bindings.push((char('q'), Box::new(Quit)));
         bindings.push((char('J'), Box::new(NextContact)));
+        bindings.push((code_shift(KeyCode::Down), Box::new(NextContact)));
         bindings.push((char('K'), Box::new(PrevContact)));
+        bindings.push((code_shift(KeyCode::Up), Box::new(PrevContact)));
         bindings.push((char('j'), Box::new(NextMessage)));
+        bindings.push((code(KeyCode::Down), Box::new(NextMessage)));
         bindings.push((char('k'), Box::new(PrevMessage)));
+        bindings.push((code(KeyCode::Up), Box::new(PrevMessage)));
         bindings.push((char(':'), Box::new(CommandMode)));
         bindings.push((char('i'), Box::new(ComposeMode)));
         bindings.push((char('g'), Box::new(SelectMessage { index: 0 })));
@@ -92,6 +96,13 @@ fn code(code: KeyCode) -> KeyEvent {
     KeyEvent {
         code,
         modifiers: KeyMods::Modifiers(KeyModifiers::NONE),
+    }
+}
+
+fn code_shift(code: KeyCode) -> KeyEvent {
+    KeyEvent {
+        code,
+        modifiers: KeyMods::Modifiers(KeyModifiers::SHIFT),
     }
 }
 
