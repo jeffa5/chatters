@@ -29,6 +29,7 @@ use tui_textarea::TextArea;
 use uuid::Uuid;
 
 use crate::backends::Contact;
+use crate::command_history::CommandHistory;
 use crate::compose::Compose;
 use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
@@ -245,6 +246,7 @@ pub enum Popup {
     MessageInfo { timestamp: u64 },
     ContactInfo { thread: Thread },
     Keybinds,
+    CommandHistory,
 }
 
 #[derive(Debug, Default)]
@@ -259,6 +261,7 @@ pub struct TuiState {
     pub command: TextArea<'static>,
     pub command_error: String,
     pub command_completions: Vec<String>,
+    pub command_history: CommandHistory,
     pub mode: Mode,
     pub popup: Option<Popup>,
 }
@@ -475,6 +478,7 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
             render_contact_info(frame, area, contact);
         }
         Popup::Keybinds => render_keybinds(frame, area),
+        Popup::CommandHistory => render_command_history(frame, area, tui_state),
     }
 }
 
@@ -551,6 +555,19 @@ fn render_keybinds(frame: &mut Frame<'_>, area: Rect) {
 
     let block = Block::bordered().title("Keybindings");
     let para = Paragraph::new(text).block(block);
+    frame.render_widget(para, area);
+}
+
+fn render_command_history(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
+    let lines = tui_state
+        .command_history
+        .iter()
+        .into_iter()
+        .map(|c| format!("{:?}", c))
+        .collect::<Vec<_>>();
+
+    let block = Block::bordered().title("Keybindings");
+    let para = Paragraph::new(lines.join("\n")).block(block);
     frame.render_widget(para, area);
 }
 

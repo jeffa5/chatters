@@ -3,8 +3,9 @@ use std::fmt::Display;
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::commands::{
-    Command, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand, Keybindings, NextContact,
-    NextMessage, NormalMode, PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
+    Command, CommandHistory, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand,
+    Keybindings, NextContact, NextMessage, NormalMode, PrevCommand, PrevContact, PrevMessage, Quit,
+    SelectMessage, SendMessage,
 };
 
 #[derive(Debug)]
@@ -80,12 +81,14 @@ impl KeyBinds {
         bindings.push((char('I'), Box::new(ComposeInEditor)));
         bindings.push((code(KeyCode::Enter), Box::new(SendMessage)));
         bindings.push((char('?'), Box::new(Keybindings)));
+        bindings.push((char('h'), Box::new(CommandHistory)));
         Self { bindings }
     }
 
     pub fn command_default() -> Self {
         let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
         bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
+        bindings.push((code(KeyCode::Up), Box::new(PrevCommand)));
         bindings.push((any_code(KeyCode::Enter), Box::new(ExecuteCommand)));
         Self { bindings }
     }

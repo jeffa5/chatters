@@ -8,3 +8,4 @@ pub mod log;
 pub mod message;
 pub mod tui;
 pub mod util;
+pub mod command_history;

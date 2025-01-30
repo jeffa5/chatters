@@ -52,6 +52,8 @@ pub trait Command: std::fmt::Debug {
     fn names(&self) -> Vec<&'static str>;
 
     fn complete(&self) -> Vec<String>;
+
+    fn dyn_clone(&self) -> Box<dyn Command>;
 }
 
 pub fn commands() -> Vec<Box<dyn Command>> {
@@ -78,6 +80,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(MessageInfo::default()));
     v.push(Box::new(ContactInfo::default()));
     v.push(Box::new(Keybindings::default()));
+    v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
@@ -110,6 +113,10 @@ impl Command for Quit {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -121,8 +128,9 @@ impl Command for NextContact {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
+        let last_selected = tui_state.contact_list_state.selected();
         tui_state.contact_list_state.select_next();
-        after_contact_changed(tui_state, ba_tx);
+        after_contact_changed(tui_state, ba_tx, last_selected);
         Ok(CommandSuccess::Nothing)
     }
 
@@ -141,6 +149,10 @@ impl Command for NextContact {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -152,8 +164,9 @@ impl Command for PrevContact {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
+        let last_selected = tui_state.contact_list_state.selected();
         tui_state.contact_list_state.select_previous();
-        after_contact_changed(tui_state, ba_tx);
+        after_contact_changed(tui_state, ba_tx, last_selected);
         Ok(CommandSuccess::Nothing)
     }
 
@@ -171,6 +184,10 @@ impl Command for PrevContact {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -202,6 +219,10 @@ impl Command for NextMessage {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -231,6 +252,10 @@ impl Command for PrevMessage {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -276,6 +301,10 @@ impl Command for SelectMessage {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self { index: self.index })
+    }
 }
 
 #[derive(Debug)]
@@ -290,6 +319,7 @@ impl Command for SelectContact {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
+        let last_selected = tui_state.contact_list_state.selected();
         let index = if let Some(name) = &self.name {
             let Some(index) = tui_state
                 .contacts
@@ -318,7 +348,7 @@ impl Command for SelectContact {
             tui_state.contact_list_state.select(Some(abs_index));
         }
 
-        after_contact_changed(tui_state, ba_tx);
+        after_contact_changed(tui_state, ba_tx, last_selected);
 
         Ok(CommandSuccess::Nothing)
     }
@@ -349,6 +379,13 @@ impl Command for SelectContact {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            index: self.index,
+            name: self.name.clone(),
+        })
     }
 }
 
@@ -383,6 +420,10 @@ impl Command for NormalMode {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -415,6 +456,10 @@ impl Command for CommandMode {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -445,6 +490,10 @@ impl Command for ComposeMode {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -499,6 +548,10 @@ impl Command for SendMessage {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -576,6 +629,12 @@ impl Command for React {
             .take(10)
             .collect()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            emoji: self.emoji.clone(),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -638,6 +697,10 @@ impl Command for Unreact {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -681,6 +744,7 @@ impl Command for ExecuteCommand {
                 tui_state.command_error = error.to_string();
                 return Ok(CommandSuccess::Nothing);
             }
+            tui_state.command_history.push(command.dyn_clone());
             let ret = command.execute(tui_state, ba_tx)?;
             Ok(ret)
         } else {
@@ -702,6 +766,10 @@ impl Command for ExecuteCommand {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -737,6 +805,10 @@ impl Command for ReloadContacts {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -780,6 +852,10 @@ impl Command for ReloadMessages {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -830,6 +906,10 @@ impl Command for ComposeInEditor {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -862,6 +942,10 @@ impl Command for ClearCompose {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -923,6 +1007,10 @@ impl Command for DownloadAttachments {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self { index: self.index })
+    }
 }
 
 #[derive(Debug)]
@@ -979,6 +1067,10 @@ impl Command for OpenAttachments {
         // TODO: get tui_state here and present the indices of attachments
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self { index: self.index })
+    }
 }
 
 #[derive(Debug)]
@@ -1016,6 +1108,10 @@ impl Command for MessageInfo {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -1055,6 +1151,10 @@ impl Command for ContactInfo {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
 #[derive(Debug)]
@@ -1087,6 +1187,10 @@ impl Command for Keybindings {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 
@@ -1128,9 +1232,92 @@ impl Command for Reply {
     fn complete(&self) -> Vec<String> {
         Vec::new()
     }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
 }
 
-fn after_contact_changed(tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+#[derive(Debug)]
+pub struct CommandHistory;
+
+impl Command for CommandHistory {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        tui_state.popup = Some(Popup::CommandHistory);
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["command-history"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct PrevCommand;
+
+impl Command for PrevCommand {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        tui_state.command_history.select_previous();
+        if let Some(selected_command) = tui_state.command_history.selected_command() {
+            tui_state.command = TextArea::new(vec![format!("{:?}", selected_command)])
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["prev-command"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
+}
+
+fn after_contact_changed(
+    tui_state: &mut TuiState,
+    ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    last_selected: Option<usize>,
+) {
+    let selected = tui_state.contact_list_state.selected();
+    if selected == last_selected {
+        return;
+    }
     if let Some(contact) = tui_state.selected_contact().cloned() {
         tui_state.messages.clear();
         tui_state.message_list_state.select(None);
