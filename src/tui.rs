@@ -31,6 +31,7 @@ use uuid::Uuid;
 use crate::backends::Contact;
 use crate::compose::Compose;
 use crate::contacts::Contacts;
+use crate::keybinds::KeyBinds;
 
 fn timestamp() -> u64 {
     std::time::SystemTime::now()
@@ -243,6 +244,7 @@ pub struct Attachment {
 pub enum Popup {
     MessageInfo { timestamp: u64 },
     ContactInfo { thread: Thread },
+    Keybinds,
 }
 
 #[derive(Debug, Default)]
@@ -472,6 +474,7 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
                 .unwrap();
             render_contact_info(frame, area, contact);
         }
+        Popup::Keybinds => render_keybinds(frame, area),
     }
 }
 
@@ -522,6 +525,33 @@ fn render_contact_info(frame: &mut Frame<'_>, area: Rect, contact: &Contact) {
     let block = Block::bordered().title("Contact info");
     let list = Paragraph::new(text).block(block);
     frame.render_widget(list, area);
+}
+
+fn render_keybinds(frame: &mut Frame<'_>, area: Rect) {
+    let normal_keybinds = KeyBinds::normal_default()
+        .iter()
+        .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let command_keybinds = KeyBinds::command_default()
+        .iter()
+        .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let compose_keybinds = KeyBinds::compose_default()
+        .iter()
+        .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let text = format!(
+        "Normal mode bindings\n{}\n\nCommand mode bindings\n{}\n\nCompose mode bindings\n{}",
+        normal_keybinds, command_keybinds, compose_keybinds
+    );
+
+    let block = Block::bordered().title("Keybindings");
+    let para = Paragraph::new(text).block(block);
+    frame.render_widget(para, area);
 }
 
 fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {

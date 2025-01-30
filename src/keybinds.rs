@@ -1,14 +1,27 @@
+use std::fmt::Display;
+
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::commands::{
-    Command, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand, NextContact, NextMessage,
-    NormalMode, PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
+    Command, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand, Keybindings, NextContact,
+    NextMessage, NormalMode, PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
 };
 
 #[derive(Debug)]
 pub enum KeyMods {
     Modifiers(KeyModifiers),
     Any,
+}
+
+impl Display for KeyMods {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyMods::Modifiers(key_modifiers) => {
+                write!(f, "{}", key_modifiers)
+            }
+            KeyMods::Any => write!(f, "Any"),
+        }
+    }
 }
 
 impl PartialEq for KeyMods {
@@ -28,6 +41,18 @@ impl Eq for KeyMods {}
 pub struct KeyEvent {
     code: KeyCode,
     modifiers: KeyMods,
+}
+
+impl Display for KeyEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.modifiers == KeyMods::Modifiers(KeyModifiers::NONE)
+            || matches!(self.code, KeyCode::Char(_))
+        {
+            write!(f, "{}", self.code)
+        } else {
+            write!(f, "{}+{}", self.modifiers, self.code)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -54,6 +79,7 @@ impl KeyBinds {
         bindings.push((char('G'), Box::new(SelectMessage { index: -1 })));
         bindings.push((char('I'), Box::new(ComposeInEditor)));
         bindings.push((code(KeyCode::Enter), Box::new(SendMessage)));
+        bindings.push((char('?'), Box::new(Keybindings)));
         Self { bindings }
     }
 
@@ -78,6 +104,10 @@ impl KeyBinds {
         self.bindings
             .iter()
             .find_map(|(ke, c)| if ke == key_event { Some(c) } else { None })
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(KeyEvent, Box<dyn Command>)> {
+        self.bindings.iter()
     }
 }
 
