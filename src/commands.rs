@@ -62,6 +62,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(NextMessage::default()));
     v.push(Box::new(PrevMessage::default()));
     v.push(Box::new(SelectMessage::default()));
+    v.push(Box::new(SelectContact::default()));
     v.push(Box::new(NormalMode::default()));
     v.push(Box::new(CommandMode::default()));
     v.push(Box::new(ComposeMode::default()));
@@ -119,21 +120,7 @@ impl Command for NextContact {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.contact_list_state.select_next();
-        if let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        {
-            tui_state.messages.clear();
-            tui_state.message_list_state.select(None);
-            ba_tx
-                .unbounded_send(BackendMessage::LoadMessages {
-                    thread: contact.thread_id.clone(),
-                    start_ts: std::ops::Bound::Unbounded,
-                    end_ts: std::ops::Bound::Unbounded,
-                })
-                .unwrap();
-        }
+        after_contact_changed(tui_state, ba_tx);
         Ok(CommandSuccess::Nothing)
     }
 
@@ -164,21 +151,7 @@ impl Command for PrevContact {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.contact_list_state.select_previous();
-        if let Some(contact) = tui_state
-            .contact_list_state
-            .selected()
-            .and_then(|i| tui_state.contacts.get(i))
-        {
-            tui_state.messages.clear();
-            tui_state.message_list_state.select(None);
-            ba_tx
-                .unbounded_send(BackendMessage::LoadMessages {
-                    thread: contact.thread_id.clone(),
-                    start_ts: std::ops::Bound::Unbounded,
-                    end_ts: std::ops::Bound::Unbounded,
-                })
-                .unwrap();
-        }
+        after_contact_changed(tui_state, ba_tx);
         Ok(CommandSuccess::Nothing)
     }
 
@@ -304,6 +277,80 @@ impl Command for SelectMessage {
 }
 
 #[derive(Debug)]
+pub struct SelectContact {
+    pub index: Option<isize>,
+    pub name: Option<String>,
+}
+
+impl Command for SelectContact {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let index = if let Some(name) = &self.name {
+            let Some(index) = tui_state
+                .contacts
+                .iter()
+                .position(|c| c.name.starts_with(name))
+            else {
+                return Err(Error::InvalidArgument {
+                    arg: "name".to_owned(),
+                    value: name.to_owned(),
+                });
+            };
+            index as isize
+        } else if let Some(index) = self.index {
+            index
+        } else {
+            return Err(Error::MissingArgument("index or name".to_owned()));
+        };
+
+        let abs_index: usize = index.abs().try_into().unwrap();
+        if index < 0 {
+            let num_contacts = tui_state.contacts.len();
+            tui_state
+                .contact_list_state
+                .select(Some(num_contacts - (abs_index % num_contacts)));
+        } else {
+            tui_state.contact_list_state.select(Some(abs_index));
+        }
+
+        after_contact_changed(tui_state, ba_tx);
+
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let name: String = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("name".to_owned()))?;
+        if name.chars().all(|c| c.is_numeric()) {
+            // actually index
+            self.index = name.parse().ok();
+        } else {
+            self.name = Some(name);
+        }
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self {
+            index: None,
+            name: None,
+        }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["select-contact"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
 pub struct NormalMode;
 
 impl Command for NormalMode {
@@ -416,6 +463,7 @@ impl Command for SendMessage {
             return Ok(CommandSuccess::Nothing);
         }
 
+        // TODO: enable sending attachments
         let attachments = Vec::new();
 
         if let Some(contact) = tui_state
@@ -1017,5 +1065,23 @@ impl Command for ContactInfo {
 
     fn complete(&self) -> Vec<String> {
         Vec::new()
+    }
+}
+
+fn after_contact_changed(tui_state: &mut TuiState, ba_tx: &mpsc::UnboundedSender<BackendMessage>) {
+    if let Some(contact) = tui_state
+        .contact_list_state
+        .selected()
+        .and_then(|i| tui_state.contacts.get(i))
+    {
+        tui_state.messages.clear();
+        tui_state.message_list_state.select(None);
+        ba_tx
+            .unbounded_send(BackendMessage::LoadMessages {
+                thread: contact.thread_id.clone(),
+                start_ts: std::ops::Bound::Unbounded,
+                end_ts: std::ops::Bound::Unbounded,
+            })
+            .unwrap();
     }
 }
