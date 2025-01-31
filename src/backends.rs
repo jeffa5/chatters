@@ -12,6 +12,7 @@ use crate::message::FrontendMessage;
 
 pub mod local;
 pub mod signal;
+pub mod matrix;
 
 #[derive(Debug)]
 pub struct Message {

@@ -16,6 +16,9 @@
         pkgs.cargo
         pkgs.rustfmt
         pkgs.clippy
+
+        pkgs.openssl
+        pkgs.pkg-config
       ];
 
       PROTOC = "${pkgs.protobuf}/bin/protoc";
