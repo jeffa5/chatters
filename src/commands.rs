@@ -82,6 +82,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Keybindings::default()));
     v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
+    v.push(Box::new(PopupScroll::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -1088,6 +1089,7 @@ impl Command for MessageInfo {
         tui_state.popup = Some(Popup::MessageInfo {
             timestamp: selected_message.timestamp,
         });
+        tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -1130,6 +1132,7 @@ impl Command for ContactInfo {
         tui_state.popup = Some(Popup::ContactInfo {
             thread: selected_contact.thread_id.clone(),
         });
+        tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -1167,6 +1170,7 @@ impl Command for Keybindings {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.popup = Some(Popup::Keybinds);
+        tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -1248,6 +1252,7 @@ impl Command for CommandHistory {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.popup = Some(Popup::CommandHistory);
+        tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -1343,6 +1348,55 @@ impl Command for NextCommand {
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct PopupScroll {
+    pub amount: i16,
+}
+
+impl Command for PopupScroll {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        debug!(amount:% = self.amount; "Scrolling popup");
+        if self.amount > 0 {
+            tui_state.popup_scroll += self.amount as u16;
+        } else if self.amount < 0 {
+            tui_state.popup_scroll = tui_state
+                .popup_scroll
+                .saturating_sub(self.amount.abs() as u16);
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let amount = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("amount".to_owned()))?;
+        *self = Self { amount};
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self { amount: 0 }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["popup-scroll"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            amount: self.amount,
+        })
     }
 }
 

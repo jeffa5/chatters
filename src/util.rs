@@ -174,6 +174,7 @@ fn process_user_event(
     let normal_keybinds = KeyBinds::normal_default();
     let command_keybinds = KeyBinds::command_default();
     let compose_keybinds = KeyBinds::compose_default();
+    let popup_keybinds = KeyBinds::popup_default();
 
     let mode = tui_state.mode;
 
@@ -263,6 +264,13 @@ fn process_user_event(
                     }
                 } else {
                     tui_state.compose.input(key_event);
+                }
+            }
+            Mode::Popup => {
+                if let Some(command) = popup_keybinds.get(code, modifiers) {
+                    if execute_command(command) {
+                        return true;
+                    }
                 }
             }
         },

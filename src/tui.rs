@@ -47,6 +47,7 @@ pub enum Mode {
     Normal,
     Command,
     Compose,
+    Popup,
 }
 
 #[derive(Debug, Default)]
@@ -264,6 +265,7 @@ pub struct TuiState {
     pub command_history: CommandHistory,
     pub mode: Mode,
     pub popup: Option<Popup>,
+    pub popup_scroll: u16,
 }
 
 impl TuiState {
@@ -475,9 +477,9 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
                 .iter_contacts_and_groups()
                 .find(|c| &c.thread_id == thread)
                 .unwrap();
-            render_contact_info(frame, area, contact);
+            render_contact_info(frame, area, tui_state, contact);
         }
-        Popup::Keybinds => render_keybinds(frame, area),
+        Popup::Keybinds => render_keybinds(frame, area, tui_state),
         Popup::CommandHistory => render_command_history(frame, area, tui_state),
     }
 }
@@ -507,11 +509,13 @@ fn render_message_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, 
     ]
     .join("\n");
     let block = Block::bordered().title("Message info");
-    let list = Paragraph::new(text).block(block);
+    let list = Paragraph::new(text)
+        .block(block)
+        .scroll((tui_state.popup_scroll, 0));
     frame.render_widget(list, area);
 }
 
-fn render_contact_info(frame: &mut Frame<'_>, area: Rect, contact: &Contact) {
+fn render_contact_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, contact: &Contact) {
     let ts_seconds = contact.last_message_timestamp / 1_000;
     let ts_nanos = (contact.last_message_timestamp % 1_000) * 1_000_000;
     let time = chrono::DateTime::from_timestamp(
@@ -527,11 +531,13 @@ fn render_contact_info(frame: &mut Frame<'_>, area: Rect, contact: &Contact) {
     ]
     .join("\n");
     let block = Block::bordered().title("Contact info");
-    let list = Paragraph::new(text).block(block);
+    let list = Paragraph::new(text)
+        .block(block)
+        .scroll((tui_state.popup_scroll, 0));
     frame.render_widget(list, area);
 }
 
-fn render_keybinds(frame: &mut Frame<'_>, area: Rect) {
+fn render_keybinds(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
     let normal_keybinds = KeyBinds::normal_default()
         .iter()
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
@@ -547,14 +553,21 @@ fn render_keybinds(frame: &mut Frame<'_>, area: Rect) {
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
         .collect::<Vec<_>>()
         .join("\n");
+    let popup_keybinds = KeyBinds::popup_default()
+        .iter()
+        .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let text = format!(
-        "Normal mode bindings\n{}\n\nCommand mode bindings\n{}\n\nCompose mode bindings\n{}",
-        normal_keybinds, command_keybinds, compose_keybinds
+        "Normal mode bindings\n{}\n\nCommand mode bindings\n{}\n\nCompose mode bindings\n{}\n\nPopup mode bindings\n{}",
+        normal_keybinds, command_keybinds, compose_keybinds, popup_keybinds
     );
 
     let block = Block::bordered().title("Keybindings");
-    let para = Paragraph::new(text).block(block);
+    let para = Paragraph::new(text)
+        .block(block)
+        .scroll((tui_state.popup_scroll, 0));
     frame.render_widget(para, area);
 }
 
@@ -566,8 +579,10 @@ fn render_command_history(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiStat
         .map(|c| format!("{:?}", c))
         .collect::<Vec<_>>();
 
-    let block = Block::bordered().title("Keybindings");
-    let para = Paragraph::new(lines.join("\n")).block(block);
+    let block = Block::bordered().title("Command History");
+    let para = Paragraph::new(lines.join("\n"))
+        .block(block)
+        .scroll((tui_state.popup_scroll, 0));
     frame.render_widget(para, area);
 }
 
