@@ -1,5 +1,6 @@
 pub mod backend_actor;
 pub mod backends;
+pub mod command_history;
 pub mod commands;
 pub mod compose;
 pub mod contacts;
@@ -8,4 +9,3 @@ pub mod log;
 pub mod message;
 pub mod tui;
 pub mod util;
-pub mod command_history;

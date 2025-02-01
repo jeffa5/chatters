@@ -1377,7 +1377,7 @@ impl Command for PopupScroll {
         let amount = args
             .free_from_str()
             .map_err(|_e| Error::MissingArgument("amount".to_owned()))?;
-        *self = Self { amount};
+        *self = Self { amount };
         Ok(())
     }
 
