@@ -1309,6 +1309,43 @@ impl Command for PrevCommand {
     }
 }
 
+#[derive(Debug)]
+pub struct NextCommand;
+
+impl Command for NextCommand {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        tui_state.command_history.select_next();
+        if let Some(selected_command) = tui_state.command_history.selected_command() {
+            tui_state.command = TextArea::new(vec![format!("{:?}", selected_command)])
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["next-command"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
+}
+
 fn after_contact_changed(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
