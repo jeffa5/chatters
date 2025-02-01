@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::commands::{
     Command, CommandHistory, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand,
-    Keybindings, NextCommand, NextContact, NextMessage, NormalMode, PopupScroll, PrevCommand,
+    Keybindings, NextCommand, NextContact, NextMessage, NormalMode, ScrollPopup, PrevCommand,
     PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
 };
 
@@ -102,8 +102,8 @@ impl KeyBinds {
     pub fn popup_default() -> Self {
         let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
         bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
-        bindings.push((char('j'), Box::new(PopupScroll { amount: 1 })));
-        bindings.push((char('k'), Box::new(PopupScroll { amount: -1 })));
+        bindings.push((char('j'), Box::new(ScrollPopup { amount: 1 })));
+        bindings.push((char('k'), Box::new(ScrollPopup { amount: -1 })));
         Self { bindings }
     }
 

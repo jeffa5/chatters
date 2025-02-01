@@ -84,7 +84,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Keybindings::default()));
     v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
-    v.push(Box::new(PopupScroll::default()));
+    v.push(Box::new(ScrollPopup::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -1388,11 +1388,11 @@ impl Command for NextCommand {
 }
 
 #[derive(Debug)]
-pub struct PopupScroll {
+pub struct ScrollPopup {
     pub amount: i16,
 }
 
-impl Command for PopupScroll {
+impl Command for ScrollPopup {
     fn execute(
         &self,
         tui_state: &mut TuiState,
@@ -1423,7 +1423,7 @@ impl Command for PopupScroll {
     }
 
     fn names(&self) -> Vec<&'static str> {
-        vec!["popup-scroll"]
+        vec!["scroll-popup"]
     }
 
     fn complete(&self) -> Vec<String> {
