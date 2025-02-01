@@ -402,6 +402,7 @@ impl Command for NormalMode {
         tui_state.mode = Mode::Normal;
         tui_state.command = TextArea::default();
         tui_state.command_completions.clear();
+        tui_state.command_history.clear_selection();
         tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
@@ -713,11 +714,11 @@ impl Command for ExecuteCommand {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let value = tui_state.command.lines().join("\n");
+        let cmdline = tui_state.command.lines().join("\n");
         tui_state.command = TextArea::default();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
-        let args = shell_words::split(&value)
+        let args = shell_words::split(&cmdline)
             .unwrap()
             .into_iter()
             .map(OsString::from)
@@ -745,7 +746,7 @@ impl Command for ExecuteCommand {
                 tui_state.command_error = error.to_string();
                 return Ok(CommandSuccess::Nothing);
             }
-            tui_state.command_history.push(command.dyn_clone());
+            tui_state.command_history.push(cmdline);
             let ret = command.execute(tui_state, ba_tx)?;
             Ok(ret)
         } else {
@@ -1288,7 +1289,10 @@ impl Command for PrevCommand {
     ) -> Result<CommandSuccess> {
         tui_state.command_history.select_previous();
         if let Some(selected_command) = tui_state.command_history.selected_command() {
-            tui_state.command = TextArea::new(vec![format!("{:?}", selected_command)])
+            tui_state.command = TextArea::new(vec![selected_command.clone()]);
+            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
+        } else {
+            tui_state.command = TextArea::new(Vec::new());
         }
         Ok(CommandSuccess::Nothing)
     }
@@ -1325,7 +1329,10 @@ impl Command for NextCommand {
     ) -> Result<CommandSuccess> {
         tui_state.command_history.select_next();
         if let Some(selected_command) = tui_state.command_history.selected_command() {
-            tui_state.command = TextArea::new(vec![format!("{:?}", selected_command)])
+            tui_state.command = TextArea::new(vec![selected_command.clone()]);
+            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
+        } else {
+            tui_state.command = TextArea::new(Vec::new());
         }
         Ok(CommandSuccess::Nothing)
     }

@@ -88,7 +88,7 @@ impl KeyBinds {
         let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
         bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
         bindings.push((code(KeyCode::Up), Box::new(PrevCommand)));
-        bindings.push((code(KeyCode::Up), Box::new(NextCommand)));
+        bindings.push((code(KeyCode::Down), Box::new(NextCommand)));
         bindings.push((any_code(KeyCode::Enter), Box::new(ExecuteCommand)));
         Self { bindings }
     }

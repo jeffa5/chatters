@@ -1,18 +1,16 @@
-use crate::commands::Command;
-
 #[derive(Debug, Default)]
-pub struct CommandHistory {
-    commands: Vec<Box<dyn Command>>,
+pub struct CommandLineHistory {
+    commands: Vec<String>,
     selected: Option<usize>,
 }
 
-impl CommandHistory {
-    pub fn push(&mut self, command: Box<dyn Command>) {
-        self.commands.push(command)
+impl CommandLineHistory {
+    pub fn push(&mut self, command_line: String) {
+        self.commands.push(command_line);
     }
 
-    pub fn selected_command(&self) -> Option<&dyn Command> {
-        self.selected.map(|i| &*self.commands[i])
+    pub fn selected_command(&self) -> Option<&String> {
+        self.selected.map(|i| &self.commands[i])
     }
 
     pub fn select_previous(&mut self) {
@@ -33,7 +31,11 @@ impl CommandHistory {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Box<dyn Command>> {
+    pub fn clear_selection(&mut self) {
+        self.selected = None;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &String> {
         self.commands.iter()
     }
 }

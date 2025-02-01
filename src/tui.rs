@@ -33,7 +33,7 @@ use tui_textarea::TextArea;
 use uuid::Uuid;
 
 use crate::backends::Contact;
-use crate::command_history::CommandHistory;
+use crate::command_history::CommandLineHistory;
 use crate::compose::Compose;
 use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
@@ -266,7 +266,7 @@ pub struct TuiState {
     pub command: TextArea<'static>,
     pub command_error: String,
     pub command_completions: Vec<String>,
-    pub command_history: CommandHistory,
+    pub command_history: CommandLineHistory,
     pub mode: Mode,
     pub popup: Option<Popup>,
     pub popup_scroll: u16,
@@ -522,7 +522,7 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
             render_contact_info(contact)
         }
         Popup::Keybinds => render_keybinds(),
-        Popup::CommandHistory => render_command_history(tui_state),
+        Popup::CommandHistory => render_command_line_history(tui_state),
     };
 
     let text = wrap_text(&text, width);
@@ -623,12 +623,12 @@ fn render_keybinds() -> (&'static str, String) {
     ("Keybindings", text)
 }
 
-fn render_command_history(tui_state: &TuiState) -> (&'static str, String) {
+fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {
     let lines = tui_state
         .command_history
         .iter()
         .into_iter()
-        .map(|c| format!("{:?}", c))
+        .map(|c| format!(":{c}"))
         .collect::<Vec<_>>();
 
     ("Command history", lines.join("\n"))
