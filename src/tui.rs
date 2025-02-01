@@ -310,7 +310,7 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
     render_status(frame, vertical_splits[1], tui_state, now);
     render_command(frame, vertical_splits[2], tui_state, now);
 
-    render_popup(frame, area, &tui_state);
+    render_popup(frame, area, tui_state);
 }
 
 fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
@@ -460,16 +460,16 @@ fn truncate_or_pad(mut s: String, width: usize) -> String {
     }
 }
 
-fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
+fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
     let Some(popup) = &tui_state.popup else {
         return;
     };
     let area = popup_area(area, 60, 50);
     frame.render_widget(Clear, area); // this clears out the background
-    match popup {
+    let (title, text) = match popup {
         Popup::MessageInfo { timestamp } => {
             let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
-            render_message_info(frame, area, tui_state, message);
+            render_message_info(area.width.saturating_sub(2).into(), tui_state, message)
         }
         Popup::ContactInfo { thread } => {
             let contact = tui_state
@@ -477,14 +477,27 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
                 .iter_contacts_and_groups()
                 .find(|c| &c.thread_id == thread)
                 .unwrap();
-            render_contact_info(frame, area, tui_state, contact);
+            render_contact_info(contact)
         }
-        Popup::Keybinds => render_keybinds(frame, area, tui_state),
-        Popup::CommandHistory => render_command_history(frame, area, tui_state),
-    }
+        Popup::Keybinds => render_keybinds(),
+        Popup::CommandHistory => render_command_history(tui_state),
+    };
+
+    let line_count = text.lines().count() as u16;
+    let max_scroll = line_count.saturating_sub(area.height);
+    tui_state.popup_scroll = tui_state.popup_scroll.min(max_scroll);
+    let block = Block::bordered().title(title);
+    let para = Paragraph::new(text)
+        .block(block)
+        .scroll((tui_state.popup_scroll, 0));
+    frame.render_widget(para, area);
 }
 
-fn render_message_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, message: &Message) {
+fn render_message_info(
+    width: usize,
+    tui_state: &TuiState,
+    message: &Message,
+) -> (&'static str, String) {
     let ts_seconds = message.timestamp / 1_000;
     let ts_nanos = (message.timestamp % 1_000) * 1_000_000;
     let time = chrono::DateTime::from_timestamp(
@@ -503,19 +516,13 @@ fn render_message_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, 
         format!("Sender id:   {}", message.sender),
         format!("Time:        {}", time.to_rfc3339()),
         String::new(),
-        message
-            .render(area.width.saturating_sub(2) as usize)
-            .join("\n"),
+        message.render(width).join("\n"),
     ]
     .join("\n");
-    let block = Block::bordered().title("Message info");
-    let list = Paragraph::new(text)
-        .block(block)
-        .scroll((tui_state.popup_scroll, 0));
-    frame.render_widget(list, area);
+    ("Message info", text)
 }
 
-fn render_contact_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, contact: &Contact) {
+fn render_contact_info(contact: &Contact) -> (&'static str, String) {
     let ts_seconds = contact.last_message_timestamp / 1_000;
     let ts_nanos = (contact.last_message_timestamp % 1_000) * 1_000_000;
     let time = chrono::DateTime::from_timestamp(
@@ -530,14 +537,10 @@ fn render_contact_info(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState, 
         format!("Description:       {}", contact.description),
     ]
     .join("\n");
-    let block = Block::bordered().title("Contact info");
-    let list = Paragraph::new(text)
-        .block(block)
-        .scroll((tui_state.popup_scroll, 0));
-    frame.render_widget(list, area);
+    ("Contact info", text)
 }
 
-fn render_keybinds(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
+fn render_keybinds() -> (&'static str, String) {
     let normal_keybinds = KeyBinds::normal_default()
         .iter()
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
@@ -564,14 +567,10 @@ fn render_keybinds(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
         normal_keybinds, command_keybinds, compose_keybinds, popup_keybinds
     );
 
-    let block = Block::bordered().title("Keybindings");
-    let para = Paragraph::new(text)
-        .block(block)
-        .scroll((tui_state.popup_scroll, 0));
-    frame.render_widget(para, area);
+    ("Keybindings", text)
 }
 
-fn render_command_history(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiState) {
+fn render_command_history(tui_state: &TuiState) -> (&'static str, String) {
     let lines = tui_state
         .command_history
         .iter()
@@ -579,11 +578,7 @@ fn render_command_history(frame: &mut Frame<'_>, area: Rect, tui_state: &TuiStat
         .map(|c| format!("{:?}", c))
         .collect::<Vec<_>>();
 
-    let block = Block::bordered().title("Command History");
-    let para = Paragraph::new(lines.join("\n"))
-        .block(block)
-        .scroll((tui_state.popup_scroll, 0));
-    frame.render_widget(para, area);
+    ("Command history", lines.join("\n"))
 }
 
 fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
