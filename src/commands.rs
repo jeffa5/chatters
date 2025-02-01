@@ -32,6 +32,8 @@ pub enum Error {
     NoMessageSelected,
     #[error("Unknown command {0:?}")]
     UnknownCommand(String),
+    #[error("Unknown arguments to command: {0}")]
+    UnknownArguments(String),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -99,7 +101,8 @@ impl Command for Quit {
         Ok(CommandSuccess::Quit)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -135,7 +138,8 @@ impl Command for NextContact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -171,7 +175,8 @@ impl Command for PrevContact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -205,7 +210,8 @@ impl Command for NextMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -239,7 +245,8 @@ impl Command for PrevMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -288,6 +295,7 @@ impl Command for SelectMessage {
             .free_from_str()
             .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
         *self = Self { index };
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -364,6 +372,7 @@ impl Command for SelectContact {
         } else {
             self.name = Some(name);
         }
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -407,7 +416,8 @@ impl Command for NormalMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -443,7 +453,8 @@ impl Command for CommandMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -478,7 +489,8 @@ impl Command for ComposeMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -536,7 +548,8 @@ impl Command for SendMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -607,6 +620,7 @@ impl Command for React {
             .free_from_str()
             .map_err(|_e| Error::MissingArgument("emoji".to_owned()))?;
         *self = Self { emoji };
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -684,7 +698,8 @@ impl Command for Unreact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -754,7 +769,8 @@ impl Command for ExecuteCommand {
         }
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -790,7 +806,8 @@ impl Command for ReloadContacts {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -837,7 +854,8 @@ impl Command for ReloadMessages {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -890,7 +908,8 @@ impl Command for ComposeInEditor {
         Ok(CommandSuccess::Clear)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -927,7 +946,8 @@ impl Command for ClearCompose {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -992,6 +1012,7 @@ impl Command for DownloadAttachments {
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
         let index = args.opt_free_from_str().unwrap();
         *self = Self { index };
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1051,6 +1072,7 @@ impl Command for OpenAttachments {
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
         let index = args.opt_free_from_str().unwrap();
         *self = Self { index };
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1094,7 +1116,8 @@ impl Command for MessageInfo {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1137,7 +1160,8 @@ impl Command for ContactInfo {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1175,7 +1199,8 @@ impl Command for Keybindings {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1219,7 +1244,8 @@ impl Command for Reply {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1257,7 +1283,8 @@ impl Command for CommandHistory {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1297,7 +1324,8 @@ impl Command for PrevCommand {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1337,7 +1365,8 @@ impl Command for NextCommand {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, _args: pico_args::Arguments) -> Result<()> {
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1385,6 +1414,7 @@ impl Command for PopupScroll {
             .free_from_str()
             .map_err(|_e| Error::MissingArgument("amount".to_owned()))?;
         *self = Self { amount };
+        check_unused_args(args)?;
         Ok(())
     }
 
@@ -1427,4 +1457,18 @@ fn after_contact_changed(
             })
             .unwrap();
     }
+}
+
+fn check_unused_args(args: pico_args::Arguments) -> Result<()> {
+    let unused_args = args.finish();
+    if !unused_args.is_empty() {
+        return Err(Error::UnknownArguments(
+            unused_args
+                .into_iter()
+                .map(|s| s.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join(" "),
+        ));
+    }
+    Ok(())
 }
