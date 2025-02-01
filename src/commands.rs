@@ -732,6 +732,7 @@ impl Command for ExecuteCommand {
         let cmdline = tui_state.command.lines().join("\n");
         tui_state.command = TextArea::default();
         NormalMode.execute(tui_state, ba_tx).unwrap();
+        tui_state.command_history.push(cmdline.clone());
 
         let args = shell_words::split(&cmdline)
             .unwrap()
@@ -761,7 +762,6 @@ impl Command for ExecuteCommand {
                 tui_state.command_error = error.to_string();
                 return Ok(CommandSuccess::Nothing);
             }
-            tui_state.command_history.push(cmdline);
             let ret = command.execute(tui_state, ba_tx)?;
             Ok(ret)
         } else {
