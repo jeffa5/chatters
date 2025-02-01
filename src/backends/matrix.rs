@@ -1,10 +1,16 @@
+use crate::backends::Error;
+
 use super::Backend;
 use log::debug;
 use matrix_sdk::matrix_auth::MatrixSession;
+use matrix_sdk::LoopCtrl;
 use matrix_sdk::{config::SyncSettings, ruma::events::room::message::SyncRoomMessageEvent, Client};
+use rand::distr::Alphanumeric;
+use rand::Rng;
 use serde::Deserialize;
 use serde::Serialize;
 use std::io::{self, Write as _};
+use std::path::Path;
 use std::path::PathBuf;
 
 /// The data needed to re-build a client.
@@ -45,7 +51,32 @@ pub struct Matrix {
 
 impl Backend for Matrix {
     async fn load(path: &std::path::Path) -> super::Result<Self> {
-        Err(super::Error::Unlinked)
+        let session_file = get_session_file(path);
+        if !session_file.exists() {
+            return Err(Error::Unlinked);
+        }
+        // The session was serialized as JSON in a file.
+        let serialized_session = std::fs::read_to_string(session_file).unwrap();
+        let FullSession {
+            client_session,
+            user_session,
+            sync_token,
+        } = serde_json::from_str(&serialized_session).unwrap();
+
+        // Build the client with the previous settings from the session.
+        let client = Client::builder()
+            .homeserver_url(client_session.homeserver)
+            .sqlite_store(client_session.db_path, Some(&client_session.passphrase))
+            .build()
+            .await
+            .unwrap();
+
+        println!("Restoring session for {}…", user_session.meta.user_id);
+
+        // Restore the Matrix user session.
+        client.restore_session(user_session).await.unwrap();
+
+        Ok(Self { client })
     }
 
     async fn link(
@@ -53,8 +84,6 @@ impl Backend for Matrix {
         device_name: &str,
         provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
     ) -> super::Result<Self> {
-        let session_file = path.parent().unwrap().join("session.json");
-
         let (client, client_session) = build_client(path).await.unwrap();
         let matrix_auth = client.matrix_auth();
 
@@ -77,7 +106,7 @@ impl Backend for Matrix {
 
             match matrix_auth
                 .login_username(&username, &password)
-                .initial_device_display_name("persist-session client")
+                .initial_device_display_name("chatters-matrix")
                 .await
             {
                 Ok(_) => {
@@ -91,35 +120,11 @@ impl Backend for Matrix {
             }
         }
 
-        let passphrase = "3pR8h4D4JaG@nKFi@DL$";
-
-        let client = Client::builder()
-            .server_name(user.server_name())
-            .sqlite_store(path, Some(&passphrase))
-            .build()
-            .await
-            .unwrap();
-
-        let client_session = ClientSession {
-            homeserver: client.homeserver().to_string(),
-            db_path: path.to_path_buf(),
-            passphrase: passphrase.to_owned(),
-        };
-
-        debug!(user:?; "Logging in");
-
-        // First we need to log in.
-        client
-            .matrix_auth()
-            .login_username(user, &passphrase)
-            .initial_device_display_name("chatters-matrix")
-            .await
-            .unwrap();
-
-        debug!("Logged in");
-
-        let user_session = client
-            .matrix_auth()
+        // Persist the session to reuse it later.
+        // This is not very secure, for simplicity. If the system provides a way of
+        // storing secrets securely, it should be used instead.
+        // Note that we could also build the user session from the login response.
+        let user_session = matrix_auth
             .session()
             .expect("A logged-in client should have a session");
         let serialized_session = serde_json::to_string(&FullSession {
@@ -128,15 +133,20 @@ impl Backend for Matrix {
             sync_token: None,
         })
         .unwrap();
-        std::fs::write(session_file, serialized_session).unwrap();
 
-        client.add_event_handler(|ev: SyncRoomMessageEvent| async move {
-            println!("Received a message {:?}", ev);
-        });
+        let session_file = get_session_file(path);
+        std::fs::write(&session_file, serialized_session).unwrap();
 
-        // Syncing is important to synchronize the client state with the server.
-        // This method will never return unless there is an error.
-        client.sync(SyncSettings::default()).await.unwrap();
+        debug!(
+            "Matrix session persisted in {}",
+            session_file.to_string_lossy()
+        );
+
+        // After logging in, you might want to verify this session with another one (see
+        // the `emoji_verification` example), or bootstrap cross-signing if this is your
+        // first session with encryption, or if you need to reset cross-signing because
+        // you don't have access to your old sessions (see the
+        // `cross_signing_bootstrap` example).
 
         Ok(Self { client })
     }
@@ -149,7 +159,22 @@ impl Backend for Matrix {
         &mut self,
         ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,
     ) -> super::Result<()> {
-        todo!()
+        let sync_settings = SyncSettings::default();
+        self.client
+            .sync_with_result_callback(sync_settings, |sync_result| async move {
+                let response = sync_result?;
+                debug!(response:?; "Got sync response");
+
+                // We persist the token each time to be able to restore our session
+                // persist_sync_token(session_file, response.next_batch)
+                //     .await
+                //     .map_err(|err| Error::UnknownError(err.into()))?;
+
+                Ok(LoopCtrl::Continue)
+            })
+            .await
+            .unwrap();
+        Ok(())
     }
 
     async fn contacts(&self) -> super::Result<Vec<super::Contact>> {
@@ -179,7 +204,7 @@ impl Backend for Matrix {
     }
 
     async fn self_uuid(&self) -> uuid::Uuid {
-        todo!()
+        self.client.user_id().unwrap().to_string()
     }
 
     async fn download_attachment(&self, attachment_index: usize) -> super::Result<String> {
@@ -187,15 +212,19 @@ impl Backend for Matrix {
     }
 }
 
+fn get_session_file(path: &Path) -> PathBuf {
+    path.parent().unwrap().join("session.json")
+}
+
 /// Build a new client.
 async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let db_path = data_dir.join("db");
+    let db_path = data_dir;
 
     // Generate a random passphrase.
     let passphrase: String = (&mut rng)
-        .sample_iter(rand::distributions::Alphanumeric)
+        .sample_iter(Alphanumeric)
         .take(32)
         .map(char::from)
         .collect();
@@ -214,9 +243,6 @@ async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)
 
         match Client::builder()
             .homeserver_url(&homeserver)
-            // We use the SQLite store, which is enabled by default. This is the crucial part to
-            // persist the encryption setup.
-            // Note that other store backends are available and you can even implement your own.
             .sqlite_store(&db_path, Some(&passphrase))
             .build()
             .await
@@ -226,7 +252,7 @@ async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)
                     client,
                     ClientSession {
                         homeserver,
-                        db_path,
+                        db_path: db_path.to_owned(),
                         passphrase,
                     },
                 ))

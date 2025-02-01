@@ -19,6 +19,7 @@
 
         pkgs.openssl
         pkgs.pkg-config
+        pkgs.sqlite
       ];
 
       PROTOC = "${pkgs.protobuf}/bin/protoc";
