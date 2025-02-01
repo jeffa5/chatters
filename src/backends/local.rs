@@ -52,7 +52,7 @@ impl Backend for Local {
         _end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
         let now = timestamp();
-        Ok(vec![
+        let mut msgs = vec![
             super::Message {
                 timestamp: now - 100,
                 sender: Uuid::nil(),
@@ -79,7 +79,17 @@ impl Backend for Local {
                 ),
                 quote: None,
             },
-        ])
+        ];
+        for i in (0..50).rev() {
+            msgs.push(super::Message {
+                timestamp: now - i,
+                sender: Uuid::nil(),
+                thread: Thread::Contact(Uuid::nil()),
+                content: super::MessageContent::Text(format!("msg {i}"), Vec::new()),
+                quote: None,
+            });
+        }
+        Ok(msgs)
     }
 
     async fn send_message(

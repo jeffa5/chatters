@@ -8,6 +8,7 @@ use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
 use ratatui::layout::Flex;
 use ratatui::layout::Layout;
+use ratatui::layout::Margin;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::style::Styled;
@@ -21,6 +22,9 @@ use ratatui::widgets::List;
 use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Row;
+use ratatui::widgets::Scrollbar;
+use ratatui::widgets::ScrollbarOrientation;
+use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::Table;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
@@ -314,21 +318,41 @@ pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
 }
 
 fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
-    let contact_items = tui_state.contacts.iter_contacts_and_groups().map(|c| {
-        let age = if c.last_message_timestamp == 0 {
-            String::new()
-        } else {
-            biggest_duration_string(now.saturating_sub(c.last_message_timestamp))
-        };
-        Row::new(vec![
-            Text::from(c.name.to_string()),
-            Text::from(age).alignment(Alignment::Right),
-        ])
-    });
+    let contact_items: Vec<_> = tui_state
+        .contacts
+        .iter_contacts_and_groups()
+        .map(|c| {
+            let age = if c.last_message_timestamp == 0 {
+                String::new()
+            } else {
+                biggest_duration_string(now.saturating_sub(c.last_message_timestamp))
+            };
+            Row::new(vec![
+                Text::from(c.name.to_string()),
+                Text::from(age).alignment(Alignment::Right),
+            ])
+        })
+        .collect();
+    let contact_items_len = contact_items.len();
     let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
         .row_highlight_style(Style::new().reversed())
         .block(Block::new().borders(Borders::RIGHT));
-    frame.render_stateful_widget(contacts, rect, &mut tui_state.contact_list_state);
+    frame.render_stateful_widget(
+        contacts,
+        Rect {
+            // leave room for the scrollbar
+            width: rect.width.saturating_sub(1),
+            ..rect
+        },
+        &mut tui_state.contact_list_state,
+    );
+
+    render_scrollbar(
+        frame,
+        rect,
+        contact_items_len,
+        tui_state.contact_list_state.offset(),
+    );
 }
 
 fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
@@ -344,7 +368,9 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         let age = biggest_duration_string(now.saturating_sub(m.timestamp));
         let sender_time = format!("{sender} {age:>3} ");
 
-        let content_width = message_width - sender_time.len();
+        let content_width = message_width
+            .saturating_sub(sender_time.len())
+            .saturating_sub(1);
         let content_indent = " ".repeat(sender_time.len());
 
         let mut lines = m.render(content_width);
@@ -365,7 +391,22 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         .items(message_items)
         .highlight_style(Style::new().reversed());
 
-    frame.render_stateful_widget(messages, rect, &mut tui_state.message_list_state);
+    frame.render_stateful_widget(
+        &messages,
+        Rect {
+            // leave room for the scrollbar
+            width: rect.width.saturating_sub(1),
+            ..rect
+        },
+        &mut tui_state.message_list_state,
+    );
+
+    render_scrollbar(
+        frame,
+        rect,
+        messages.len(),
+        tui_state.message_list_state.offset(),
+    );
 }
 
 fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
@@ -494,6 +535,15 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
         .block(block)
         .scroll((tui_state.popup_scroll, 0));
     frame.render_widget(para, area);
+    render_scrollbar(
+        frame,
+        area.inner(Margin {
+            vertical: 1,
+            horizontal: 0,
+        }),
+        line_count.into(),
+        tui_state.popup_scroll.into(),
+    );
 }
 
 fn render_message_info(
@@ -590,4 +640,13 @@ fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let [area] = vertical.areas(area);
     let [area] = horizontal.areas(area);
     area
+}
+
+fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, length: usize, position: usize) {
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+
+    let scrollable_distance = length.saturating_sub(area.height.into());
+
+    let mut scrollbar_state = ScrollbarState::new(scrollable_distance).position(position);
+    frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
 }
