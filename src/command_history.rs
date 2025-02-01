@@ -1,6 +1,4 @@
-use std::any::Any;
-
-use crate::commands::{Command, NextCommand, PrevCommand};
+use crate::commands::Command;
 
 #[derive(Debug, Default)]
 pub struct CommandHistory {
@@ -10,10 +8,6 @@ pub struct CommandHistory {
 
 impl CommandHistory {
     pub fn push(&mut self, command: Box<dyn Command>) {
-        let command_any = &command as &dyn Any;
-        if command_any.is::<PrevCommand>() || command_any.is::<NextCommand>() {
-            return;
-        }
         self.commands.push(command)
     }
 

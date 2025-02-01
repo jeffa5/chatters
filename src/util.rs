@@ -179,7 +179,6 @@ fn process_user_event(
     let mode = tui_state.mode;
 
     let mut execute_command = |cmd: &Box<dyn Command>| {
-        tui_state.command_history.push(cmd.dyn_clone());
         match cmd.execute(tui_state, ba_tx) {
             Ok(cs) => match cs {
                 commands::CommandSuccess::Nothing => {}
