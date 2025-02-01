@@ -4,8 +4,8 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::commands::{
     Command, CommandHistory, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand,
-    Keybindings, NextCommand, NextContact, NextMessage, NormalMode, ScrollPopup, PrevCommand,
-    PrevContact, PrevMessage, Quit, SelectMessage, SendMessage,
+    Keybindings, NextCommand, NextContact, NextMessage, NormalMode, PrevCommand, PrevContact,
+    PrevMessage, Quit, ScrollPopup, SelectMessage, SendMessage,
 };
 
 #[derive(Debug)]

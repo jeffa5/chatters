@@ -251,6 +251,7 @@ pub enum Popup {
     MessageInfo { timestamp: u64 },
     ContactInfo { thread: Thread },
     Keybinds,
+    Commands,
     CommandHistory,
 }
 
@@ -522,13 +523,14 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
             render_contact_info(contact)
         }
         Popup::Keybinds => render_keybinds(),
+        Popup::Commands => render_commands(),
         Popup::CommandHistory => render_command_line_history(tui_state),
     };
 
     let text = wrap_text(&text, width);
 
     let line_count = text.lines.len() as u16;
-    let max_scroll = line_count.saturating_sub(area.height);
+    let max_scroll = line_count.saturating_sub(area.height.saturating_sub(2));
     tui_state.popup_scroll = tui_state.popup_scroll.min(max_scroll);
     let block = Block::bordered().title(title);
     let para = Paragraph::new(text)
@@ -621,6 +623,23 @@ fn render_keybinds() -> (&'static str, String) {
     );
 
     ("Keybindings", text)
+}
+
+fn render_commands() -> (&'static str, String) {
+    let mut commands = crate::commands::commands()
+        .into_iter()
+        .map(|c| {
+            c.names()
+                .into_iter()
+                .map(|s| format!(":{s}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .collect::<Vec<_>>();
+    commands.sort();
+    let text = commands.join("\n");
+
+    ("Commands", text)
 }
 
 fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {

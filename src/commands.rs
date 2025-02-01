@@ -82,6 +82,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(MessageInfo::default()));
     v.push(Box::new(ContactInfo::default()));
     v.push(Box::new(Keybindings::default()));
+    v.push(Box::new(Commands::default()));
     v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ScrollPopup::default()));
@@ -1213,6 +1214,45 @@ impl Command for Keybindings {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["keybindings"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct Commands;
+
+impl Command for Commands {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        tui_state.popup = Some(Popup::Commands);
+        tui_state.mode = Mode::Popup;
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["commands"]
     }
 
     fn complete(&self) -> Vec<String> {
