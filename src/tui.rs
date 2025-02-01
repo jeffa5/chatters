@@ -466,10 +466,11 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
     };
     let area = popup_area(area, 60, 50);
     frame.render_widget(Clear, area); // this clears out the background
+    let width = area.width.saturating_sub(2) as usize;
     let (title, text) = match popup {
         Popup::MessageInfo { timestamp } => {
             let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
-            render_message_info(area.width.saturating_sub(2).into(), tui_state, message)
+            render_message_info(width, tui_state, message)
         }
         Popup::ContactInfo { thread } => {
             let contact = tui_state
@@ -483,7 +484,9 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
         Popup::CommandHistory => render_command_history(tui_state),
     };
 
-    let line_count = text.lines().count() as u16;
+    let text = wrap_text(&text, width);
+
+    let line_count = text.lines.len() as u16;
     let max_scroll = line_count.saturating_sub(area.height);
     tui_state.popup_scroll = tui_state.popup_scroll.min(max_scroll);
     let block = Block::bordered().title(title);
