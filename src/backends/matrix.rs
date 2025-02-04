@@ -151,10 +151,6 @@ impl Backend for Matrix {
         Ok(Self { client })
     }
 
-    async fn sync_contacts(&mut self) -> super::Result<()> {
-        todo!()
-    }
-
     async fn background_sync(
         &mut self,
         ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,

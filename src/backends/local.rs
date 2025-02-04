@@ -16,10 +16,6 @@ impl Backend for Local {
         unimplemented!()
     }
 
-    async fn sync_contacts(&mut self) -> super::Result<()> {
-        Ok(())
-    }
-
     async fn background_sync(
         &mut self,
         _ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,

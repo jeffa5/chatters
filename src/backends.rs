@@ -89,8 +89,6 @@ pub trait Backend: Sized {
         provisioning_link_tx: oneshot::Sender<Url>,
     ) -> impl Future<Output = Result<Self>>;
 
-    fn sync_contacts(&mut self) -> impl Future<Output = Result<()>>;
-
     fn background_sync(
         &mut self,
         ba_tx: mpsc::UnboundedSender<FrontendMessage>,

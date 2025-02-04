@@ -122,20 +122,6 @@ impl Backend for Signal {
         })
     }
 
-    async fn sync_contacts(&mut self) -> Result<()> {
-        let messages = self.manager.receive_messages().await.unwrap();
-        pin_mut!(messages);
-        while let Some(message) = messages.next().await {
-            debug!(message:? = message; "Received message during sync_contacts");
-            match message {
-                presage::model::messages::Received::QueueEmpty => {}
-                presage::model::messages::Received::Contacts => break,
-                presage::model::messages::Received::Content(_) => {}
-            }
-        }
-        Ok(())
-    }
-
     async fn background_sync(
         &mut self,
         ba_tx: mpsc::UnboundedSender<FrontendMessage>,
