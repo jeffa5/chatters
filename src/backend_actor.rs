@@ -19,7 +19,7 @@ impl<B: Backend> BackendActor<B> {
         while let Some(message) = self.message_rx.next().await {
             match message {
                 BackendMessage::LoadContacts => {
-                    let mut contacts = self.backend.contacts().await.unwrap();
+                    let mut contacts = self.backend.users().await.unwrap();
                     let mut groups = self.backend.groups().await.unwrap();
                     contacts.append(&mut groups);
                     contacts.sort_by_key(|c| (Reverse(c.last_message_timestamp), c.name.clone()));

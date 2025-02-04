@@ -173,7 +173,7 @@ impl Backend for Matrix {
         Ok(())
     }
 
-    async fn contacts(&self) -> super::Result<Vec<super::Contact>> {
+    async fn users(&self) -> super::Result<Vec<super::Contact>> {
         todo!()
     }
 

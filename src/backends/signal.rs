@@ -145,7 +145,7 @@ impl Backend for Signal {
         Ok(())
     }
 
-    async fn contacts(&self) -> Result<Vec<Contact>> {
+    async fn users(&self) -> Result<Vec<Contact>> {
         let mut ret = Vec::new();
         let contacts = self.manager.store().contacts().await.unwrap();
         for contact in contacts {

@@ -24,7 +24,7 @@ impl Backend for Local {
         Ok(())
     }
 
-    async fn contacts(&self) -> super::Result<Vec<super::Contact>> {
+    async fn users(&self) -> super::Result<Vec<super::Contact>> {
         Ok(vec![super::Contact {
             id: ContactId::User(vec![0]),
             name: "Self".to_owned(),

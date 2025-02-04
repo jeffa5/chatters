@@ -94,7 +94,7 @@ pub trait Backend: Sized {
         ba_tx: mpsc::UnboundedSender<FrontendMessage>,
     ) -> impl Future<Output = Result<()>>;
 
-    fn contacts(&self) -> impl Future<Output = Result<Vec<Contact>>>;
+    fn users(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
     fn groups(&self) -> impl Future<Output = Result<Vec<Contact>>>;
 
