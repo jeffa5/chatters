@@ -50,26 +50,32 @@ impl Backend for Local {
                 timestamp: now - 100,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text("Message 1".to_owned(), Vec::new()),
+                content: super::MessageContent::Text {
+                    text: "Message 1".to_owned(),
+                    attachments: Vec::new(),
+                },
                 quote: None,
             },
             super::Message {
                 timestamp: now - 90,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text("Message 2".to_owned(), Vec::new()),
+                content: super::MessageContent::Text {
+                    text: "Message 2".to_owned(),
+                    attachments: Vec::new(),
+                },
                 quote: None,
             },
             super::Message {
                 timestamp: now - 80,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Reaction(
-                    vec![0],
-                    now - 100,
-                    "🚀".to_owned(),
-                    false,
-                ),
+                content: super::MessageContent::Reaction {
+                    message_author: vec![0],
+                    timestamp: now - 100,
+                    reaction: "🚀".to_owned(),
+                    remove: false,
+                },
                 quote: None,
             },
         ];
@@ -78,7 +84,10 @@ impl Backend for Local {
                 timestamp: now - i,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text(format!("msg {i}"), Vec::new()),
+                content: super::MessageContent::Text {
+                    text: format!("msg {i}"),
+                    attachments: Vec::new(),
+                },
                 quote: None,
             });
         }

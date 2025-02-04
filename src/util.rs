@@ -324,7 +324,12 @@ fn process_backend_message(
                 }
             }
         }
-        FrontendMessage::DownloadedAttachment{ contact_id, timestamp, index, file_name } => {
+        FrontendMessage::DownloadedAttachment {
+            contact_id,
+            timestamp,
+            index,
+            file_name,
+        } => {
             if let Some(contact) = tui_state
                 .contact_list_state
                 .selected()

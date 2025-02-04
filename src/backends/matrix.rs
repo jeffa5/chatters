@@ -69,7 +69,7 @@ impl Backend for Matrix {
         let FullSession {
             client_session,
             user_session,
-            sync_token,
+            sync_token: _,
         } = serde_json::from_str(&serialized_session).unwrap();
 
         // Build the client with the previous settings from the session.
@@ -107,8 +107,8 @@ impl Backend for Matrix {
 
     async fn link(
         path: &std::path::Path,
-        device_name: &str,
-        provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
+        _device_name: &str,
+        _provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
     ) -> super::Result<Self> {
         let (client, client_session) = build_client(path).await.unwrap();
         let matrix_auth = client.matrix_auth();
@@ -175,7 +175,7 @@ impl Backend for Matrix {
 
     async fn background_sync(
         &mut self,
-        ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,
+        _ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,
     ) -> super::Result<()> {
         let sync_settings = SyncSettings::default();
         self.client
@@ -249,8 +249,8 @@ impl Backend for Matrix {
     async fn messages(
         &mut self,
         contact: ContactId,
-        start_ts: std::ops::Bound<u64>,
-        end_ts: std::ops::Bound<u64>,
+        _start_ts: std::ops::Bound<u64>,
+        _end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
         let contact_bytes = match contact {
             ContactId::User(vec) => vec,
@@ -288,11 +288,19 @@ impl Backend for Matrix {
 
         let room = self.client.get_room(&room_id).unwrap();
         let matrix_content = match &content {
-            super::MessageContent::Text(text, vec) => {
+            super::MessageContent::Text {
+                text,
+                attachments: _,
+            } => {
                 let content = RoomMessageEventContent::text_plain(text);
                 content
             }
-            super::MessageContent::Reaction(vec, _, _, _) => todo!(),
+            super::MessageContent::Reaction {
+                message_author: _,
+                timestamp: _,
+                reaction: _,
+                remove: _,
+            } => todo!(),
         };
 
         room.send(matrix_content).await.unwrap();
@@ -315,7 +323,7 @@ impl Backend for Matrix {
         self.client.user_id().unwrap().as_bytes().to_vec()
     }
 
-    async fn download_attachment(&self, attachment_index: usize) -> super::Result<String> {
+    async fn download_attachment(&self, _attachment_index: usize) -> super::Result<String> {
         todo!()
     }
 }

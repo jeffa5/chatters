@@ -29,15 +29,23 @@ pub struct Message {
 
 #[derive(Debug)]
 pub enum MessageContent {
-    Text(String, Vec<MessageAttachment>),
-    Reaction(Vec<u8>, u64, String, bool),
+    Text {
+        text: String,
+        attachments: Vec<MessageAttachment>,
+    },
+    Reaction {
+        message_author: Vec<u8>,
+        timestamp: u64,
+        reaction: String,
+        remove: bool,
+    },
 }
 
 impl ToString for MessageContent {
     fn to_string(&self) -> String {
         match self {
-            MessageContent::Text(t, _) => t,
-            MessageContent::Reaction(_, _, r, _) => r,
+            MessageContent::Text { text, .. } => text,
+            MessageContent::Reaction { reaction, .. } => reaction,
         }
         .to_owned()
     }

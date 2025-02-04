@@ -67,7 +67,7 @@ impl Messages {
     pub fn add_multiple(&mut self, messages: impl IntoIterator<Item = crate::backends::Message>) {
         for message in messages {
             match message.content {
-                crate::backends::MessageContent::Text(content, attachments) => {
+                crate::backends::MessageContent::Text { text, attachments } => {
                     let attachments = attachments
                         .into_iter()
                         .map(|a| Attachment {
@@ -85,7 +85,7 @@ impl Messages {
                             timestamp: message.timestamp,
                             sender: message.sender,
                             contact_id: message.contact_id.clone(),
-                            content,
+                            content: text,
                             reactions: Vec::new(),
                             attachments,
                             quote: message.quote.map(|q| Quote {
@@ -96,10 +96,16 @@ impl Messages {
                         },
                     );
                 }
-                crate::backends::MessageContent::Reaction(author, ts, reaction, remove) => {
-                    if let Some(m) = self.messages_by_ts.get_mut(&ts) {
-                        assert_eq!(m.sender, author);
-                        let existing_reaction = m.reactions.iter().position(|r| r.author == author);
+                crate::backends::MessageContent::Reaction {
+                    message_author,
+                    timestamp,
+                    reaction,
+                    remove,
+                } => {
+                    if let Some(m) = self.messages_by_ts.get_mut(&timestamp) {
+                        assert_eq!(m.sender, message_author);
+                        let existing_reaction =
+                            m.reactions.iter().position(|r| r.author == message_author);
                         if let Some(existing_reaction) = existing_reaction {
                             if (remove && m.reactions[existing_reaction].emoji == reaction)
                                 || !remove
@@ -110,7 +116,7 @@ impl Messages {
 
                         if !remove {
                             m.reactions.push(Reaction {
-                                author,
+                                author: message_author,
                                 emoji: reaction,
                             });
                         }

@@ -537,7 +537,10 @@ impl Command for SendMessage {
             ba_tx
                 .unbounded_send(BackendMessage::SendMessage {
                     contact_id: contact.id.clone(),
-                    content: MessageContent::Text(message_body, attachments),
+                    content: MessageContent::Text {
+                        text: message_body,
+                        attachments,
+                    },
                     quote: quoting.map(|m| crate::backends::Quote {
                         timestamp: m.timestamp,
                         sender: m.sender,
@@ -604,12 +607,12 @@ impl Command for React {
         ba_tx
             .unbounded_send(BackendMessage::SendMessage {
                 contact_id: contact.id.clone(),
-                content: MessageContent::Reaction(
-                    selected_message.sender.clone(),
-                    selected_message.timestamp,
-                    e.as_str().to_owned(),
-                    false,
-                ),
+                content: MessageContent::Reaction {
+                    message_author: selected_message.sender.clone(),
+                    timestamp: selected_message.timestamp,
+                    reaction: e.as_str().to_owned(),
+                    remove: false,
+                },
                 quote: None,
             })
             .unwrap();
@@ -687,12 +690,12 @@ impl Command for Unreact {
         ba_tx
             .unbounded_send(BackendMessage::SendMessage {
                 contact_id: contact.id.clone(),
-                content: MessageContent::Reaction(
-                    selected_message.sender.clone(),
-                    selected_message.timestamp,
+                content: MessageContent::Reaction {
+                    message_author: selected_message.sender.clone(),
+                    timestamp: selected_message.timestamp,
                     reaction,
-                    true,
-                ),
+                    remove: true,
+                },
                 quote: None,
             })
             .unwrap();

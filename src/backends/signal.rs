@@ -239,20 +239,28 @@ impl Backend for Signal {
             }
         });
         let content_body = match &content {
-            MessageContent::Text(t, _attachments) => ContentBody::DataMessage(DataMessage {
-                body: Some(t.clone()),
+            MessageContent::Text {
+                text,
+                attachments: _,
+            } => ContentBody::DataMessage(DataMessage {
+                body: Some(text.clone()),
                 timestamp: Some(now),
                 quote,
                 ..Default::default()
             }),
-            MessageContent::Reaction(author, ts, r, remove) => {
-                let author = Uuid::try_from(author.clone()).unwrap();
+            MessageContent::Reaction {
+                message_author,
+                timestamp,
+                reaction,
+                remove,
+            } => {
+                let author = Uuid::try_from(message_author.clone()).unwrap();
                 ContentBody::DataMessage(DataMessage {
                     reaction: Some(Reaction {
-                        emoji: Some(r.clone()),
+                        emoji: Some(reaction.clone()),
                         remove: Some(*remove),
                         target_author_aci: Some(author.to_string()),
-                        target_sent_timestamp: Some(*ts),
+                        target_sent_timestamp: Some(*timestamp),
                     }),
                     timestamp: Some(now),
                     quote,
@@ -379,7 +387,10 @@ impl Signal {
                 Thread::Contact(uuid) => ContactId::User(uuid.into_bytes().to_vec()),
                 Thread::Group(key) => ContactId::Group(key.to_vec()),
             },
-            content: MessageContent::Text(String::new(), Vec::new()),
+            content: MessageContent::Text {
+                text: String::new(),
+                attachments: Vec::new(),
+            },
             quote: None,
         };
 
@@ -420,7 +431,10 @@ impl Signal {
             let mut body = dm.body().to_owned();
             self.add_body_ranges(&mut body, &dm.body_ranges).await;
 
-            message.content = MessageContent::Text(body, attachments);
+            message.content = MessageContent::Text {
+                text: body,
+                attachments,
+            };
             if let Some(quote) = &dm.quote {
                 let mut text = quote.text().to_owned();
                 self.add_body_ranges(&mut text, &quote.body_ranges).await;
@@ -437,12 +451,12 @@ impl Signal {
             assert!(dm.attachments.is_empty());
             let emoji = r.emoji.clone()?;
             let author_uuid: Uuid = r.target_author_aci.as_ref().unwrap().parse().unwrap();
-            message.content = MessageContent::Reaction(
-                author_uuid.into_bytes().to_vec(),
-                r.target_sent_timestamp.unwrap(),
-                emoji,
-                r.remove(),
-            );
+            message.content = MessageContent::Reaction {
+                message_author: author_uuid.into_bytes().to_vec(),
+                timestamp: r.target_sent_timestamp.unwrap(),
+                reaction: emoji,
+                remove: r.remove(),
+            };
             return Some(message);
         }
         None
