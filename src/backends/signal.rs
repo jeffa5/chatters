@@ -136,7 +136,7 @@ impl Backend for Signal {
                 presage::model::messages::Received::Content(message) => {
                     if let Some(msg) = self.message_content_to_frontend_message(*message).await {
                         ba_tx
-                            .unbounded_send(FrontendMessage::NewMessage(msg))
+                            .unbounded_send(FrontendMessage::NewMessage { message: msg })
                             .unwrap();
                     }
                 }

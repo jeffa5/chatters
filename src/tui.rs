@@ -84,7 +84,7 @@ impl Messages {
                         Message {
                             timestamp: message.timestamp,
                             sender: message.sender,
-                            contact: message.contact_id.clone(),
+                            contact_id: message.contact_id.clone(),
                             content,
                             reactions: Vec::new(),
                             attachments,
@@ -167,7 +167,7 @@ impl Extend<crate::backends::Message> for Messages {
 pub struct Message {
     pub timestamp: u64,
     pub sender: Vec<u8>,
-    pub contact: ContactId,
+    pub contact_id: ContactId,
     pub content: String,
     pub reactions: Vec<Reaction>,
     pub attachments: Vec<Attachment>,

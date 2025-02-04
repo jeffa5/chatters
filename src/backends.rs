@@ -100,14 +100,14 @@ pub trait Backend: Sized {
 
     fn messages(
         &mut self,
-        contact: ContactId,
+        contact_id: ContactId,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     ) -> impl Future<Output = Result<Vec<Message>>>;
 
     fn send_message(
         &mut self,
-        contact: ContactId,
+        contact_id: ContactId,
         body: MessageContent,
         quoting: Option<&Quote>,
     ) -> impl Future<Output = Result<Message>>;

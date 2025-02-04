@@ -286,45 +286,45 @@ fn process_backend_message(
 ) {
     // dbg!(&msg);
     match msg {
-        FrontendMessage::LoadedContacts(vec) => {
-            if tui_state.contacts.is_empty() && !vec.is_empty() {
+        FrontendMessage::LoadedContacts { contacts } => {
+            if tui_state.contacts.is_empty() && !contacts.is_empty() {
                 tui_state.contact_list_state.select_next();
             }
-            tui_state.contacts = Contacts::new(vec);
+            tui_state.contacts = Contacts::new(contacts);
             if let Some(contact) = tui_state.selected_contact() {
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages {
-                        contact: contact.id.clone(),
+                        contact_id: contact.id.clone(),
                         start_ts: std::ops::Bound::Unbounded,
                         end_ts: std::ops::Bound::Unbounded,
                     })
                     .unwrap();
             }
         }
-        FrontendMessage::LoadedMessages(vec) => {
-            if tui_state.messages.is_empty() && !vec.is_empty() {
+        FrontendMessage::LoadedMessages { messages } => {
+            if tui_state.messages.is_empty() && !messages.is_empty() {
                 tui_state.message_list_state.select_last();
             }
             tui_state.messages.clear();
-            tui_state.messages.extend(vec);
+            tui_state.messages.extend(messages);
         }
-        FrontendMessage::NewMessage(m) => {
+        FrontendMessage::NewMessage { message } => {
             if let Some((i, contact)) = tui_state.contact_list_state.selected().and_then(|i| {
                 tui_state
                     .contacts
                     .contact_or_group_by_index_mut(i)
                     .map(|c| (i, c))
             }) {
-                contact.last_message_timestamp = m.timestamp;
-                if m.contact_id == contact.id {
+                contact.last_message_timestamp = message.timestamp;
+                if message.contact_id == contact.id {
                     tui_state.contacts.move_by_index(i, 0);
                     tui_state.contact_list_state.select(Some(0));
 
-                    tui_state.messages.add_single(m);
+                    tui_state.messages.add_single(message);
                 }
             }
         }
-        FrontendMessage::DownloadedAttachment(contact_id, timestamp, index, file_name) => {
+        FrontendMessage::DownloadedAttachment{ contact_id, timestamp, index, file_name } => {
             if let Some(contact) = tui_state
                 .contact_list_state
                 .selected()

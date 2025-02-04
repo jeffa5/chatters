@@ -6,19 +6,38 @@ use crate::backends::{Contact, ContactId, Message, MessageContent, Quote};
 pub enum BackendMessage {
     LoadContacts,
     LoadMessages {
-        contact: ContactId,
+        contact_id: ContactId,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     },
-    SendMessage(ContactId, MessageContent, Option<Quote>),
-    DownloadAttachment(ContactId, u64, usize),
+    SendMessage {
+        contact_id: ContactId,
+        content: MessageContent,
+        quote: Option<Quote>,
+    },
+    DownloadAttachment {
+        contact_id: ContactId,
+        timestamp: u64,
+        index: usize,
+    },
 }
 
 #[derive(Debug)]
 pub enum FrontendMessage {
-    LoadedContacts(Vec<Contact>),
-    LoadedMessages(Vec<Message>),
-    NewMessage(Message),
-    DownloadedAttachment(ContactId, u64, usize, String),
+    LoadedContacts {
+        contacts: Vec<Contact>,
+    },
+    LoadedMessages {
+        messages: Vec<Message>,
+    },
+    NewMessage {
+        message: Message,
+    },
+    DownloadedAttachment {
+        contact_id: ContactId,
+        timestamp: u64,
+        index: usize,
+        file_name: String,
+    },
     Tick,
 }

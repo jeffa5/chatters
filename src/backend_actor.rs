@@ -24,11 +24,11 @@ impl<B: Backend> BackendActor<B> {
                     contacts.append(&mut groups);
                     contacts.sort_by_key(|c| (Reverse(c.last_message_timestamp), c.name.clone()));
                     self.message_tx
-                        .unbounded_send(FrontendMessage::LoadedContacts(contacts))
+                        .unbounded_send(FrontendMessage::LoadedContacts { contacts })
                         .unwrap();
                 }
                 BackendMessage::LoadMessages {
-                    contact,
+                    contact_id: contact,
                     start_ts,
                     end_ts,
                 } => {
@@ -38,25 +38,36 @@ impl<B: Backend> BackendActor<B> {
                         .await
                         .unwrap();
                     self.message_tx
-                        .unbounded_send(FrontendMessage::LoadedMessages(messages))
+                        .unbounded_send(FrontendMessage::LoadedMessages { messages })
                         .unwrap();
                 }
-                BackendMessage::SendMessage(contact, body, quoted) => {
+                BackendMessage::SendMessage {
+                    contact_id,
+                    content,
+                    quote,
+                } => {
                     let msg = self
                         .backend
-                        .send_message(contact, body, quoted.as_ref())
+                        .send_message(contact_id, content, quote.as_ref())
                         .await
                         .unwrap();
                     self.message_tx
-                        .unbounded_send(FrontendMessage::NewMessage(msg))
+                        .unbounded_send(FrontendMessage::NewMessage { message: msg })
                         .unwrap();
                 }
-                BackendMessage::DownloadAttachment(contact, timestamp, index) => {
+                BackendMessage::DownloadAttachment {
+                    contact_id,
+                    timestamp,
+                    index,
+                } => {
                     let file_name = self.backend.download_attachment(index).await.unwrap();
                     self.message_tx
-                        .unbounded_send(FrontendMessage::DownloadedAttachment(
-                            contact, timestamp, index, file_name,
-                        ))
+                        .unbounded_send(FrontendMessage::DownloadedAttachment {
+                            contact_id,
+                            timestamp,
+                            index,
+                            file_name,
+                        })
                         .unwrap();
                 }
             }

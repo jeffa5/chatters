@@ -535,15 +535,15 @@ impl Command for SendMessage {
 
         if let Some(contact) = tui_state.selected_contact() {
             ba_tx
-                .unbounded_send(BackendMessage::SendMessage(
-                    contact.id.clone(),
-                    MessageContent::Text(message_body, attachments),
-                    quoting.map(|m| crate::backends::Quote {
+                .unbounded_send(BackendMessage::SendMessage {
+                    contact_id: contact.id.clone(),
+                    content: MessageContent::Text(message_body, attachments),
+                    quote: quoting.map(|m| crate::backends::Quote {
                         timestamp: m.timestamp,
                         sender: m.sender,
                         text: m.text,
                     }),
-                ))
+                })
                 .unwrap();
         }
         Ok(CommandSuccess::Nothing)
@@ -602,16 +602,16 @@ impl Command for React {
         };
 
         ba_tx
-            .unbounded_send(BackendMessage::SendMessage(
-                contact.id.clone(),
-                MessageContent::Reaction(
+            .unbounded_send(BackendMessage::SendMessage {
+                contact_id: contact.id.clone(),
+                content: MessageContent::Reaction(
                     selected_message.sender.clone(),
                     selected_message.timestamp,
                     e.as_str().to_owned(),
                     false,
                 ),
-                None,
-            ))
+                quote: None,
+            })
             .unwrap();
         Ok(CommandSuccess::Nothing)
     }
@@ -685,16 +685,16 @@ impl Command for Unreact {
         };
 
         ba_tx
-            .unbounded_send(BackendMessage::SendMessage(
-                contact.id.clone(),
-                MessageContent::Reaction(
+            .unbounded_send(BackendMessage::SendMessage {
+                contact_id: contact.id.clone(),
+                content: MessageContent::Reaction(
                     selected_message.sender.clone(),
                     selected_message.timestamp,
                     reaction,
                     true,
                 ),
-                None,
-            ))
+                quote: None,
+            })
             .unwrap();
         Ok(CommandSuccess::Nothing)
     }
@@ -846,7 +846,7 @@ impl Command for ReloadMessages {
         if let Some(contact) = tui_state.selected_contact() {
             ba_tx
                 .unbounded_send(BackendMessage::LoadMessages {
-                    contact: contact.id.clone(),
+                    contact_id: contact.id.clone(),
                     start_ts: std::ops::Bound::Unbounded,
                     end_ts: std::ops::Bound::Unbounded,
                 })
@@ -988,21 +988,21 @@ impl Command for DownloadAttachments {
             if let Some(index) = self.index {
                 if let Some(attachment) = message.attachments.get(index) {
                     ba_tx
-                        .unbounded_send(BackendMessage::DownloadAttachment(
-                            message.contact.clone(),
-                            message.timestamp,
-                            attachment.handle,
-                        ))
+                        .unbounded_send(BackendMessage::DownloadAttachment {
+                            contact_id: message.contact_id.clone(),
+                            timestamp: message.timestamp,
+                            index: attachment.handle,
+                        })
                         .unwrap();
                 }
             } else {
                 for attachment in &message.attachments {
                     ba_tx
-                        .unbounded_send(BackendMessage::DownloadAttachment(
-                            message.contact.clone(),
-                            message.timestamp,
-                            attachment.handle,
-                        ))
+                        .unbounded_send(BackendMessage::DownloadAttachment {
+                            contact_id: message.contact_id.clone(),
+                            timestamp: message.timestamp,
+                            index: attachment.handle,
+                        })
                         .unwrap();
                 }
             }
@@ -1491,7 +1491,7 @@ fn after_contact_changed(
         tui_state.message_list_state.select(None);
         ba_tx
             .unbounded_send(BackendMessage::LoadMessages {
-                contact: contact.id.clone(),
+                contact_id: contact.id.clone(),
                 start_ts: std::ops::Bound::Unbounded,
                 end_ts: std::ops::Bound::Unbounded,
             })

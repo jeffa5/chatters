@@ -1,10 +1,19 @@
 use crate::backends::Error;
 
-use super::{Backend, ContactId};
+use super::{timestamp, Backend, ContactId, Quote};
+use futures::future::select;
+use futures::{pin_mut, StreamExt as _};
 use log::debug;
+use matrix_sdk::crypto::{format_emojis, Emoji, SasState};
+use matrix_sdk::encryption::verification::{
+    SasVerification, Verification, VerificationRequest, VerificationRequestState,
+};
 use matrix_sdk::matrix_auth::MatrixSession;
-use matrix_sdk::LoopCtrl;
+use matrix_sdk::room::MessagesOptions;
+use matrix_sdk::ruma::events::room::message::RoomMessageEventContent;
+use matrix_sdk::ruma::RoomId;
 use matrix_sdk::{config::SyncSettings, Client};
+use matrix_sdk::{LoopCtrl, RoomMemberships};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use serde::Deserialize;
@@ -71,10 +80,27 @@ impl Backend for Matrix {
             .await
             .unwrap();
 
-        println!("Restoring session for {}…", user_session.meta.user_id);
+        let user_id = user_session.meta.user_id.clone();
+        println!("Restoring session for {}…", user_id);
 
         // Restore the Matrix user session.
         client.restore_session(user_session).await.unwrap();
+
+        if !client.logged_in() {
+            debug!("Client not logged in after load, getting to link again");
+            return Err(Error::Unlinked);
+        }
+
+        let this_user = client
+            .encryption()
+            .get_user_identity(&user_id)
+            .await
+            .unwrap()
+            .unwrap();
+        debug!(user:? = this_user, verified:? = this_user.is_verified(); "Loading");
+        if !this_user.is_verified() {
+            verify(&client).await;
+        }
 
         Ok(Self { client })
     }
@@ -142,11 +168,7 @@ impl Backend for Matrix {
             session_file.to_string_lossy()
         );
 
-        // After logging in, you might want to verify this session with another one (see
-        // the `emoji_verification` example), or bootstrap cross-signing if this is your
-        // first session with encryption, or if you need to reset cross-signing because
-        // you don't have access to your old sessions (see the
-        // `cross_signing_bootstrap` example).
+        verify(&client).await;
 
         Ok(Self { client })
     }
@@ -174,11 +196,54 @@ impl Backend for Matrix {
     }
 
     async fn users(&self) -> super::Result<Vec<super::Contact>> {
-        todo!()
+        let rooms = self.client.rooms();
+        for room in rooms {
+            debug!(room:?; "Found room");
+        }
+        let rooms = self.client.joined_rooms();
+        let mut users = Vec::new();
+        for room in rooms {
+            let member_count = room.members(RoomMemberships::JOIN).await.unwrap().len();
+            debug!(member_count:?; "Found room");
+            if member_count > 2 {
+                continue;
+            }
+
+            let user = super::Contact {
+                id: ContactId::User(room.room_id().as_bytes().to_vec()),
+                name: room
+                    .compute_display_name()
+                    .await
+                    .map_or(room.room_id().to_string(), |n| n.to_string()),
+                address: String::new(),
+                last_message_timestamp: 0,
+                description: String::new(),
+            };
+            users.push(user);
+        }
+        Ok(users)
     }
 
     async fn groups(&self) -> super::Result<Vec<super::Contact>> {
-        todo!()
+        let rooms = self.client.joined_rooms();
+        let mut groups = Vec::new();
+        for room in rooms {
+            let member_count = room.members(RoomMemberships::JOIN).await.unwrap().len();
+            debug!(member_count:?; "Found room");
+            if member_count <= 2 {
+                continue;
+            }
+
+            let group = super::Contact {
+                id: ContactId::Group(room.room_id().as_bytes().to_vec()),
+                name: room.name().unwrap(),
+                address: String::new(),
+                last_message_timestamp: 0,
+                description: String::new(),
+            };
+            groups.push(group);
+        }
+        Ok(groups)
     }
 
     async fn messages(
@@ -187,16 +252,63 @@ impl Backend for Matrix {
         start_ts: std::ops::Bound<u64>,
         end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
-        todo!()
+        let contact_bytes = match contact {
+            ContactId::User(vec) => vec,
+            ContactId::Group(vec) => vec,
+        };
+        let contact_str = String::from_utf8(contact_bytes).unwrap();
+        let room_id = RoomId::parse(contact_str).unwrap();
+
+        let messages = Vec::new();
+
+        if let Some(room) = self.client.get_room(&room_id) {
+            let messages = room.messages(MessagesOptions::forward()).await.unwrap();
+            debug!(start:? = messages.start, end:? = messages.end; "Got some messages");
+            for event in messages.chunk {
+                debug!(event:? = event; "Got timeline event");
+            }
+        }
+
+        Ok(messages)
     }
 
     async fn send_message(
         &mut self,
         contact: ContactId,
-        body: super::MessageContent,
+        content: super::MessageContent,
         quoting: Option<&super::Quote>,
     ) -> super::Result<super::Message> {
-        todo!()
+        let contact_bytes = match &contact {
+            ContactId::User(vec) => vec,
+            ContactId::Group(vec) => vec,
+        }
+        .clone();
+        let contact_str = String::from_utf8(contact_bytes).unwrap();
+        let room_id = RoomId::parse(contact_str).unwrap();
+
+        let room = self.client.get_room(&room_id).unwrap();
+        let matrix_content = match &content {
+            super::MessageContent::Text(text, vec) => {
+                let content = RoomMessageEventContent::text_plain(text);
+                content
+            }
+            super::MessageContent::Reaction(vec, _, _, _) => todo!(),
+        };
+
+        room.send(matrix_content).await.unwrap();
+
+        let quote = quoting.map(|quoted| Quote {
+            timestamp: quoted.timestamp,
+            sender: quoted.sender.clone(),
+            text: quoted.text.clone(),
+        });
+        Ok(super::Message {
+            timestamp: timestamp(),
+            sender: self.self_id().await,
+            contact_id: contact,
+            content,
+            quote,
+        })
     }
 
     async fn self_id(&self) -> Vec<u8> {
@@ -265,6 +377,140 @@ async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)
                     return Err(error.into());
                 }
             },
+        }
+    }
+}
+
+async fn verify(client: &Client) {
+    println!("Verifying device, please accept the request on another of your device");
+    let this_user = client
+        .encryption()
+        .request_user_identity(client.user_id().unwrap())
+        .await
+        .unwrap()
+        .unwrap();
+    let verification_request = this_user.request_verification().await.unwrap();
+
+    // TODO: cancel this after verification
+    let c = client.clone();
+    let sync = c.sync(SyncSettings::new());
+    pin_mut!(sync);
+
+    let verify = request_verification_handler(verification_request);
+    pin_mut!(verify);
+
+    // cancels the other future on drop
+    select(sync, verify).await;
+}
+
+async fn request_verification_handler(request: VerificationRequest) {
+    debug!(
+        other_user_id:? = request.other_user_id();
+        "Accepting verification request",
+    );
+    request
+        .accept()
+        .await
+        .expect("Can't accept verification request");
+    debug!("Accepted our side during verification");
+
+    let mut stream = request.changes();
+
+    while let Some(state) = stream.next().await {
+        debug!(state:?; "Got state during verification");
+        match state {
+            VerificationRequestState::Created { .. }
+            | VerificationRequestState::Requested { .. }
+            | VerificationRequestState::Ready { .. } => (),
+            VerificationRequestState::Transitioned { verification } => {
+                // We only support SAS verification.
+                if let Verification::SasV1(s) = verification {
+                    sas_verification_handler(s).await;
+                    break;
+                }
+            }
+            VerificationRequestState::Done | VerificationRequestState::Cancelled(_) => break,
+        }
+    }
+}
+
+async fn wait_for_confirmation(emoji: [Emoji; 7]) -> bool {
+    loop {
+        println!("\nDo the emojis match: \n{}", format_emojis(emoji.clone()));
+        print!("Confirm with `yes` or cancel with `no`: ");
+        std::io::stdout()
+            .flush()
+            .expect("We should be able to flush stdout");
+
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .expect("error: unable to read user input");
+
+        match input.trim().to_lowercase().as_ref() {
+            "yes" | "true" | "ok" => return true,
+            "no" | "false" => return false,
+            _ => {}
+        }
+        println!(
+            "\nSorry, {} isn't one of the expected values, please answer yes or no.",
+            input.trim()
+        );
+    }
+}
+
+async fn sas_verification_handler(sas: SasVerification) {
+    println!(
+        "Starting verification with {} {}",
+        &sas.other_device().user_id(),
+        &sas.other_device().device_id()
+    );
+    sas.accept().await.unwrap();
+
+    let mut stream = sas.changes();
+
+    while let Some(state) = stream.next().await {
+        match state {
+            SasState::KeysExchanged {
+                emojis,
+                decimals: _,
+            } => {
+                let success = wait_for_confirmation(
+                    emojis
+                        .expect("We only support verifications using emojis")
+                        .emojis,
+                )
+                .await;
+                if success {
+                    sas.confirm().await.unwrap();
+                } else {
+                    sas.cancel().await.unwrap();
+                }
+            }
+            SasState::Done { .. } => {
+                let device = sas.other_device();
+
+                println!(
+                    "Successfully verified device {} {} {:?}",
+                    device.user_id(),
+                    device.device_id(),
+                    device.local_trust_state()
+                );
+
+                break;
+            }
+            SasState::Cancelled(cancel_info) => {
+                println!(
+                    "The verification has been cancelled, reason: {}",
+                    cancel_info.reason()
+                );
+
+                break;
+            }
+            SasState::Created { .. }
+            | SasState::Started { .. }
+            | SasState::Accepted { .. }
+            | SasState::Confirmed => (),
         }
     }
 }
