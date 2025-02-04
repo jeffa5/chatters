@@ -8,9 +8,11 @@ use log::info;
 use log::warn;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
+use presage::libsignal_service::prelude::Uuid;
 use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
+use presage::libsignal_service::zkgroup::GroupMasterKeyBytes;
 use presage::proto::body_range::AssociatedValue;
 use presage::proto::AttachmentPointer;
 use presage::proto::BodyRange;
@@ -25,8 +27,8 @@ use std::ops::Bound;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
-use uuid::Uuid;
 
+use crate::backends::ContactId;
 use crate::backends::MessageAttachment;
 use crate::backends::Quote;
 use crate::message::FrontendMessage;
@@ -175,7 +177,7 @@ impl Backend for Signal {
                 .await;
             debug!(contact:? = contact; "Found contact");
             ret.push(Contact {
-                thread_id: Thread::Contact(contact.uuid),
+                id: ContactId::User(contact.uuid.into_bytes().to_vec()),
                 name,
                 address: contact
                     .phone_number
@@ -196,7 +198,7 @@ impl Backend for Signal {
             let last_message_timestamp = self.last_message_timestamp(&Thread::Group(key)).await;
             debug!(group:? = group; "Found group");
             ret.push(Contact {
-                thread_id: Thread::Group(key),
+                id: ContactId::Group(key.to_vec()),
                 name: group.title,
                 address: String::new(),
                 last_message_timestamp,
@@ -208,15 +210,19 @@ impl Backend for Signal {
 
     async fn messages(
         &mut self,
-        contact: Thread,
+        contact: ContactId,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     ) -> Result<Vec<Message>> {
         let mut ret = Vec::new();
+        let thread = match contact {
+            ContactId::User(vec) => Thread::Contact(Uuid::try_from(vec).unwrap()),
+            ContactId::Group(vec) => Thread::Group(GroupMasterKeyBytes::try_from(vec).unwrap()),
+        };
         let messages = self
             .manager
             .store()
-            .messages(&contact, (start_ts, end_ts))
+            .messages(&thread, (start_ts, end_ts))
             .await
             .unwrap();
         for message in messages {
@@ -230,18 +236,21 @@ impl Backend for Signal {
 
     async fn send_message(
         &mut self,
-        contact: Thread,
+        contact: ContactId,
         content: MessageContent,
         quoting: Option<&Quote>,
     ) -> Result<Message> {
         let now = timestamp();
-        let quote = quoting.map(|q| presage::proto::data_message::Quote {
-            id: Some(q.timestamp),
-            author_aci: Some(q.sender.to_string()),
-            text: Some(q.text.clone()),
-            attachments: Vec::new(),
-            body_ranges: Vec::new(),
-            r#type: Some(presage::proto::data_message::quote::Type::Normal as i32),
+        let quote = quoting.map(|q| {
+            let sender = Uuid::try_from(q.sender.clone()).unwrap();
+            presage::proto::data_message::Quote {
+                id: Some(q.timestamp),
+                author_aci: Some(sender.to_string()),
+                text: Some(q.text.clone()),
+                attachments: Vec::new(),
+                body_ranges: Vec::new(),
+                r#type: Some(presage::proto::data_message::quote::Type::Normal as i32),
+            }
         });
         let content_body = match &content {
             MessageContent::Text(t, _attachments) => ContentBody::DataMessage(DataMessage {
@@ -251,6 +260,7 @@ impl Backend for Signal {
                 ..Default::default()
             }),
             MessageContent::Reaction(author, ts, r, remove) => {
+                let author = Uuid::try_from(author.clone()).unwrap();
                 ContentBody::DataMessage(DataMessage {
                     reaction: Some(Reaction {
                         emoji: Some(r.clone()),
@@ -266,25 +276,26 @@ impl Backend for Signal {
         };
         let quote = quoting.map(|quoted| Quote {
             timestamp: quoted.timestamp,
-            sender: quoted.sender,
+            sender: quoted.sender.clone(),
             text: quoted.text.clone(),
         });
         let ui_msg = Message {
             timestamp: now,
-            sender: self.self_uuid,
-            thread: contact.clone(),
+            sender: self.self_uuid.into_bytes().to_vec(),
+            contact_id: contact.clone(),
             content,
             quote,
         };
         debug!(contact:? = contact, content:? = content_body; "Sending message");
         match contact {
-            Thread::Contact(uuid) => {
+            ContactId::User(id) => {
+                let uuid = Uuid::try_from(id).unwrap();
                 self.manager
                     .send_message(ServiceId::Aci(uuid.into()), content_body, now)
                     .await
                     .unwrap();
             }
-            Thread::Group(key) => {
+            ContactId::Group(key) => {
                 self.manager
                     .send_message_to_group(&key, content_body, now)
                     .await
@@ -294,9 +305,15 @@ impl Backend for Signal {
         Ok(ui_msg)
     }
 
-    async fn self_uuid(&self) -> Uuid {
+    async fn self_id(&self) -> Vec<u8> {
         debug!("Getting self_uuid");
-        self.manager.whoami().await.unwrap().aci
+        self.manager
+            .whoami()
+            .await
+            .unwrap()
+            .aci
+            .into_bytes()
+            .to_vec()
     }
 
     async fn download_attachment(&self, attachment_index: usize) -> Result<String> {
@@ -371,8 +388,11 @@ impl Signal {
     ) -> Option<Message> {
         let mut message = Message {
             timestamp,
-            sender,
-            thread,
+            sender: sender.into_bytes().to_vec(),
+            contact_id: match thread {
+                Thread::Contact(uuid) => ContactId::User(uuid.into_bytes().to_vec()),
+                Thread::Group(key) => ContactId::Group(key.to_vec()),
+            },
             content: MessageContent::Text(String::new(), Vec::new()),
             quote: None,
         };
@@ -418,9 +438,10 @@ impl Signal {
             if let Some(quote) = &dm.quote {
                 let mut text = quote.text().to_owned();
                 self.add_body_ranges(&mut text, &quote.body_ranges).await;
+                let author_uuid: Uuid = quote.author_aci().parse().unwrap();
                 message.quote = Some(Quote {
                     timestamp: quote.id(),
-                    sender: quote.author_aci().parse().unwrap(),
+                    sender: author_uuid.into_bytes().to_vec(),
                     text,
                 });
             }
@@ -429,8 +450,9 @@ impl Signal {
             assert!(dm.body.is_none());
             assert!(dm.attachments.is_empty());
             let emoji = r.emoji.clone()?;
+            let author_uuid: Uuid = r.target_author_aci.as_ref().unwrap().parse().unwrap();
             message.content = MessageContent::Reaction(
-                r.target_author_aci.as_ref().unwrap().parse().unwrap(),
+                author_uuid.into_bytes().to_vec(),
                 r.target_sent_timestamp.unwrap(),
                 emoji,
                 r.remove(),

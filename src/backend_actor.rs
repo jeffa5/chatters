@@ -28,34 +28,34 @@ impl<B: Backend> BackendActor<B> {
                         .unwrap();
                 }
                 BackendMessage::LoadMessages {
-                    thread,
+                    contact,
                     start_ts,
                     end_ts,
                 } => {
                     let messages = self
                         .backend
-                        .messages(thread, start_ts, end_ts)
+                        .messages(contact, start_ts, end_ts)
                         .await
                         .unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::LoadedMessages(messages))
                         .unwrap();
                 }
-                BackendMessage::SendMessage(thread, body, quoted) => {
+                BackendMessage::SendMessage(contact, body, quoted) => {
                     let msg = self
                         .backend
-                        .send_message(thread, body, quoted.as_ref())
+                        .send_message(contact, body, quoted.as_ref())
                         .await
                         .unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::NewMessage(msg))
                         .unwrap();
                 }
-                BackendMessage::DownloadAttachment(thread, timestamp, index) => {
+                BackendMessage::DownloadAttachment(contact, timestamp, index) => {
                     let file_name = self.backend.download_attachment(index).await.unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::DownloadedAttachment(
-                            thread, timestamp, index, file_name,
+                            contact, timestamp, index, file_name,
                         ))
                         .unwrap();
                 }

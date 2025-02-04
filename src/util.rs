@@ -22,7 +22,6 @@ use std::ffi::OsString;
 use std::io::Stdout;
 use std::path::PathBuf;
 use tui_textarea::TextArea;
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -67,7 +66,7 @@ pub async fn run<B: Backend + Clone>(options: Options) {
         }
     };
 
-    let self_uuid = backend.self_uuid().await;
+    let self_id = backend.self_id().await;
 
     info!("Loaded backend");
 
@@ -84,7 +83,7 @@ pub async fn run<B: Backend + Clone>(options: Options) {
 
     let ui = async move {
         let terminal = ratatui::init();
-        run_ui(terminal, b_tx, f_rx, self_uuid).await;
+        run_ui(terminal, b_tx, f_rx, self_id).await;
         ratatui::restore();
     };
     pin_mut!(ui);
@@ -125,7 +124,7 @@ async fn run_ui(
     mut terminal: DefaultTerminal,
     backend_actor_tx: mpsc::UnboundedSender<BackendMessage>,
     mut backend_actor_rx: mpsc::UnboundedReceiver<FrontendMessage>,
-    self_uuid: Uuid,
+    self_id: Vec<u8>,
 ) {
     // select on two channels, one for keyboard events, another for messages from the backend
     // (responses)
@@ -133,7 +132,7 @@ async fn run_ui(
     // handle either action then render the ui again
 
     let mut tui_state = TuiState::default();
-    tui_state.self_uuid = self_uuid;
+    tui_state.self_id = self_id;
 
     let mut event_stream = EventStream::new();
 
@@ -295,7 +294,7 @@ fn process_backend_message(
             if let Some(contact) = tui_state.selected_contact() {
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages {
-                        thread: contact.thread_id.clone(),
+                        contact: contact.id.clone(),
                         start_ts: std::ops::Bound::Unbounded,
                         end_ts: std::ops::Bound::Unbounded,
                     })
@@ -317,7 +316,7 @@ fn process_backend_message(
                     .map(|c| (i, c))
             }) {
                 contact.last_message_timestamp = m.timestamp;
-                if m.thread == contact.thread_id {
+                if m.contact_id == contact.id {
                     tui_state.contacts.move_by_index(i, 0);
                     tui_state.contact_list_state.select(Some(0));
 
@@ -325,13 +324,13 @@ fn process_backend_message(
                 }
             }
         }
-        FrontendMessage::DownloadedAttachment(thread, timestamp, index, file_name) => {
+        FrontendMessage::DownloadedAttachment(contact_id, timestamp, index, file_name) => {
             if let Some(contact) = tui_state
                 .contact_list_state
                 .selected()
                 .and_then(|i| tui_state.contacts.contact_or_group_by_index_mut(i))
             {
-                if thread == contact.thread_id {
+                if contact_id == contact.id {
                     if let Some(msg) = tui_state.messages.get_mut_by_timestamp(timestamp) {
                         // mark attachment as downloaded
                         let attachment = msg

@@ -1,24 +1,28 @@
 use futures::channel::mpsc;
 use futures::channel::oneshot;
-use presage::store::Thread;
 use std::future::Future;
 use std::ops::Bound;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
-use uuid::Uuid;
 
 use crate::message::FrontendMessage;
 
 pub mod local;
-pub mod signal;
 pub mod matrix;
+pub mod signal;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContactId {
+    User(Vec<u8>),
+    Group(Vec<u8>),
+}
 
 #[derive(Debug)]
 pub struct Message {
     pub timestamp: u64,
-    pub sender: Uuid,
-    pub thread: Thread,
+    pub sender: Vec<u8>,
+    pub contact_id: ContactId,
     pub content: MessageContent,
     pub quote: Option<Quote>,
 }
@@ -26,7 +30,7 @@ pub struct Message {
 #[derive(Debug)]
 pub enum MessageContent {
     Text(String, Vec<MessageAttachment>),
-    Reaction(Uuid, u64, String, bool),
+    Reaction(Vec<u8>, u64, String, bool),
 }
 
 impl ToString for MessageContent {
@@ -51,13 +55,13 @@ pub struct MessageAttachment {
 #[derive(Debug)]
 pub struct Quote {
     pub timestamp: u64,
-    pub sender: Uuid,
+    pub sender: Vec<u8>,
     pub text: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct Contact {
-    pub thread_id: Thread,
+    pub id: ContactId,
     pub name: String,
     pub address: String,
     pub last_message_timestamp: u64,
@@ -98,19 +102,19 @@ pub trait Backend: Sized {
 
     fn messages(
         &mut self,
-        contact: Thread,
+        contact: ContactId,
         start_ts: Bound<u64>,
         end_ts: Bound<u64>,
     ) -> impl Future<Output = Result<Vec<Message>>>;
 
     fn send_message(
         &mut self,
-        contact: Thread,
+        contact: ContactId,
         body: MessageContent,
         quoting: Option<&Quote>,
     ) -> impl Future<Output = Result<Message>>;
 
-    fn self_uuid(&self) -> impl Future<Output = Uuid>;
+    fn self_id(&self) -> impl Future<Output = Vec<u8>>;
 
     fn download_attachment(&self, attachment_index: usize) -> impl Future<Output = Result<String>>;
 }

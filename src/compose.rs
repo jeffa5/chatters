@@ -5,7 +5,6 @@ use ratatui::{
     widgets::{Block, Paragraph},
 };
 use tui_textarea::TextArea;
-use uuid::Uuid;
 
 #[derive(Debug, Default)]
 pub struct Compose {
@@ -16,7 +15,7 @@ pub struct Compose {
 
 #[derive(Debug, Clone)]
 pub struct Reply {
-    pub sender: Uuid,
+    pub sender: Vec<u8>,
     pub timestamp: u64,
     pub text: String,
 }

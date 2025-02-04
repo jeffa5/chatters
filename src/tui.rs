@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use log::warn;
-use presage::store::Thread;
 use ratatui::layout::Alignment;
 use ratatui::layout::Constraint;
 use ratatui::layout::Direction;
@@ -30,9 +29,9 @@ use ratatui::widgets::TableState;
 use ratatui::Frame;
 use textwrap::Options;
 use tui_textarea::TextArea;
-use uuid::Uuid;
 
 use crate::backends::Contact;
+use crate::backends::ContactId;
 use crate::command_history::CommandLineHistory;
 use crate::compose::Compose;
 use crate::contacts::Contacts;
@@ -85,7 +84,7 @@ impl Messages {
                         Message {
                             timestamp: message.timestamp,
                             sender: message.sender,
-                            thread: message.thread.clone(),
+                            contact: message.contact_id.clone(),
                             content,
                             reactions: Vec::new(),
                             attachments,
@@ -167,8 +166,8 @@ impl Extend<crate::backends::Message> for Messages {
 #[derive(Debug)]
 pub struct Message {
     pub timestamp: u64,
-    pub sender: Uuid,
-    pub thread: Thread,
+    pub sender: Vec<u8>,
+    pub contact: ContactId,
     pub content: String,
     pub reactions: Vec<Reaction>,
     pub attachments: Vec<Attachment>,
@@ -227,13 +226,13 @@ impl Message {
 #[derive(Debug)]
 pub struct Quote {
     pub timestamp: u64,
-    pub sender: Uuid,
+    pub sender: Vec<u8>,
     pub text: String,
 }
 
 #[derive(Debug)]
 pub struct Reaction {
-    pub author: Uuid,
+    pub author: Vec<u8>,
     pub emoji: String,
 }
 
@@ -249,7 +248,7 @@ pub struct Attachment {
 #[derive(Debug)]
 pub enum Popup {
     MessageInfo { timestamp: u64 },
-    ContactInfo { thread: Thread },
+    ContactInfo { id: ContactId },
     Keybinds,
     Commands,
     CommandHistory,
@@ -257,7 +256,7 @@ pub enum Popup {
 
 #[derive(Debug, Default)]
 pub struct TuiState {
-    pub self_uuid: Uuid,
+    pub self_id: Vec<u8>,
     pub attachments_path: String,
     pub contact_list_state: TableState,
     pub message_list_state: ListState,
@@ -364,7 +363,7 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             .contacts
             .contact_by_id(&m.sender)
             .map(|c| c.name.clone())
-            .unwrap_or(m.sender.to_string());
+            .unwrap();
         let sender = truncate_or_pad(sender, sender_width);
         let age = biggest_duration_string(now.saturating_sub(m.timestamp));
         let sender_time = format!("{sender} {age:>3} ");
@@ -514,11 +513,11 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
             let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
             render_message_info(width, tui_state, message)
         }
-        Popup::ContactInfo { thread } => {
+        Popup::ContactInfo { id } => {
             let contact = tui_state
                 .contacts
                 .iter_contacts_and_groups()
-                .find(|c| &c.thread_id == thread)
+                .find(|c| &c.id == id)
                 .unwrap();
             render_contact_info(contact)
         }
@@ -568,7 +567,7 @@ fn render_message_info(
         .to_string();
     let text = vec![
         format!("Sender name: {}", sender_name),
-        format!("Sender id:   {}", message.sender),
+        format!("Sender id:   {:?}", message.sender),
         format!("Time:        {}", time.to_rfc3339()),
         String::new(),
         message.render(width).join("\n"),
@@ -587,7 +586,7 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
     .unwrap();
     let text = vec![
         format!("Name:              {}", contact.name),
-        format!("Id:                {}", contact.thread_id),
+        format!("Id:                {:?}", contact.id),
         format!("Last message time: {}", time.to_rfc3339()),
         format!("Description:       {}", contact.description),
     ]

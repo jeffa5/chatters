@@ -1,10 +1,10 @@
 use crate::backends::Error;
 
-use super::Backend;
+use super::{Backend, ContactId};
 use log::debug;
 use matrix_sdk::matrix_auth::MatrixSession;
 use matrix_sdk::LoopCtrl;
-use matrix_sdk::{config::SyncSettings, ruma::events::room::message::SyncRoomMessageEvent, Client};
+use matrix_sdk::{config::SyncSettings, Client};
 use rand::distr::Alphanumeric;
 use rand::Rng;
 use serde::Deserialize;
@@ -187,7 +187,7 @@ impl Backend for Matrix {
 
     async fn messages(
         &mut self,
-        contact: presage::store::Thread,
+        contact: ContactId,
         start_ts: std::ops::Bound<u64>,
         end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
@@ -196,15 +196,15 @@ impl Backend for Matrix {
 
     async fn send_message(
         &mut self,
-        contact: presage::store::Thread,
+        contact: ContactId,
         body: super::MessageContent,
         quoting: Option<&super::Quote>,
     ) -> super::Result<super::Message> {
         todo!()
     }
 
-    async fn self_uuid(&self) -> uuid::Uuid {
-        self.client.user_id().unwrap().to_string()
+    async fn self_id(&self) -> Vec<u8> {
+        self.client.user_id().unwrap().as_bytes().to_vec()
     }
 
     async fn download_attachment(&self, attachment_index: usize) -> super::Result<String> {

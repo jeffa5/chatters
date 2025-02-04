@@ -1,7 +1,4 @@
-use presage::store::Thread;
-use uuid::Uuid;
-
-use super::{timestamp, Backend};
+use super::{timestamp, Backend, ContactId};
 
 #[derive(Clone)]
 pub struct Local {}
@@ -33,7 +30,7 @@ impl Backend for Local {
 
     async fn contacts(&self) -> super::Result<Vec<super::Contact>> {
         Ok(vec![super::Contact {
-            thread_id: Thread::Contact(Uuid::nil()),
+            id: ContactId::User(vec![0]),
             name: "Self".to_owned(),
             address: "no address".to_owned(),
             last_message_timestamp: 0,
@@ -47,7 +44,7 @@ impl Backend for Local {
 
     async fn messages(
         &mut self,
-        _contact: presage::store::Thread,
+        _contact: ContactId,
         _start_ts: std::ops::Bound<u64>,
         _end_ts: std::ops::Bound<u64>,
     ) -> super::Result<Vec<super::Message>> {
@@ -55,24 +52,24 @@ impl Backend for Local {
         let mut msgs = vec![
             super::Message {
                 timestamp: now - 100,
-                sender: Uuid::nil(),
-                thread: Thread::Contact(Uuid::nil()),
+                sender: vec![0],
+                contact_id: ContactId::User(vec![0]),
                 content: super::MessageContent::Text("Message 1".to_owned(), Vec::new()),
                 quote: None,
             },
             super::Message {
                 timestamp: now - 90,
-                sender: Uuid::nil(),
-                thread: Thread::Contact(Uuid::nil()),
+                sender: vec![0],
+                contact_id: ContactId::User(vec![0]),
                 content: super::MessageContent::Text("Message 2".to_owned(), Vec::new()),
                 quote: None,
             },
             super::Message {
                 timestamp: now - 80,
-                sender: Uuid::nil(),
-                thread: Thread::Contact(Uuid::nil()),
+                sender: vec![0],
+                contact_id: ContactId::User(vec![0]),
                 content: super::MessageContent::Reaction(
-                    Uuid::nil(),
+                    vec![0],
                     now - 100,
                     "🚀".to_owned(),
                     false,
@@ -83,8 +80,8 @@ impl Backend for Local {
         for i in (0..50).rev() {
             msgs.push(super::Message {
                 timestamp: now - i,
-                sender: Uuid::nil(),
-                thread: Thread::Contact(Uuid::nil()),
+                sender: vec![0],
+                contact_id: ContactId::User(vec![0]),
                 content: super::MessageContent::Text(format!("msg {i}"), Vec::new()),
                 quote: None,
             });
@@ -94,22 +91,22 @@ impl Backend for Local {
 
     async fn send_message(
         &mut self,
-        contact: presage::store::Thread,
+        contact: ContactId,
         body: super::MessageContent,
         _quoted: Option<&super::Quote>,
     ) -> super::Result<super::Message> {
         let msg = super::Message {
             timestamp: timestamp(),
-            sender: Uuid::nil(),
-            thread: contact,
+            sender: vec![0],
+            contact_id: contact,
             content: body,
             quote: None,
         };
         Ok(msg)
     }
 
-    async fn self_uuid(&self) -> Uuid {
-        Uuid::nil()
+    async fn self_id(&self) -> Vec<u8> {
+        vec![0]
     }
 
     async fn download_attachment(&self, _attachment_index: usize) -> super::Result<String> {

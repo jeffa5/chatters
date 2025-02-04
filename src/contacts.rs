@@ -1,14 +1,11 @@
 use std::collections::BTreeMap;
 
-use presage::store::Thread;
-use uuid::Uuid;
-
-use crate::backends::Contact;
+use crate::backends::{Contact, ContactId};
 
 #[derive(Debug, Default)]
 pub struct Contacts {
     contacts_and_groups: Vec<Contact>,
-    contacts_by_id: BTreeMap<Uuid, Contact>,
+    contacts_by_id: BTreeMap<Vec<u8>, Contact>,
 }
 
 impl Contacts {
@@ -16,8 +13,8 @@ impl Contacts {
         let contacts_by_id = contacts_and_groups
             .iter()
             .filter_map(|c| {
-                if let Thread::Contact(uuid) = c.thread_id {
-                    Some((uuid, c.clone()))
+                if let ContactId::User(id) = &c.id {
+                    Some((id.clone(), c.clone()))
                 } else {
                     None
                 }
@@ -37,7 +34,7 @@ impl Contacts {
         self.contacts_and_groups.get_mut(index)
     }
 
-    pub fn contact_by_id(&self, id: &Uuid) -> Option<&Contact> {
+    pub fn contact_by_id(&self, id: &Vec<u8>) -> Option<&Contact> {
         self.contacts_by_id.get(id)
     }
 
