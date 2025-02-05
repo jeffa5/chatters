@@ -414,6 +414,7 @@ impl Command for NormalMode {
         tui_state.command_completions.clear();
         tui_state.command_history.clear_selection();
         tui_state.popup = None;
+        tui_state.popup_scroll = 0;
         Ok(CommandSuccess::Nothing)
     }
 

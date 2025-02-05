@@ -340,25 +340,21 @@ fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         })
         .collect();
     let contact_items_len = contact_items.len();
-    let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
-        .row_highlight_style(Style::new().reversed())
-        .block(Block::new().borders(Borders::RIGHT));
-    frame.render_stateful_widget(
-        contacts,
-        Rect {
-            // leave room for the scrollbar
-            width: rect.width.saturating_sub(1),
-            ..rect
-        },
-        &mut tui_state.contact_list_state,
-    );
+    let block = Block::new().borders(Borders::RIGHT);
+    let area = block.inner(rect);
+    frame.render_widget(block, rect);
 
-    render_scrollbar(
+    let contacts = Table::new(contact_items, [Constraint::Fill(1), Constraint::Length(3)])
+        .row_highlight_style(Style::new().reversed());
+
+    let remaining_area = render_scrollbar(
         frame,
-        rect,
+        area,
         contact_items_len,
         tui_state.contact_list_state.offset(),
     );
+
+    frame.render_stateful_widget(contacts, remaining_area, &mut tui_state.contact_list_state);
 }
 
 fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
@@ -397,22 +393,14 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         .items(message_items)
         .highlight_style(Style::new().reversed());
 
-    frame.render_stateful_widget(
-        &messages,
-        Rect {
-            // leave room for the scrollbar
-            width: rect.width.saturating_sub(1),
-            ..rect
-        },
-        &mut tui_state.message_list_state,
-    );
-
-    render_scrollbar(
+    let remaining_area = render_scrollbar(
         frame,
         rect,
         messages.len(),
         tui_state.message_list_state.offset(),
     );
+
+    frame.render_stateful_widget(&messages, remaining_area, &mut tui_state.message_list_state);
 }
 
 fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
@@ -446,7 +434,7 @@ fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
             let value = tui_state.command.lines().join("\n");
             (format!(":{}", value), Style::new());
             frame.render_widget(Line::from(":"), rect);
-            let inner_rect = rect.inner(ratatui::layout::Margin {
+            let inner_rect = rect.inner(Margin {
                 horizontal: 1,
                 vertical: 0,
             });
@@ -538,19 +526,18 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
     let max_scroll = line_count.saturating_sub(area.height.saturating_sub(2));
     tui_state.popup_scroll = tui_state.popup_scroll.min(max_scroll);
     let block = Block::bordered().title(title);
-    let para = Paragraph::new(text)
-        .block(block)
-        .scroll((tui_state.popup_scroll, 0));
-    frame.render_widget(para, area);
-    render_scrollbar(
+    let inner_area = block.inner(area);
+    frame.render_widget(block, area);
+
+    let remaining_area = render_scrollbar(
         frame,
-        area.inner(Margin {
-            vertical: 1,
-            horizontal: 0,
-        }),
+        inner_area,
         line_count.into(),
         tui_state.popup_scroll.into(),
     );
+
+    let para = Paragraph::new(text).scroll((tui_state.popup_scroll, 0));
+    frame.render_widget(para, remaining_area);
 }
 
 fn render_message_info(
@@ -666,11 +653,19 @@ fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     area
 }
 
-fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, length: usize, position: usize) {
+fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, length: usize, position: usize) -> Rect {
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
 
     let scrollable_distance = length.saturating_sub(area.height.into());
+    if scrollable_distance == 0 {
+        return area;
+    }
 
     let mut scrollbar_state = ScrollbarState::new(scrollable_distance).position(position);
     frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+
+    Rect {
+        width: area.width.saturating_sub(1),
+        ..area
+    }
 }
