@@ -278,11 +278,11 @@ fn process_backend_message(
     match msg {
         FrontendMessage::LoadedContacts { contacts } => {
             if tui_state.contacts.is_empty() && !contacts.is_empty() {
-                tui_state.contact_list_state.select_next();
+                tui_state.contacts.state.select_next();
             }
             tui_state.contacts.clear();
             tui_state.contacts.extend(contacts);
-            if let Some(contact) = tui_state.selected_contact() {
+            if let Some(contact) = tui_state.contacts.selected() {
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages {
                         contact_id: contact.id.clone(),
@@ -300,7 +300,7 @@ fn process_backend_message(
             tui_state.messages.extend(messages);
         }
         FrontendMessage::NewMessage { message } => {
-            if let Some((i, contact)) = tui_state.contact_list_state.selected().and_then(|i| {
+            if let Some((i, contact)) = tui_state.contacts.state.selected().and_then(|i| {
                 tui_state
                     .contacts
                     .contact_or_group_by_index_mut(i)
@@ -309,7 +309,7 @@ fn process_backend_message(
                 contact.last_message_timestamp = message.timestamp;
                 if message.contact_id == contact.id {
                     tui_state.contacts.move_by_index(i, 0);
-                    tui_state.contact_list_state.select(Some(0));
+                    tui_state.contacts.state.select(Some(0));
 
                     tui_state.messages.add_single(message);
                 }
@@ -322,7 +322,8 @@ fn process_backend_message(
             file_name,
         } => {
             if let Some(contact) = tui_state
-                .contact_list_state
+                .contacts
+                .state
                 .selected()
                 .and_then(|i| tui_state.contacts.contact_or_group_by_index_mut(i))
             {

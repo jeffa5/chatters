@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
 
+use ratatui::widgets::TableState;
+
 use crate::backends::{Contact, ContactId};
 
 #[derive(Debug, Default)]
 pub struct Contacts {
     contacts_and_groups: Vec<Contact>,
     contacts_by_id: BTreeMap<Vec<u8>, Contact>,
+    pub state: TableState,
 }
 
 impl Contacts {
@@ -23,6 +26,7 @@ impl Contacts {
         Self {
             contacts_and_groups,
             contacts_by_id,
+            state: TableState::default(),
         }
     }
 
@@ -58,6 +62,12 @@ impl Contacts {
     pub fn move_by_index(&mut self, from: usize, to: usize) {
         let c = self.contacts_and_groups.remove(from);
         self.contacts_and_groups.insert(to, c);
+    }
+
+    pub fn selected(&self) -> Option<&Contact> {
+        self.state
+            .selected()
+            .and_then(|i| self.contacts_and_groups.get(i))
     }
 }
 

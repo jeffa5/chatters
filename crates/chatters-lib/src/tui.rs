@@ -27,7 +27,6 @@ use ratatui::widgets::Scrollbar;
 use ratatui::widgets::ScrollbarOrientation;
 use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::Table;
-use ratatui::widgets::TableState;
 use ratatui::Frame;
 use std::fmt::Display;
 use textwrap::Options;
@@ -104,7 +103,6 @@ pub enum PopupType {
 pub struct TuiState {
     pub self_id: Vec<u8>,
     pub attachments_path: String,
-    pub contact_list_state: TableState,
     pub message_list_state: ListState,
     pub contacts: Contacts,
     pub messages: Messages,
@@ -115,12 +113,6 @@ pub struct TuiState {
 }
 
 impl TuiState {
-    pub fn selected_contact(&self) -> Option<&Contact> {
-        self.contact_list_state
-            .selected()
-            .and_then(|i| self.contacts.contact_or_group_by_index(i))
-    }
-
     pub fn selected_message(&self) -> Option<&Message> {
         self.message_list_state
             .selected()
@@ -187,10 +179,10 @@ fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         frame,
         area,
         contact_items_len,
-        tui_state.contact_list_state.offset(),
+        tui_state.contacts.state.offset(),
     );
 
-    frame.render_stateful_widget(contacts, remaining_area, &mut tui_state.contact_list_state);
+    frame.render_stateful_widget(contacts, remaining_area, &mut tui_state.contacts.state);
 }
 
 fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
