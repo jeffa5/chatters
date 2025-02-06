@@ -207,7 +207,7 @@ fn process_user_event(
                     }
                 }
             }
-            Mode::Command => {
+            Mode::Command { previous: _ } => {
                 if let Some(command) = command_keybinds.get(code, modifiers) {
                     if execute_command(command) {
                         return true;

@@ -102,6 +102,7 @@ impl KeyBinds {
     pub fn popup_default() -> Self {
         let mut bindings = Vec::<(KeyEvent, Box<dyn Command>)>::new();
         bindings.push((code(KeyCode::Esc), Box::new(NormalMode)));
+        bindings.push((char(':'), Box::new(CommandMode)));
         bindings.push((char('j'), Box::new(ScrollPopup { amount: 1 })));
         bindings.push((char('k'), Box::new(ScrollPopup { amount: -1 })));
         Self { bindings }

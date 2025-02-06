@@ -11,7 +11,7 @@ use tui_textarea::TextArea;
 use crate::{
     backends::MessageContent,
     message::BackendMessage,
-    tui::{Mode, Popup, TuiState},
+    tui::{Mode, Popup, PopupType, TuiState},
 };
 
 pub enum CommandSuccess {
@@ -410,11 +410,7 @@ impl Command for NormalMode {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Normal;
-        tui_state.command = TextArea::default();
-        tui_state.command_completions.clear();
-        tui_state.command_history.clear_selection();
         tui_state.popup = None;
-        tui_state.popup_scroll = 0;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -449,9 +445,15 @@ impl Command for CommandMode {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.mode = Mode::Command;
+        tui_state.mode = Mode::Command {
+            previous: match tui_state.mode {
+                Mode::Normal => crate::tui::BasicMode::Normal,
+                Mode::Command { previous } => previous,
+                Mode::Compose => crate::tui::BasicMode::Compose,
+                Mode::Popup => crate::tui::BasicMode::Popup,
+            },
+        };
         tui_state.command_error.clear();
-        tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -487,7 +489,6 @@ impl Command for ComposeMode {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Compose;
-        tui_state.popup = None;
         Ok(CommandSuccess::Nothing)
     }
 
@@ -736,7 +737,23 @@ impl Command for ExecuteCommand {
     ) -> Result<CommandSuccess> {
         let cmdline = tui_state.command.lines().join("\n");
         tui_state.command = TextArea::default();
-        NormalMode.execute(tui_state, ba_tx).unwrap();
+        let previous_mode = match tui_state.mode {
+            Mode::Normal => unreachable!(),
+            Mode::Command { previous } => previous,
+            Mode::Compose => unreachable!(),
+            Mode::Popup => unreachable!(),
+        };
+        let mode = match previous_mode {
+            crate::tui::BasicMode::Normal => Mode::Normal,
+            crate::tui::BasicMode::Popup => Mode::Popup,
+            crate::tui::BasicMode::Compose => Mode::Compose,
+        };
+        tui_state.mode = mode;
+        // clear command
+        tui_state.command = TextArea::default();
+        tui_state.command_completions.clear();
+        tui_state.command_history.clear_selection();
+
         tui_state.command_history.push(cmdline.clone());
 
         let args = shell_words::split(&cmdline)
@@ -1114,9 +1131,9 @@ impl Command for MessageInfo {
         let Some(selected_message) = tui_state.selected_message() else {
             return Err(Error::NoMessageSelected);
         };
-        tui_state.popup = Some(Popup::MessageInfo {
+        tui_state.popup = Some(Popup::new(PopupType::MessageInfo {
             timestamp: selected_message.timestamp,
-        });
+        }));
         tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
@@ -1158,9 +1175,9 @@ impl Command for ContactInfo {
         let Some(selected_contact) = tui_state.selected_contact() else {
             return Err(Error::NoContactSelected);
         };
-        tui_state.popup = Some(Popup::ContactInfo {
+        tui_state.popup = Some(Popup::new(PopupType::ContactInfo {
             id: selected_contact.id.clone(),
-        });
+        }));
         tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
@@ -1199,7 +1216,7 @@ impl Command for Keybindings {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.popup = Some(Popup::Keybinds);
+        tui_state.popup = Some(Popup::new(PopupType::Keybinds));
         tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
@@ -1238,7 +1255,7 @@ impl Command for Commands {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.popup = Some(Popup::Commands);
+        tui_state.popup = Some(Popup::new(PopupType::Commands));
         tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
@@ -1322,7 +1339,7 @@ impl Command for CommandHistory {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.popup = Some(Popup::CommandHistory);
+        tui_state.popup = Some(Popup::new(PopupType::CommandHistory));
         tui_state.mode = Mode::Popup;
         Ok(CommandSuccess::Nothing)
     }
@@ -1443,12 +1460,11 @@ impl Command for ScrollPopup {
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         debug!(amount:% = self.amount; "Scrolling popup");
+        let popup = tui_state.popup.as_mut().unwrap();
         if self.amount > 0 {
-            tui_state.popup_scroll += self.amount as u16;
+            popup.scroll += self.amount as u16;
         } else if self.amount < 0 {
-            tui_state.popup_scroll = tui_state
-                .popup_scroll
-                .saturating_sub(self.amount.abs() as u16);
+            popup.scroll = popup.scroll.saturating_sub(self.amount.abs() as u16);
         }
         Ok(CommandSuccess::Nothing)
     }

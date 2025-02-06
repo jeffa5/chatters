@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use log::warn;
@@ -44,13 +45,34 @@ fn timestamp() -> u64 {
         .as_millis() as u64
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum BasicMode {
+    Normal,
+    Popup,
+    Compose,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub enum Mode {
     #[default]
     Normal,
-    Command,
+    Command {
+        previous: BasicMode,
+    },
     Compose,
     Popup,
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Mode::Normal => "Normal",
+            Mode::Command { previous: _ } => "Command",
+            Mode::Compose => "Compose",
+            Mode::Popup => "Popup",
+        };
+        f.write_str(s)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -252,7 +274,19 @@ pub struct Attachment {
 }
 
 #[derive(Debug)]
-pub enum Popup {
+pub struct Popup {
+    pub typ: PopupType,
+    pub scroll: u16,
+}
+
+impl Popup {
+    pub fn new(typ: PopupType) -> Self {
+        Self { typ, scroll: 0 }
+    }
+}
+
+#[derive(Debug)]
+pub enum PopupType {
     MessageInfo { timestamp: u64 },
     ContactInfo { id: ContactId },
     Keybinds,
@@ -275,7 +309,6 @@ pub struct TuiState {
     pub command_history: CommandLineHistory,
     pub mode: Mode,
     pub popup: Option<Popup>,
-    pub popup_scroll: u16,
 }
 
 impl TuiState {
@@ -423,14 +456,14 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     let completions = tui_state.command_completions.join(" ");
-    let status_line = Paragraph::new(Line::from(format!("{:?} {}", tui_state.mode, completions)))
+    let status_line = Paragraph::new(Line::from(format!("{} {}", tui_state.mode, completions)))
         .style(Style::new().reversed());
     frame.render_widget(status_line, rect);
 }
 
 fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     if tui_state.command_error.is_empty() {
-        if matches!(tui_state.mode, Mode::Command) {
+        if matches!(tui_state.mode, Mode::Command { .. }) {
             let value = tui_state.command.lines().join("\n");
             (format!(":{}", value), Style::new());
             frame.render_widget(Line::from(":"), rect);
@@ -502,12 +535,12 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
     let area = popup_area(area, 60, 50);
     frame.render_widget(Clear, area); // this clears out the background
     let width = area.width.saturating_sub(2) as usize;
-    let (title, text) = match popup {
-        Popup::MessageInfo { timestamp } => {
+    let (title, text) = match &popup.typ {
+        PopupType::MessageInfo { timestamp } => {
             let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
             render_message_info(width, tui_state, message)
         }
-        Popup::ContactInfo { id } => {
+        PopupType::ContactInfo { id } => {
             let contact = tui_state
                 .contacts
                 .iter_contacts_and_groups()
@@ -515,28 +548,25 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
                 .unwrap();
             render_contact_info(contact)
         }
-        Popup::Keybinds => render_keybinds(),
-        Popup::Commands => render_commands(),
-        Popup::CommandHistory => render_command_line_history(tui_state),
+        PopupType::Keybinds => render_keybinds(),
+        PopupType::Commands => render_commands(),
+        PopupType::CommandHistory => render_command_line_history(tui_state),
     };
 
     let text = wrap_text(&text, width);
 
     let line_count = text.lines.len() as u16;
     let max_scroll = line_count.saturating_sub(area.height.saturating_sub(2));
-    tui_state.popup_scroll = tui_state.popup_scroll.min(max_scroll);
+    let popup = tui_state.popup.as_mut().unwrap();
+    popup.scroll = popup.scroll.min(max_scroll);
     let block = Block::bordered().title(title);
     let inner_area = block.inner(area);
     frame.render_widget(block, area);
 
-    let remaining_area = render_scrollbar(
-        frame,
-        inner_area,
-        line_count.into(),
-        tui_state.popup_scroll.into(),
-    );
+    let remaining_area =
+        render_scrollbar(frame, inner_area, line_count.into(), popup.scroll.into());
 
-    let para = Paragraph::new(text).scroll((tui_state.popup_scroll, 0));
+    let para = Paragraph::new(text).scroll((popup.scroll, 0));
     frame.render_widget(para, remaining_area);
 }
 
