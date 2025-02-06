@@ -1,10 +1,15 @@
-use super::{timestamp, Backend, ContactId};
+use chatters_lib::backends::Contact;
+use chatters_lib::backends::Message;
+use chatters_lib::backends::MessageContent;
+use chatters_lib::backends::Result;
+use chatters_lib::backends::{timestamp, Backend, ContactId, Quote};
+use chatters_lib::message::FrontendMessage;
 
 #[derive(Clone)]
 pub struct Local {}
 
 impl Backend for Local {
-    async fn load(_path: &std::path::Path) -> super::Result<Self> {
+    async fn load(_path: &std::path::Path) -> Result<Self> {
         Ok(Self {})
     }
 
@@ -12,20 +17,20 @@ impl Backend for Local {
         _path: &std::path::Path,
         _device_name: &str,
         _provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
-    ) -> super::Result<Self> {
+    ) -> Result<Self> {
         unimplemented!()
     }
 
     async fn background_sync(
         &mut self,
-        _ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,
-    ) -> super::Result<()> {
+        _ba_tx: futures::channel::mpsc::UnboundedSender<FrontendMessage>,
+    ) -> Result<()> {
         std::future::pending::<()>().await;
         Ok(())
     }
 
-    async fn users(&self) -> super::Result<Vec<super::Contact>> {
-        Ok(vec![super::Contact {
+    async fn users(&self) -> Result<Vec<Contact>> {
+        Ok(vec![Contact {
             id: ContactId::User(vec![0]),
             name: "Self".to_owned(),
             address: "no address".to_owned(),
@@ -34,7 +39,7 @@ impl Backend for Local {
         }])
     }
 
-    async fn groups(&self) -> super::Result<Vec<super::Contact>> {
+    async fn groups(&self) -> Result<Vec<Contact>> {
         Ok(Vec::new())
     }
 
@@ -43,34 +48,34 @@ impl Backend for Local {
         _contact: ContactId,
         _start_ts: std::ops::Bound<u64>,
         _end_ts: std::ops::Bound<u64>,
-    ) -> super::Result<Vec<super::Message>> {
+    ) -> Result<Vec<Message>> {
         let now = timestamp();
         let mut msgs = vec![
-            super::Message {
+            Message {
                 timestamp: now - 100,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text {
+                content: MessageContent::Text {
                     text: "Message 1".to_owned(),
                     attachments: Vec::new(),
                 },
                 quote: None,
             },
-            super::Message {
+            Message {
                 timestamp: now - 90,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text {
+                content: MessageContent::Text {
                     text: "Message 2".to_owned(),
                     attachments: Vec::new(),
                 },
                 quote: None,
             },
-            super::Message {
+            Message {
                 timestamp: now - 80,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Reaction {
+                content: MessageContent::Reaction {
                     message_author: vec![0],
                     timestamp: now - 100,
                     reaction: "🚀".to_owned(),
@@ -80,11 +85,11 @@ impl Backend for Local {
             },
         ];
         for i in (0..50).rev() {
-            msgs.push(super::Message {
+            msgs.push(Message {
                 timestamp: now - i,
                 sender: vec![0],
                 contact_id: ContactId::User(vec![0]),
-                content: super::MessageContent::Text {
+                content: MessageContent::Text {
                     text: format!("msg {i}"),
                     attachments: Vec::new(),
                 },
@@ -97,10 +102,10 @@ impl Backend for Local {
     async fn send_message(
         &mut self,
         contact: ContactId,
-        body: super::MessageContent,
-        _quoted: Option<&super::Quote>,
-    ) -> super::Result<super::Message> {
-        let msg = super::Message {
+        body: MessageContent,
+        _quoted: Option<&Quote>,
+    ) -> Result<Message> {
+        let msg = Message {
             timestamp: timestamp(),
             sender: vec![0],
             contact_id: contact,
@@ -114,7 +119,7 @@ impl Backend for Local {
         vec![0]
     }
 
-    async fn download_attachment(&self, _attachment_index: usize) -> super::Result<String> {
+    async fn download_attachment(&self, _attachment_index: usize) -> Result<String> {
         Ok(String::new())
     }
 }

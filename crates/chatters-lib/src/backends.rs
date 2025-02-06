@@ -8,10 +8,6 @@ use url::Url;
 
 use crate::message::FrontendMessage;
 
-pub mod local;
-pub mod matrix;
-pub mod signal;
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContactId {
     User(Vec<u8>),
@@ -86,7 +82,7 @@ pub enum Error {
     Failure(String),
 }
 
-type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait Backend: Sized {
     fn load(path: &Path) -> impl Future<Output = Result<Self>>;
@@ -125,7 +121,7 @@ pub trait Backend: Sized {
     fn download_attachment(&self, attachment_index: usize) -> impl Future<Output = Result<String>>;
 }
 
-fn timestamp() -> u64 {
+pub fn timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("Time went backwards")

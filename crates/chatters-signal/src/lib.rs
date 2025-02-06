@@ -28,18 +28,17 @@ use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
 
-use crate::backends::ContactId;
-use crate::backends::MessageAttachment;
-use crate::backends::Quote;
-use crate::message::FrontendMessage;
-
-use super::timestamp;
-use super::Backend;
-use super::Contact;
-use super::Error;
-use super::Message;
-use super::MessageContent;
-use super::Result;
+use chatters_lib::backends::timestamp;
+use chatters_lib::backends::Backend;
+use chatters_lib::backends::Contact;
+use chatters_lib::backends::ContactId;
+use chatters_lib::backends::Error;
+use chatters_lib::backends::Message;
+use chatters_lib::backends::MessageAttachment;
+use chatters_lib::backends::MessageContent;
+use chatters_lib::backends::Quote;
+use chatters_lib::backends::Result;
+use chatters_lib::message::FrontendMessage;
 
 #[derive(Debug, Clone)]
 pub struct Signal {

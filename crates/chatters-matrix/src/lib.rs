@@ -1,6 +1,14 @@
-use crate::backends::Error;
+use chatters_lib::backends::timestamp;
+use chatters_lib::backends::Backend;
+use chatters_lib::backends::Contact;
+use chatters_lib::backends::ContactId;
+use chatters_lib::backends::Error;
+use chatters_lib::backends::Message;
+use chatters_lib::backends::MessageContent;
+use chatters_lib::backends::Quote;
+use chatters_lib::backends::Result;
+use chatters_lib::message::FrontendMessage;
 
-use super::{timestamp, Backend, ContactId, Quote};
 use futures::future::select;
 use futures::{pin_mut, StreamExt as _};
 use log::debug;
@@ -59,7 +67,7 @@ pub struct Matrix {
 }
 
 impl Backend for Matrix {
-    async fn load(path: &std::path::Path) -> super::Result<Self> {
+    async fn load(path: &std::path::Path) -> Result<Self> {
         let session_file = get_session_file(path);
         if !session_file.exists() {
             return Err(Error::Unlinked);
@@ -109,7 +117,7 @@ impl Backend for Matrix {
         path: &std::path::Path,
         _device_name: &str,
         _provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
-    ) -> super::Result<Self> {
+    ) -> Result<Self> {
         let (client, client_session) = build_client(path).await.unwrap();
         let matrix_auth = client.matrix_auth();
 
@@ -175,8 +183,8 @@ impl Backend for Matrix {
 
     async fn background_sync(
         &mut self,
-        _ba_tx: futures::channel::mpsc::UnboundedSender<crate::message::FrontendMessage>,
-    ) -> super::Result<()> {
+        _ba_tx: futures::channel::mpsc::UnboundedSender<FrontendMessage>,
+    ) -> Result<()> {
         let sync_settings = SyncSettings::default();
         self.client
             .sync_with_result_callback(sync_settings, |sync_result| async move {
@@ -195,7 +203,7 @@ impl Backend for Matrix {
         Ok(())
     }
 
-    async fn users(&self) -> super::Result<Vec<super::Contact>> {
+    async fn users(&self) -> Result<Vec<Contact>> {
         let rooms = self.client.rooms();
         for room in rooms {
             debug!(room:?; "Found room");
@@ -209,7 +217,7 @@ impl Backend for Matrix {
                 continue;
             }
 
-            let user = super::Contact {
+            let user = Contact {
                 id: ContactId::User(room.room_id().as_bytes().to_vec()),
                 name: room
                     .compute_display_name()
@@ -224,7 +232,7 @@ impl Backend for Matrix {
         Ok(users)
     }
 
-    async fn groups(&self) -> super::Result<Vec<super::Contact>> {
+    async fn groups(&self) -> Result<Vec<Contact>> {
         let rooms = self.client.joined_rooms();
         let mut groups = Vec::new();
         for room in rooms {
@@ -234,7 +242,7 @@ impl Backend for Matrix {
                 continue;
             }
 
-            let group = super::Contact {
+            let group = Contact {
                 id: ContactId::Group(room.room_id().as_bytes().to_vec()),
                 name: room.name().unwrap(),
                 address: String::new(),
@@ -251,7 +259,7 @@ impl Backend for Matrix {
         contact: ContactId,
         _start_ts: std::ops::Bound<u64>,
         _end_ts: std::ops::Bound<u64>,
-    ) -> super::Result<Vec<super::Message>> {
+    ) -> Result<Vec<Message>> {
         let contact_bytes = match contact {
             ContactId::User(vec) => vec,
             ContactId::Group(vec) => vec,
@@ -275,9 +283,9 @@ impl Backend for Matrix {
     async fn send_message(
         &mut self,
         contact: ContactId,
-        content: super::MessageContent,
-        quoting: Option<&super::Quote>,
-    ) -> super::Result<super::Message> {
+        content: MessageContent,
+        quoting: Option<&Quote>,
+    ) -> Result<Message> {
         let contact_bytes = match &contact {
             ContactId::User(vec) => vec,
             ContactId::Group(vec) => vec,
@@ -288,14 +296,14 @@ impl Backend for Matrix {
 
         let room = self.client.get_room(&room_id).unwrap();
         let matrix_content = match &content {
-            super::MessageContent::Text {
+            MessageContent::Text {
                 text,
                 attachments: _,
             } => {
                 let content = RoomMessageEventContent::text_plain(text);
                 content
             }
-            super::MessageContent::Reaction {
+            MessageContent::Reaction {
                 message_author: _,
                 timestamp: _,
                 reaction: _,
@@ -310,7 +318,7 @@ impl Backend for Matrix {
             sender: quoted.sender.clone(),
             text: quoted.text.clone(),
         });
-        Ok(super::Message {
+        Ok(Message {
             timestamp: timestamp(),
             sender: self.self_id().await,
             contact_id: contact,
@@ -323,7 +331,7 @@ impl Backend for Matrix {
         self.client.user_id().unwrap().as_bytes().to_vec()
     }
 
-    async fn download_attachment(&self, _attachment_index: usize) -> super::Result<String> {
+    async fn download_attachment(&self, _attachment_index: usize) -> Result<String> {
         todo!()
     }
 }

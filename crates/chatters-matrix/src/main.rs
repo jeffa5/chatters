@@ -1,6 +1,6 @@
-use chatters::backends::matrix::Matrix;
-use chatters::log::init_logger;
-use chatters::util::{self, Options};
+use chatters_lib::log::init_logger;
+use chatters_lib::util::{self, Options};
+use chatters_matrix::Matrix;
 use clap::Parser;
 use directories::ProjectDirs;
 

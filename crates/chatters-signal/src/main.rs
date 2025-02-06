@@ -1,19 +1,19 @@
-use chatters::backends::local::Local;
-use chatters::log::init_logger;
-use chatters::util::{self, Options};
+use chatters_lib::log::init_logger;
+use chatters_lib::util::{self, Options};
+use chatters_signal::Signal;
 use clap::Parser;
 use directories::ProjectDirs;
 
 #[derive(Debug, Parser)]
-#[clap(name = "chatters-local")]
+#[clap(name = "chatters-signal")]
 pub struct Arguments {
-    #[clap(long, default_value = "chatters-local")]
+    #[clap(long, default_value = "chatters-signal")]
     device_name: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-local").unwrap();
+    let project_dirs = ProjectDirs::from("net", "jeffas", "chatters-signal").unwrap();
     let data_local_dir = project_dirs.data_local_dir();
 
     let log_path = data_local_dir.join("logs.log");
@@ -21,12 +21,12 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Arguments::parse();
 
-    let opts = Options {
+    let options = Options {
         device_name: args.device_name,
         data_local_dir: data_local_dir.to_owned(),
     };
 
-    util::run::<Local>(opts).await;
+    util::run::<Signal>(options).await;
 
     Ok(())
 }
