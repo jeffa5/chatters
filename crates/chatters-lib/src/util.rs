@@ -1,5 +1,4 @@
 use crate::commands::{self, Command};
-use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
 use crate::message::BackendMessage;
 use crate::tui::{render, Mode, TuiState};
@@ -281,7 +280,8 @@ fn process_backend_message(
             if tui_state.contacts.is_empty() && !contacts.is_empty() {
                 tui_state.contact_list_state.select_next();
             }
-            tui_state.contacts = Contacts::new(contacts);
+            tui_state.contacts.clear();
+            tui_state.contacts.extend(contacts);
             if let Some(contact) = tui_state.selected_contact() {
                 ba_tx
                     .unbounded_send(BackendMessage::LoadMessages {

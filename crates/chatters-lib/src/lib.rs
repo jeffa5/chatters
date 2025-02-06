@@ -3,7 +3,6 @@ pub mod backends;
 pub mod command_history;
 pub mod commands;
 pub mod compose;
-pub mod contacts;
 pub mod keybinds;
 pub mod log;
 pub mod message;

@@ -60,3 +60,22 @@ impl Contacts {
         self.contacts_and_groups.insert(to, c);
     }
 }
+
+impl FromIterator<Contact> for Contacts {
+    fn from_iter<T: IntoIterator<Item = Contact>>(iter: T) -> Self {
+        let mut msgs = Self::default();
+        msgs.extend(iter);
+        msgs
+    }
+}
+
+impl Extend<Contact> for Contacts {
+    fn extend<T: IntoIterator<Item = Contact>>(&mut self, iter: T) {
+        for contact in iter {
+            if let ContactId::User(id) = &contact.id {
+                self.contacts_by_id.insert(id.clone(), contact.clone());
+            }
+            self.contacts_and_groups.push(contact);
+        }
+    }
+}

@@ -1,4 +1,5 @@
 use command_line::CommandLine;
+use contacts::Contacts;
 use log::warn;
 use messages::Message;
 use messages::Messages;
@@ -33,10 +34,10 @@ use textwrap::Options;
 use crate::backends::Contact;
 use crate::backends::ContactId;
 use crate::compose::Compose;
-use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
 
 mod command_line;
+mod contacts;
 mod messages;
 
 fn timestamp() -> u64 {
