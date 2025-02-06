@@ -294,7 +294,7 @@ fn process_backend_message(
         }
         FrontendMessage::LoadedMessages { messages } => {
             if tui_state.messages.is_empty() && !messages.is_empty() {
-                tui_state.message_list_state.select_last();
+                tui_state.messages.state.select_last();
             }
             tui_state.messages.clear();
             tui_state.messages.extend(messages);

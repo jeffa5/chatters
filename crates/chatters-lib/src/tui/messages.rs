@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
+use ratatui::widgets::ListState;
+
 use crate::backends::ContactId;
 
 use super::wrap_text;
@@ -89,6 +91,7 @@ impl Message {
 pub struct Messages {
     pub messages_by_ts: BTreeMap<u64, Message>,
     pub messages_by_index: Vec<u64>,
+    pub state: ListState,
 }
 
 impl Messages {
@@ -184,6 +187,10 @@ impl Messages {
 
     pub fn len(&self) -> usize {
         self.messages_by_ts.len()
+    }
+
+    pub fn selected(&self) -> Option<&Message> {
+        self.state.selected().and_then(|i| self.get_by_index(i))
     }
 }
 

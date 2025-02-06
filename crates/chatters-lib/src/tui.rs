@@ -20,7 +20,6 @@ use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
 use ratatui::widgets::Clear;
 use ratatui::widgets::List;
-use ratatui::widgets::ListState;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Row;
 use ratatui::widgets::Scrollbar;
@@ -103,21 +102,12 @@ pub enum PopupType {
 pub struct TuiState {
     pub self_id: Vec<u8>,
     pub attachments_path: String,
-    pub message_list_state: ListState,
     pub contacts: Contacts,
     pub messages: Messages,
     pub compose: Compose,
     pub command_line: CommandLine,
     pub mode: Mode,
     pub popup: Option<Popup>,
-}
-
-impl TuiState {
-    pub fn selected_message(&self) -> Option<&Message> {
-        self.message_list_state
-            .selected()
-            .and_then(|i| self.messages.get_by_index(i))
-    }
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -225,10 +215,10 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         frame,
         rect,
         messages.len(),
-        tui_state.message_list_state.offset(),
+        tui_state.messages.state.offset(),
     );
 
-    frame.render_stateful_widget(&messages, remaining_area, &mut tui_state.message_list_state);
+    frame.render_stateful_widget(&messages, remaining_area, &mut tui_state.messages.state);
 }
 
 fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {

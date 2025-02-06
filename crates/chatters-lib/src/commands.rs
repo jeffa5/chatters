@@ -206,7 +206,7 @@ impl Command for NextMessage {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.message_list_state.select_next();
+        tui_state.messages.state.select_next();
         Ok(CommandSuccess::Nothing)
     }
 
@@ -241,7 +241,7 @@ impl Command for PrevMessage {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.message_list_state.select_previous();
+        tui_state.messages.state.select_previous();
         Ok(CommandSuccess::Nothing)
     }
 
@@ -282,10 +282,11 @@ impl Command for SelectMessage {
         if self.index < 0 {
             let num_messages = tui_state.messages.len();
             tui_state
-                .message_list_state
+                .messages
+                .state
                 .select(Some(num_messages - (abs_index % num_messages)));
         } else {
-            tui_state.message_list_state.select(Some(abs_index));
+            tui_state.messages.state.select(Some(abs_index));
         }
         Ok(CommandSuccess::Nothing)
     }
@@ -598,7 +599,7 @@ impl Command for React {
             return Err(Error::NoContactSelected);
         };
 
-        let Some(selected_message) = tui_state.selected_message() else {
+        let Some(selected_message) = tui_state.messages.selected() else {
             return Err(Error::NoMessageSelected);
         };
 
@@ -668,7 +669,7 @@ impl Command for Unreact {
             return Err(Error::NoContactSelected);
         };
 
-        let Some(selected_message) = tui_state.selected_message() else {
+        let Some(selected_message) = tui_state.messages.selected() else {
             return Err(Error::NoMessageSelected);
         };
 
@@ -852,7 +853,7 @@ impl Command for ReloadMessages {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         tui_state.messages.clear();
-        tui_state.message_list_state.select(None);
+        tui_state.messages.state.select(None);
         if let Some(contact) = tui_state.contacts.selected() {
             ba_tx
                 .unbounded_send(BackendMessage::LoadMessages {
@@ -994,7 +995,7 @@ impl Command for DownloadAttachments {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        if let Some(message) = tui_state.selected_message() {
+        if let Some(message) = tui_state.messages.selected() {
             if let Some(index) = self.index {
                 if let Some(attachment) = message.attachments.get(index) {
                     ba_tx
@@ -1059,7 +1060,7 @@ impl Command for OpenAttachments {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(message) = tui_state.selected_message() else {
+        let Some(message) = tui_state.messages.selected() else {
             return Err(Error::NoMessageSelected);
         };
         let open_attachment = |path: &Option<PathBuf>| {
@@ -1117,7 +1118,7 @@ impl Command for MessageInfo {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(selected_message) = tui_state.selected_message() else {
+        let Some(selected_message) = tui_state.messages.selected() else {
             return Err(Error::NoMessageSelected);
         };
         tui_state.popup = Some(Popup::new(PopupType::MessageInfo {
@@ -1283,7 +1284,7 @@ impl Command for Reply {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(selected_message) = tui_state.selected_message() else {
+        let Some(selected_message) = tui_state.messages.selected() else {
             return Err(Error::NoMessageSelected);
         };
         tui_state.compose.set_quote(Quote {
@@ -1495,7 +1496,7 @@ fn after_contact_changed(
     }
     if let Some(contact) = tui_state.contacts.selected().cloned() {
         tui_state.messages.clear();
-        tui_state.message_list_state.select(None);
+        tui_state.messages.state.select(None);
         ba_tx
             .unbounded_send(BackendMessage::LoadMessages {
                 contact_id: contact.id.clone(),
