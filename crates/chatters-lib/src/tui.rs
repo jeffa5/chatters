@@ -618,23 +618,26 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
 }
 
 fn render_keybinds() -> (&'static str, String) {
-    let normal_keybinds = KeyBinds::normal_default()
-        .iter()
+    let keybindings = KeyBinds::default();
+    let normal_keybinds = keybindings
+        .iter(Mode::Normal)
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
         .collect::<Vec<_>>()
         .join("\n");
-    let command_keybinds = KeyBinds::command_default()
-        .iter()
+    let command_keybinds = keybindings
+        .iter(Mode::Command {
+            previous: BasicMode::Normal,
+        })
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
         .collect::<Vec<_>>()
         .join("\n");
-    let compose_keybinds = KeyBinds::compose_default()
-        .iter()
+    let compose_keybinds = keybindings
+        .iter(Mode::Compose)
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
         .collect::<Vec<_>>()
         .join("\n");
-    let popup_keybinds = KeyBinds::popup_default()
-        .iter()
+    let popup_keybinds = keybindings
+        .iter(Mode::Popup)
         .map(|(k, c)| format!("{} :{}", k, c.names()[0]))
         .collect::<Vec<_>>()
         .join("\n");

@@ -170,10 +170,7 @@ fn process_user_event(
     event: Event,
 ) -> bool {
     // dbg!(&event);
-    let normal_keybinds = KeyBinds::normal_default();
-    let command_keybinds = KeyBinds::command_default();
-    let compose_keybinds = KeyBinds::compose_default();
-    let popup_keybinds = KeyBinds::popup_default();
+    let keybinds = KeyBinds::default();
 
     let mode = tui_state.mode;
 
@@ -201,14 +198,14 @@ fn process_user_event(
             },
         ) => match mode {
             Mode::Normal => {
-                if let Some(command) = normal_keybinds.get(code, modifiers) {
+                if let Some(command) = keybinds.get(code, modifiers, mode) {
                     if execute_command(command) {
                         return true;
                     }
                 }
             }
             Mode::Command { previous: _ } => {
-                if let Some(command) = command_keybinds.get(code, modifiers) {
+                if let Some(command) = keybinds.get(code, modifiers, mode) {
                     if execute_command(command) {
                         return true;
                     }
@@ -256,7 +253,7 @@ fn process_user_event(
                 }
             }
             Mode::Compose => {
-                if let Some(command) = compose_keybinds.get(code, modifiers) {
+                if let Some(command) = keybinds.get(code, modifiers, mode) {
                     if execute_command(command) {
                         return true;
                     }
@@ -265,7 +262,7 @@ fn process_user_event(
                 }
             }
             Mode::Popup => {
-                if let Some(command) = popup_keybinds.get(code, modifiers) {
+                if let Some(command) = keybinds.get(code, modifiers, mode) {
                     if execute_command(command) {
                         return true;
                     }
