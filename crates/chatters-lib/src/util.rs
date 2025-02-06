@@ -21,7 +21,6 @@ use ratatui::{DefaultTerminal, Terminal};
 use std::ffi::OsString;
 use std::io::Stdout;
 use std::path::PathBuf;
-use tui_textarea::TextArea;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -184,7 +183,7 @@ fn process_user_event(
                 }
             },
             Err(error) => {
-                tui_state.command_error = error.to_string();
+                tui_state.command_line.error = error.to_string();
             }
         }
         false
@@ -211,7 +210,7 @@ fn process_user_event(
                     }
                 } else if code == KeyCode::Tab {
                     // complete existing command
-                    let cmd = tui_state.command.lines().join("\n");
+                    let cmd = tui_state.command_line.text();
                     if cmd.contains(' ') {
                         let args = shell_words::split(&cmd)
                             .unwrap()
@@ -229,8 +228,7 @@ fn process_user_event(
                         };
                         let _ = command.parse(pargs);
                         let completions = command.complete();
-                        tui_state.command_completions = completions;
-                        tui_state.command_completions.sort();
+                        tui_state.command_line.set_completions(completions);
                     } else {
                         let commands = commands::commands();
                         let completions = commands
@@ -239,17 +237,13 @@ fn process_user_event(
                             .map(|s| s.to_owned())
                             .collect::<Vec<_>>();
                         if completions.len() == 1 {
-                            tui_state.command = TextArea::new(
-                                completions[0].lines().map(|l| l.to_owned()).collect(),
-                            );
-                            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
+                            tui_state.command_line.set_text(completions[0].clone());
                         } else if completions.len() > 1 {
-                            tui_state.command_completions = completions;
-                            tui_state.command_completions.sort();
+                            tui_state.command_line.set_completions(completions);
                         }
                     }
                 } else {
-                    tui_state.command.input(key_event);
+                    tui_state.command_line.input(key_event);
                 }
             }
             Mode::Compose => {

@@ -1,3 +1,4 @@
+use command_line::CommandLine;
 use log::warn;
 use messages::Message;
 use messages::Messages;
@@ -28,15 +29,14 @@ use ratatui::widgets::TableState;
 use ratatui::Frame;
 use std::fmt::Display;
 use textwrap::Options;
-use tui_textarea::TextArea;
 
 use crate::backends::Contact;
 use crate::backends::ContactId;
-use crate::command_history::CommandLineHistory;
 use crate::compose::Compose;
 use crate::contacts::Contacts;
 use crate::keybinds::KeyBinds;
 
+mod command_line;
 mod messages;
 
 fn timestamp() -> u64 {
@@ -106,10 +106,7 @@ pub struct TuiState {
     pub contacts: Contacts,
     pub messages: Messages,
     pub compose: Compose,
-    pub command: TextArea<'static>,
-    pub command_error: String,
-    pub command_completions: Vec<String>,
-    pub command_history: CommandLineHistory,
+    pub command_line: CommandLine,
     pub mode: Mode,
     pub popup: Option<Popup>,
 }
@@ -258,30 +255,33 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 }
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let completions = tui_state.command_completions.join(" ");
+    let completions = tui_state.command_line.completions().join(" ");
     let status_line = Paragraph::new(Line::from(format!("{} {}", tui_state.mode, completions)))
         .style(Style::new().reversed());
     frame.render_widget(status_line, rect);
 }
 
 fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    if tui_state.command_error.is_empty() {
+    if tui_state.command_line.error.is_empty() {
         if matches!(tui_state.mode, Mode::Command { .. }) {
-            let value = tui_state.command.lines().join("\n");
+            let value = tui_state.command_line.text();
             (format!(":{}", value), Style::new());
             frame.render_widget(Line::from(":"), rect);
             let inner_rect = rect.inner(Margin {
                 horizontal: 1,
                 vertical: 0,
             });
-            tui_state.command.set_cursor_line_style(Style::new());
-            frame.render_widget(&tui_state.command, inner_rect);
+            tui_state
+                .command_line
+                .textarea()
+                .set_cursor_line_style(Style::new());
+            frame.render_widget(&*tui_state.command_line.textarea(), inner_rect);
         } else {
             frame.render_widget(ratatui::widgets::Clear, rect);
         }
     } else {
         frame.render_widget(
-            Paragraph::new(tui_state.command_error.clone()).set_style(Style::new().red()),
+            Paragraph::new(tui_state.command_line.error.clone()).set_style(Style::new().red()),
             rect,
         );
     };
@@ -472,7 +472,8 @@ fn render_commands() -> (&'static str, String) {
 
 fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {
     let lines = tui_state
-        .command_history
+        .command_line
+        .history
         .iter()
         .into_iter()
         .map(|c| format!(":{c}"))

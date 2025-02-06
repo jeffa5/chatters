@@ -6,7 +6,6 @@ use std::{
 
 use futures::channel::mpsc;
 use log::{debug, warn};
-use tui_textarea::TextArea;
 
 use crate::{
     backends::MessageContent,
@@ -453,7 +452,7 @@ impl Command for CommandMode {
                 Mode::Popup => crate::tui::BasicMode::Popup,
             },
         };
-        tui_state.command_error.clear();
+        tui_state.command_line.error.clear();
         Ok(CommandSuccess::Nothing)
     }
 
@@ -735,8 +734,7 @@ impl Command for ExecuteCommand {
         tui_state: &mut TuiState,
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let cmdline = tui_state.command.lines().join("\n");
-        tui_state.command = TextArea::default();
+        let cmdline = tui_state.command_line.text().to_owned();
         let previous_mode = match tui_state.mode {
             Mode::Normal => unreachable!(),
             Mode::Command { previous } => previous,
@@ -750,11 +748,9 @@ impl Command for ExecuteCommand {
         };
         tui_state.mode = mode;
         // clear command
-        tui_state.command = TextArea::default();
-        tui_state.command_completions.clear();
-        tui_state.command_history.clear_selection();
+        tui_state.command_line.clear();
 
-        tui_state.command_history.push(cmdline.clone());
+        tui_state.command_line.history.push(cmdline.clone());
 
         let args = shell_words::split(&cmdline)
             .unwrap()
@@ -781,7 +777,7 @@ impl Command for ExecuteCommand {
 
         if let Some(mut command) = command {
             if let Err(error) = command.parse(pargs) {
-                tui_state.command_error = error.to_string();
+                tui_state.command_line.error = error.to_string();
                 return Ok(CommandSuccess::Nothing);
             }
             let ret = command.execute(tui_state, ba_tx)?;
@@ -1375,12 +1371,11 @@ impl Command for PrevCommand {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.command_history.select_previous();
-        if let Some(selected_command) = tui_state.command_history.selected_command() {
-            tui_state.command = TextArea::new(vec![selected_command.clone()]);
-            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
+        tui_state.command_line.history.select_previous();
+        if let Some(selected_command) = tui_state.command_line.history.selected_command() {
+            tui_state.command_line.set_text(selected_command.clone());
         } else {
-            tui_state.command = TextArea::new(Vec::new());
+            tui_state.command_line.clear();
         }
         Ok(CommandSuccess::Nothing)
     }
@@ -1416,12 +1411,11 @@ impl Command for NextCommand {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        tui_state.command_history.select_next();
-        if let Some(selected_command) = tui_state.command_history.selected_command() {
-            tui_state.command = TextArea::new(vec![selected_command.clone()]);
-            tui_state.command.move_cursor(tui_textarea::CursorMove::End);
+        tui_state.command_line.history.select_next();
+        if let Some(selected_command) = tui_state.command_line.history.selected_command() {
+            tui_state.command_line.set_text(selected_command.clone());
         } else {
-            tui_state.command = TextArea::new(Vec::new());
+            tui_state.command_line.clear();
         }
         Ok(CommandSuccess::Nothing)
     }
