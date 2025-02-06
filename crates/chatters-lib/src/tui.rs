@@ -1,4 +1,5 @@
 use command_line::CommandLine;
+use compose::Compose;
 use contacts::Contacts;
 use log::warn;
 use messages::Message;
@@ -33,12 +34,13 @@ use textwrap::Options;
 
 use crate::backends::Contact;
 use crate::backends::ContactId;
-use crate::compose::Compose;
 use crate::keybinds::KeyBinds;
 
 mod command_line;
+mod compose;
 mod contacts;
 mod messages;
+pub use messages::Quote;
 
 fn timestamp() -> u64 {
     std::time::SystemTime::now()

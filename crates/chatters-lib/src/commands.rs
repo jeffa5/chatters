@@ -10,7 +10,7 @@ use log::{debug, warn};
 use crate::{
     backends::MessageContent,
     message::BackendMessage,
-    tui::{Mode, Popup, PopupType, TuiState},
+    tui::{Mode, Popup, PopupType, Quote, TuiState},
 };
 
 pub enum CommandSuccess {
@@ -523,7 +523,7 @@ impl Command for SendMessage {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         let message_body = tui_state.compose.lines().join("\n").trim().to_owned();
-        let quoting = tui_state.compose.reply().clone();
+        let quoting = tui_state.compose.quote().clone();
         tui_state.compose.clear();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
@@ -1293,7 +1293,7 @@ impl Command for Reply {
         let Some(selected_message) = tui_state.selected_message() else {
             return Err(Error::NoMessageSelected);
         };
-        tui_state.compose.set_reply(crate::compose::Reply {
+        tui_state.compose.set_quote(Quote {
             sender: selected_message.sender.clone(),
             timestamp: selected_message.timestamp,
             text: selected_message.content.clone(),

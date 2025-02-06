@@ -4,7 +4,7 @@ use crate::backends::ContactId;
 
 use super::wrap_text;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Quote {
     pub timestamp: u64,
     pub sender: Vec<u8>,
