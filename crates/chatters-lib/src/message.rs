@@ -1,4 +1,4 @@
-use std::ops::Bound;
+use std::{ops::Bound, path::PathBuf};
 
 use crate::backends::{Contact, ContactId, Message, MessageContent, Quote};
 
@@ -37,7 +37,7 @@ pub enum FrontendMessage {
         contact_id: ContactId,
         timestamp: u64,
         index: usize,
-        file_name: String,
+        file_path: PathBuf,
     },
     Tick,
 }

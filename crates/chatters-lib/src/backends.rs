@@ -47,13 +47,20 @@ impl ToString for MessageContent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MessageAttachment {
     pub name: String,
-    pub size: u32,
+    pub size: u64,
     pub index: usize,
-    pub downloaded_name: Option<String>,
-    pub downloaded_path: Option<PathBuf>,
+    pub path: Option<PathBuf>,
+}
+
+impl MessageAttachment {
+    pub fn file_name(&self) -> Option<String> {
+        self.path
+            .as_ref()
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+    }
 }
 
 #[derive(Debug)]
@@ -118,7 +125,8 @@ pub trait Backend: Sized {
 
     fn self_id(&self) -> impl Future<Output = Vec<u8>>;
 
-    fn download_attachment(&self, attachment_index: usize) -> impl Future<Output = Result<String>>;
+    fn download_attachment(&self, attachment_index: usize)
+        -> impl Future<Output = Result<PathBuf>>;
 }
 
 pub fn timestamp() -> u64 {

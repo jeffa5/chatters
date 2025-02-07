@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::collections::BTreeMap;
 
 use ratatui::widgets::ListState;
 
-use crate::backends::ContactId;
+use crate::backends::{ContactId, MessageAttachment};
 
 use super::wrap_text;
 
@@ -20,22 +20,13 @@ pub struct Reaction {
 }
 
 #[derive(Debug)]
-pub struct Attachment {
-    pub name: String,
-    pub size: u32,
-    pub handle: usize,
-    pub downloaded_file_name: Option<String>,
-    pub downloaded_file_path: Option<PathBuf>,
-}
-
-#[derive(Debug)]
 pub struct Message {
     pub timestamp: u64,
     pub sender: Vec<u8>,
     pub contact_id: ContactId,
     pub content: String,
     pub reactions: Vec<Reaction>,
-    pub attachments: Vec<Attachment>,
+    pub attachments: Vec<MessageAttachment>,
     pub quote: Option<Quote>,
 }
 
@@ -47,22 +38,23 @@ impl Message {
                 lines.push(format!("> {line}"));
             }
         }
-        if !self.content.is_empty() {
-            let content = wrap_text(&self.content, width);
-            for line in content.lines {
-                lines.push(format!("  {line}"));
-            }
-        }
         if !self.attachments.is_empty() {
             for attachment in &self.attachments {
+                // TODO: move this to a method
                 let downloaded = attachment
-                    .downloaded_file_name
+                    .file_name()
                     .clone()
                     .unwrap_or_else(|| "not downloaded".to_owned());
                 lines.push(format!(
                     "+ {} {}B ({})",
                     attachment.name, attachment.size, downloaded
                 ));
+            }
+        }
+        if !self.content.is_empty() {
+            let content = wrap_text(&self.content, width);
+            for line in content.lines {
+                lines.push(format!("  {line}"));
             }
         }
         if !self.reactions.is_empty() {
@@ -103,16 +95,6 @@ impl Messages {
         for message in messages {
             match message.content {
                 crate::backends::MessageContent::Text { text, attachments } => {
-                    let attachments = attachments
-                        .into_iter()
-                        .map(|a| Attachment {
-                            name: a.name,
-                            size: a.size,
-                            handle: a.index,
-                            downloaded_file_name: a.downloaded_name,
-                            downloaded_file_path: a.downloaded_path,
-                        })
-                        .collect();
                     // assume a new message
                     self.messages_by_ts.insert(
                         message.timestamp,

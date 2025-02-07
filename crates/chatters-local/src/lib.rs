@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use chatters_lib::backends::Contact;
 use chatters_lib::backends::Message;
 use chatters_lib::backends::MessageContent;
@@ -119,7 +121,7 @@ impl Backend for Local {
         vec![0]
     }
 
-    async fn download_attachment(&self, _attachment_index: usize) -> Result<String> {
-        Ok(String::new())
+    async fn download_attachment(&self, _attachment_index: usize) -> Result<PathBuf> {
+        Ok(PathBuf::new())
     }
 }

@@ -319,7 +319,7 @@ fn process_backend_message(
             contact_id,
             timestamp,
             index,
-            file_name,
+            file_path: file_name,
         } => {
             if let Some(contact) = tui_state
                 .contacts
@@ -333,9 +333,9 @@ fn process_backend_message(
                         let attachment = msg
                             .attachments
                             .iter_mut()
-                            .find(|a| a.handle == index)
+                            .find(|a| a.index == index)
                             .unwrap();
-                        attachment.downloaded_file_name = Some(file_name);
+                        attachment.path = Some(file_name);
                     }
                 }
             }

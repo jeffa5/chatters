@@ -1,3 +1,5 @@
+use std::{os::unix::fs::MetadataExt as _, path::PathBuf};
+
 use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Layout},
@@ -6,6 +8,8 @@ use ratatui::{
 };
 use tui_textarea::TextArea;
 
+use crate::backends::MessageAttachment;
+
 use super::messages::Quote;
 
 #[derive(Debug, Default)]
@@ -13,6 +17,7 @@ pub struct Compose {
     textarea: TextArea<'static>,
     block: Block<'static>,
     quote: Option<Quote>,
+    attachments: Vec<MessageAttachment>,
 }
 
 impl Compose {
@@ -26,6 +31,19 @@ impl Compose {
 
     pub fn quote(&self) -> &Option<Quote> {
         &self.quote
+    }
+
+    pub fn attachments(&self) -> &[MessageAttachment] {
+        &self.attachments
+    }
+
+    pub fn attach_file(&mut self, path: PathBuf) {
+        self.attachments.push(MessageAttachment {
+            name: path.file_name().unwrap().to_string_lossy().into_owned(),
+            index: 0,
+            size: path.metadata().map(|m| m.size()).unwrap_or(0),
+            path: Some(path),
+        })
     }
 
     pub fn lines(&self) -> &[String] {
@@ -51,10 +69,14 @@ impl Compose {
     pub fn clear(&mut self) {
         self.textarea = TextArea::default();
         self.quote = None;
+        self.attachments.clear();
     }
 
     pub fn height(&self) -> u16 {
-        self.quote.as_ref().map_or(0, |_| 1) + self.textarea.lines().len().max(1) as u16 + 1
+        self.quote.as_ref().map_or(0, |_| 1)
+            + self.attachments.len() as u16
+            + self.textarea.lines().len().max(1) as u16
+            + 1
         // 1 for top border
     }
 }
@@ -66,11 +88,17 @@ impl ratatui::widgets::Widget for &Compose {
     {
         let mut constraints = Vec::new();
 
+        let mut attachments_index = 0;
         let mut textarea_index = 0;
 
         if self.quote.is_some() {
             constraints.push(Constraint::Length(1));
+            attachments_index += 1;
             textarea_index += 1;
+        }
+        if !self.attachments.is_empty() {
+            constraints.push(Constraint::Length(self.attachments.len() as u16));
+            textarea_index += self.attachments.len();
         }
         constraints.push(Constraint::Length(self.textarea.lines().len().max(1) as u16));
 
@@ -84,6 +112,23 @@ impl ratatui::widgets::Widget for &Compose {
             let quote_text = quote.text.lines().next().unwrap();
             let quote_text = format!("> {quote_text}");
             Paragraph::new(quote_text).render(vertical[0], buf);
+        }
+
+        if !self.attachments.is_empty() {
+            let mut lines = Vec::new();
+            for attachment in &self.attachments {
+                // TODO: move this to a method
+                let downloaded = attachment
+                    .file_name()
+                    .clone()
+                    .unwrap_or_else(|| "not downloaded".to_owned());
+                let text = format!(
+                    "+ {} {}B ({})",
+                    attachment.name, attachment.size, downloaded
+                );
+                lines.push(ratatui::text::Line::from(text));
+            }
+            Paragraph::new(lines).render(vertical[attachments_index], buf);
         }
 
         self.textarea.render(vertical[textarea_index], buf)

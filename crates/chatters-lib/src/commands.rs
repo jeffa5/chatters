@@ -85,6 +85,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ScrollPopup::default()));
+    v.push(Box::new(AttachFile::default()));
     v.push(Box::new(ExecuteCommand::default()));
     v
 }
@@ -526,15 +527,13 @@ impl Command for SendMessage {
     ) -> Result<CommandSuccess> {
         let message_body = tui_state.compose.lines().join("\n").trim().to_owned();
         let quoting = tui_state.compose.quote().clone();
+        let attachments = tui_state.compose.attachments().to_vec();
         tui_state.compose.clear();
         NormalMode.execute(tui_state, ba_tx).unwrap();
 
         if message_body.is_empty() {
             return Ok(CommandSuccess::Nothing);
         }
-
-        // TODO: enable sending attachments
-        let attachments = Vec::new();
 
         if let Some(contact) = tui_state.contacts.selected() {
             ba_tx
@@ -1002,7 +1001,7 @@ impl Command for DownloadAttachments {
                         .unbounded_send(BackendMessage::DownloadAttachment {
                             contact_id: message.contact_id.clone(),
                             timestamp: message.timestamp,
-                            index: attachment.handle,
+                            index: attachment.index,
                         })
                         .unwrap();
                 }
@@ -1012,7 +1011,7 @@ impl Command for DownloadAttachments {
                         .unbounded_send(BackendMessage::DownloadAttachment {
                             contact_id: message.contact_id.clone(),
                             timestamp: message.timestamp,
-                            index: attachment.handle,
+                            index: attachment.index,
                         })
                         .unwrap();
                 }
@@ -1071,11 +1070,11 @@ impl Command for OpenAttachments {
         };
         if let Some(index) = self.index {
             if let Some(attachment) = message.attachments.get(index) {
-                open_attachment(&attachment.downloaded_file_path);
+                open_attachment(&attachment.path);
             }
         } else {
             for attachment in &message.attachments {
-                open_attachment(&attachment.downloaded_file_path);
+                open_attachment(&attachment.path);
             }
         }
         Ok(CommandSuccess::Nothing)
@@ -1481,6 +1480,62 @@ impl Command for ScrollPopup {
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
             amount: self.amount,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AttachFile {
+    path: Option<PathBuf>,
+}
+
+impl Command for AttachFile {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(path) = &self.path else {
+            return Err(Error::MissingArgument("path".to_owned()));
+        };
+
+        // TODO: expand tilde in paths
+
+        if !path.is_file() {
+            return Err(Error::InvalidArgument {
+                arg: "path".to_owned(),
+                value: path.to_string_lossy().into_owned(),
+            });
+        }
+        tui_state.compose.attach_file(path.clone());
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let path = args
+            .free_from_os_str(|s| PathBuf::try_from(s))
+            .map_err(|_e| Error::MissingArgument("path".to_owned()))?;
+        self.path = Some(path);
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self { path: None }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["attach-file"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        // TODO: complete paths
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            path: self.path.clone(),
         })
     }
 }

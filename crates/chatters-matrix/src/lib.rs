@@ -331,7 +331,7 @@ impl Backend for Matrix {
         self.client.user_id().unwrap().as_bytes().to_vec()
     }
 
-    async fn download_attachment(&self, _attachment_index: usize) -> Result<String> {
+    async fn download_attachment(&self, _attachment_index: usize) -> Result<PathBuf> {
         todo!()
     }
 }

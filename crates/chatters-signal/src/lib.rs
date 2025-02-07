@@ -6,12 +6,14 @@ use futures::StreamExt;
 use log::debug;
 use log::info;
 use log::warn;
+use mime_guess::mime::APPLICATION_OCTET_STREAM;
 use presage::libsignal_service::content::Content;
 use presage::libsignal_service::content::ContentBody;
 use presage::libsignal_service::prelude::Uuid;
 use presage::libsignal_service::proto::data_message::Reaction;
 use presage::libsignal_service::proto::DataMessage;
 use presage::libsignal_service::protocol::ServiceId;
+use presage::libsignal_service::sender::AttachmentSpec;
 use presage::libsignal_service::zkgroup::GroupMasterKeyBytes;
 use presage::proto::body_range::AssociatedValue;
 use presage::proto::AttachmentPointer;
@@ -211,9 +213,15 @@ impl Backend for Signal {
             .await
             .unwrap();
         for message in messages {
-            let message = message.unwrap();
-            if let Some(msg) = self.message_content_to_frontend_message(message).await {
-                ret.push(msg)
+            match message {
+                Ok(message) => {
+                    if let Some(msg) = self.message_content_to_frontend_message(message).await {
+                        ret.push(msg)
+                    }
+                }
+                Err(e) => {
+                    warn!(error:% = e; "Failed to load message");
+                }
             }
         }
         Ok(ret)
@@ -238,15 +246,21 @@ impl Backend for Signal {
             }
         });
         let content_body = match &content {
-            MessageContent::Text {
-                text,
-                attachments: _,
-            } => ContentBody::DataMessage(DataMessage {
-                body: Some(text.clone()),
-                timestamp: Some(now),
-                quote,
-                ..Default::default()
-            }),
+            MessageContent::Text { text, attachments } => {
+                let attachments = if attachments.is_empty() {
+                    Vec::new()
+                } else {
+                    self.upload_attachments(&attachments).await
+                };
+                // TODO: copy attachments into local data dir if not already present
+                ContentBody::DataMessage(DataMessage {
+                    body: Some(text.clone()),
+                    timestamp: Some(now),
+                    quote,
+                    attachments,
+                    ..Default::default()
+                })
+            }
             MessageContent::Reaction {
                 message_author,
                 timestamp,
@@ -309,7 +323,7 @@ impl Backend for Signal {
             .to_vec()
     }
 
-    async fn download_attachment(&self, attachment_index: usize) -> Result<String> {
+    async fn download_attachment(&self, attachment_index: usize) -> Result<PathBuf> {
         let Some(attachment_pointer) = self.attachment_pointers.get(attachment_index) else {
             return Err(Error::UnknownAttachment(attachment_index));
         };
@@ -323,11 +337,11 @@ impl Backend for Signal {
 
         if file_path.is_file() {
             // already downloaded
-            return Ok(file_name);
+            return Ok(file_path);
         }
 
         match std::fs::write(&file_path, &attachment_data) {
-            Ok(()) => Ok(file_name),
+            Ok(()) => Ok(file_path),
             Err(e) => {
                 warn!(error:% = e; "Failed to save attachment");
                 Err(Error::Failure(format!("Failed to save attachment: {e}")))
@@ -403,15 +417,10 @@ impl Signal {
                         let filename = attachment_pointer.file_name.clone().unwrap_or_else(|| {
                             Local::now().format("%Y-%m-%d-%H-%M-%s").to_string()
                         });
-                        let size = attachment_pointer.size.unwrap();
+                        let size = attachment_pointer.size.unwrap() as u64;
                         self.attachment_pointers.push(attachment_pointer.clone());
                         let attachment_name = self.attachment_name(attachment_pointer);
                         let attachment_path = self.attachments_dir.join(&attachment_name);
-                        let downloaded_name = if attachment_path.is_file() {
-                            Some(attachment_name)
-                        } else {
-                            None
-                        };
                         let downloaded_path = if attachment_path.is_file() {
                             Some(attachment_path)
                         } else {
@@ -419,10 +428,9 @@ impl Signal {
                         };
                         MessageAttachment {
                             name: filename,
-                            size,
                             index: attachment_index,
-                            downloaded_name,
-                            downloaded_path,
+                            size,
+                            path: downloaded_path,
                         }
                     })
                     .collect();
@@ -515,6 +523,47 @@ impl Signal {
             .map_or("bin", |v| v)
             .to_owned();
         format!("{filename}.{extension}")
+    }
+
+    async fn upload_attachments(
+        &self,
+        attachments: &[MessageAttachment],
+    ) -> Vec<presage::proto::AttachmentPointer> {
+        let attachment_specs: Vec<_> = attachments
+            .into_iter()
+            .filter_map(|a| {
+                let path = a.path.as_ref().unwrap();
+                let data = std::fs::read(&path).unwrap();
+                Some((
+                    AttachmentSpec {
+                        content_type: mime_guess::from_path(&path)
+                            .first()
+                            .unwrap_or(APPLICATION_OCTET_STREAM)
+                            .to_string(),
+                        length: data.len(),
+                        file_name: path.file_name().map(|s| s.to_string_lossy().to_string()),
+                        preview: None,
+                        voice_note: None,
+                        borderless: None,
+                        width: None,
+                        height: None,
+                        caption: None,
+                        blur_hash: None,
+                    },
+                    data,
+                ))
+            })
+            .collect();
+
+        let attachments: std::result::Result<Vec<_>, _> = self
+            .manager
+            .upload_attachments(attachment_specs)
+            .await
+            .unwrap()
+            .into_iter()
+            .collect();
+
+        attachments.unwrap()
     }
 }
 

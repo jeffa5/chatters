@@ -60,13 +60,13 @@ impl<B: Backend> BackendActor<B> {
                     timestamp,
                     index,
                 } => {
-                    let file_name = self.backend.download_attachment(index).await.unwrap();
+                    let file_path = self.backend.download_attachment(index).await.unwrap();
                     self.message_tx
                         .unbounded_send(FrontendMessage::DownloadedAttachment {
                             contact_id,
                             timestamp,
                             index,
-                            file_name,
+                            file_path,
                         })
                         .unwrap();
                 }
