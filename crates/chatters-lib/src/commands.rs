@@ -33,6 +33,8 @@ pub enum Error {
     UnknownCommand(String),
     #[error("Unknown arguments to command: {0}")]
     UnknownArguments(String),
+    #[error("{0}")]
+    Failure(String)
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -769,10 +771,7 @@ impl Command for ExecuteCommand {
             .find(|c| c.names().contains(&subcmd.as_str()));
 
         if let Some(mut command) = command {
-            if let Err(error) = command.parse(pargs) {
-                tui_state.command_line.error = error.to_string();
-                return Ok(CommandSuccess::Nothing);
-            }
+            command.parse(pargs)?;
             let ret = command.execute(tui_state, ba_tx)?;
             Ok(ret)
         } else {
@@ -1066,15 +1065,19 @@ impl Command for OpenAttachments {
             if let Some(path) = path {
                 debug!(path:? = path; "Opening attachment");
                 open::that_detached(path).unwrap();
+                Ok(())
+            } else {
+                // not downloaded yet
+                Err(Error::Failure("Attachment has not been downloaded".to_owned()))
             }
         };
         if let Some(index) = self.index {
             if let Some(attachment) = message.attachments.get(index) {
-                open_attachment(&attachment.path);
+                open_attachment(&attachment.path)?;
             }
         } else {
             for attachment in &message.attachments {
-                open_attachment(&attachment.path);
+                open_attachment(&attachment.path)?;
             }
         }
         Ok(CommandSuccess::Nothing)
