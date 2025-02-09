@@ -22,7 +22,7 @@ impl Display for KeyEvent {
         if self.modifiers == KeyModifiers::NONE || matches!(self.code, KeyCode::Char(_)) {
             write!(f, "{}", self.code)
         } else {
-            write!(f, "{}+{}", self.modifiers, self.code)
+            write!(f, "{}-{}", self.modifiers, self.code)
         }
     }
 }

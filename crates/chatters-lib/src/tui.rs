@@ -243,9 +243,14 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     let completions = tui_state.command_line.completions().join(" ");
+    let key_events = tui_state
+        .key_events
+        .iter()
+        .map(|ke| ke.to_string())
+        .collect::<String>();
     let status_line = Paragraph::new(Line::from(format!(
-        "{} {} {:?}",
-        tui_state.mode, completions, tui_state.key_events
+        "{} {} {}",
+        tui_state.mode, completions, key_events
     )))
     .style(Style::new().reversed());
     frame.render_widget(status_line, rect);
