@@ -172,98 +172,155 @@ fn process_user_event(
 
     let mode = tui_state.mode;
 
-    let mut execute_command = |cmd: &Box<dyn Command>| {
-        match cmd.execute(tui_state, ba_tx) {
-            Ok(cs) => match cs {
-                commands::CommandSuccess::Nothing => {}
-                commands::CommandSuccess::Quit => return true,
-                commands::CommandSuccess::Clear => {
-                    terminal.clear().unwrap();
-                }
-            },
-            Err(error) => {
-                tui_state.command_line.error = error.to_string();
-            }
-        }
-        false
-    };
-
     debug!(event:? = event; "Received event");
     match event {
-        Event::Key(
-            key_event @ KeyEvent {
-                code, modifiers, ..
-            },
-        ) => match mode {
-            Mode::Normal => {
-                if let Some(command) = keybinds.get(code, modifiers, mode) {
-                    if execute_command(command) {
-                        return true;
-                    }
-                }
-            }
-            Mode::Command { previous: _ } => {
-                if let Some(command) = keybinds.get(code, modifiers, mode) {
-                    if execute_command(command) {
-                        return true;
-                    }
-                } else if code == KeyCode::Tab {
-                    // complete existing command
-                    let cmd = tui_state.command_line.text();
-                    if cmd.contains(' ') {
-                        let args = shell_words::split(&cmd)
-                            .unwrap()
-                            .into_iter()
-                            .map(OsString::from)
-                            .collect();
-                        let mut pargs = pico_args::Arguments::from_vec(args);
-                        let subcmd = pargs.subcommand().unwrap().unwrap();
-                        let cmds = commands::commands();
-                        let Some(mut command) = cmds
-                            .into_iter()
-                            .find(|c| c.names().contains(&subcmd.as_str()))
-                        else {
-                            return false;
-                        };
-                        let _ = command.parse(pargs);
-                        let completions = command.complete();
-                        tui_state.command_line.set_completions(completions);
-                    } else {
-                        let commands = commands::commands();
-                        let completions = commands
-                            .into_iter()
-                            .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(&cmd)))
-                            .map(|s| s.to_owned())
-                            .collect::<Vec<_>>();
-                        if completions.len() == 1 {
-                            tui_state.command_line.set_text(completions[0].clone());
-                        } else if completions.len() > 1 {
-                            tui_state.command_line.set_completions(completions);
+        Event::Key(KeyEvent {
+            code, modifiers, ..
+        }) => {
+            let key_event = crate::keybinds::KeyEvent {
+                code,
+                modifiers,
+            };
+            tui_state.key_events.push(key_event);
+            match mode {
+                Mode::Normal => {
+                    match keybinds.get(&tui_state.key_events, mode) {
+                        Ok(command) => {
+                            if execute_command(tui_state, ba_tx, terminal, command.dyn_clone()) {
+                                return true;
+                            }
+                        }
+                        Err(true) => {
+                            // could still be a binding with more input, leave it
+                        }
+                        Err(false) => {
+                            // no binding starts with this
+                            tui_state.key_events.clear();
                         }
                     }
-                } else {
-                    tui_state.command_line.input(key_event);
                 }
-            }
-            Mode::Compose => {
-                if let Some(command) = keybinds.get(code, modifiers, mode) {
-                    if execute_command(command) {
-                        return true;
+                Mode::Command { previous: _ } => {
+                    match keybinds.get(&tui_state.key_events, mode) {
+                        Ok(command) => {
+                            if execute_command(tui_state, ba_tx, terminal, command.dyn_clone()) {
+                                return true;
+                            }
+                        }
+                        Err(true) => {
+                            // could still be a binding with more input, leave it
+                        }
+                        Err(false) => {
+                            if code == KeyCode::Tab {
+                                tui_state.key_events.clear();
+                                // complete existing command
+                                let cmd = tui_state.command_line.text();
+                                if cmd.contains(' ') {
+                                    let args = shell_words::split(&cmd)
+                                        .unwrap()
+                                        .into_iter()
+                                        .map(OsString::from)
+                                        .collect();
+                                    let mut pargs = pico_args::Arguments::from_vec(args);
+                                    let subcmd = pargs.subcommand().unwrap().unwrap();
+                                    let cmds = commands::commands();
+                                    let Some(mut command) = cmds
+                                        .into_iter()
+                                        .find(|c| c.names().contains(&subcmd.as_str()))
+                                    else {
+                                        return false;
+                                    };
+                                    let _ = command.parse(pargs);
+                                    let completions = command.complete();
+                                    tui_state.command_line.set_completions(completions);
+                                } else {
+                                    let commands = commands::commands();
+                                    let completions = commands
+                                        .into_iter()
+                                        .flat_map(|c| {
+                                            c.names().into_iter().filter(|n| n.starts_with(&cmd))
+                                        })
+                                        .map(|s| s.to_owned())
+                                        .collect::<Vec<_>>();
+                                    if completions.len() == 1 {
+                                        tui_state.command_line.set_text(completions[0].clone());
+                                    } else if completions.len() > 1 {
+                                        tui_state.command_line.set_completions(completions);
+                                    }
+                                }
+                            } else {
+                                for key_event in tui_state.key_events.drain(..) {
+                                    tui_state.command_line.input(crossterm::event::KeyEvent {
+                                        code: key_event.code,
+                                        modifiers: key_event.modifiers,
+                                        kind: crossterm::event::KeyEventKind::Release,
+                                        state: crossterm::event::KeyEventState::empty(),
+                                    });
+                                }
+                            }
+                        }
                     }
-                } else {
-                    tui_state.compose.input(key_event);
                 }
-            }
-            Mode::Popup => {
-                if let Some(command) = keybinds.get(code, modifiers, mode) {
-                    if execute_command(command) {
-                        return true;
+                Mode::Compose => {
+                    match keybinds.get(&tui_state.key_events, mode) {
+                        Ok(command) => {
+                            if execute_command(tui_state, ba_tx, terminal, command.dyn_clone()) {
+                                return true;
+                            }
+                        }
+                        Err(true) => {
+                            // skip
+                        }
+                        Err(false) => {
+                            for key_event in tui_state.key_events.drain(..) {
+                                tui_state.compose.input(crossterm::event::KeyEvent {
+                                    code:key_event.code,
+                                    modifiers:key_event.modifiers,
+                                    kind: crossterm::event::KeyEventKind::Release,
+                                    state: crossterm::event::KeyEventState::empty(),
+                                });
+                            }
+                        }
                     }
                 }
+                Mode::Popup => match keybinds.get(&tui_state.key_events, mode) {
+                    Ok(command) => {
+                        if execute_command(tui_state, ba_tx, terminal, command.dyn_clone()) {
+                            return true;
+                        }
+                    }
+                    Err(true) => {
+                        // prefix
+                    }
+                    Err(false) => {
+                        tui_state.key_events.clear();
+                    }
+                },
             }
-        },
+        }
         e => {
             warn!(event:? = e; "Unhandled event");
+        }
+    }
+    false
+}
+
+fn execute_command(
+    tui_state: &mut TuiState,
+    ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    cmd: Box<dyn Command>,
+) -> bool {
+    tui_state.key_events.clear();
+    match cmd.execute(tui_state, ba_tx) {
+        Ok(cs) => match cs {
+            commands::CommandSuccess::Nothing => {}
+            commands::CommandSuccess::Quit => return true,
+            commands::CommandSuccess::Clear => {
+                terminal.clear().unwrap();
+            }
+        },
+        Err(error) => {
+            tui_state.command_line.error = error.to_string();
         }
     }
     false

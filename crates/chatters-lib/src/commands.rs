@@ -34,7 +34,7 @@ pub enum Error {
     #[error("Unknown arguments to command: {0}")]
     UnknownArguments(String),
     #[error("{0}")]
-    Failure(String)
+    Failure(String),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -415,6 +415,7 @@ impl Command for NormalMode {
     ) -> Result<CommandSuccess> {
         tui_state.mode = Mode::Normal;
         tui_state.popup = None;
+        tui_state.key_events.clear();
         Ok(CommandSuccess::Nothing)
     }
 
@@ -1068,7 +1069,9 @@ impl Command for OpenAttachments {
                 Ok(())
             } else {
                 // not downloaded yet
-                Err(Error::Failure("Attachment has not been downloaded".to_owned()))
+                Err(Error::Failure(
+                    "Attachment has not been downloaded".to_owned(),
+                ))
             }
         };
         if let Some(index) = self.index {
