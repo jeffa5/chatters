@@ -16,6 +16,7 @@
         pkgs.cargo
         pkgs.rustfmt
         pkgs.clippy
+        pkgs.cargo-insta
 
         pkgs.openssl
         pkgs.pkg-config

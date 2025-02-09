@@ -1,0 +1,12 @@
+---
+source: crates/chatters-lib/src/keybinds.rs
+expression: "vec![KeyEvent::from_str(\"a\").unwrap().to_string(),\nKeyEvent::from_str(\"A\").unwrap().to_string(),\nKeyEvent::from_str(\"<c-a>\").unwrap().to_string(),\nKeyEvent::from_str(\"<c-A>\").unwrap().to_string(),\nKeyEvent::from_str(\"<up>\").unwrap().to_string(),\nKeyEvent::from_str(\"<c-up>\").unwrap().to_string(),]"
+---
+[
+    "a",
+    "A",
+    "<C-a>",
+    "<C-A>",
+    "<Up>",
+    "<C-Up>",
+]

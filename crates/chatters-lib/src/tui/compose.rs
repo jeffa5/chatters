@@ -102,8 +102,6 @@ impl ratatui::widgets::Widget for &Compose {
         }
         constraints.push(Constraint::Length(self.textarea.lines().len().max(1) as u16));
 
-        log::debug!(self:?, area:?; "Rendering compose");
-
         self.block.clone().render(area.clone(), buf);
         let area = self.block.inner(area);
         let vertical = Layout::vertical(constraints).split(area);

@@ -1,0 +1,12 @@
+---
+source: crates/chatters-lib/src/keybinds.rs
+expression: "KeyEvent::from_str(\"<esc>\")"
+---
+Ok(
+    KeyEvent {
+        code: Esc,
+        modifiers: KeyModifiers(
+            0x0,
+        ),
+    },
+)

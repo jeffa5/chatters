@@ -1,0 +1,30 @@
+---
+source: crates/chatters-lib/src/keybinds.rs
+expression: "KeyEvents::from_str(\"a<enter><c-esc>\")"
+---
+Ok(
+    KeyEvents(
+        [
+            KeyEvent {
+                code: Char(
+                    'a',
+                ),
+                modifiers: KeyModifiers(
+                    0x0,
+                ),
+            },
+            KeyEvent {
+                code: Enter,
+                modifiers: KeyModifiers(
+                    0x0,
+                ),
+            },
+            KeyEvent {
+                code: Esc,
+                modifiers: KeyModifiers(
+                    CONTROL,
+                ),
+            },
+        ],
+    ),
+)

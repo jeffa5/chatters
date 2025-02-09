@@ -1,17 +1,10 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crossterm::event::{KeyCode, KeyModifiers};
 
-use crate::{
-    commands::{
-        Command, CommandHistory, CommandMode, ComposeInEditor, ComposeMode, ExecuteCommand,
-        Keybindings, NextCommand, NextContact, NextMessage, NormalMode, PrevCommand, PrevContact,
-        PrevMessage, Quit, ScrollPopup, SelectMessage, SendMessage,
-    },
-    tui::Mode,
-};
+use crate::tui::Mode;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyEvent {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,
@@ -19,71 +12,237 @@ pub struct KeyEvent {
 
 impl Display for KeyEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.modifiers == KeyModifiers::NONE || matches!(self.code, KeyCode::Char(_)) {
+        let is_plain_char = matches!(self.code, KeyCode::Char(_)) && self.modifiers.is_empty();
+        let is_capital = matches!(self.code, KeyCode::Char(c) if c.is_uppercase());
+        let is_plain_capital = is_capital && self.modifiers == KeyModifiers::SHIFT;
+
+        if is_plain_char || is_plain_capital {
             write!(f, "{}", self.code)
         } else {
-            write!(f, "{}-{}", self.modifiers, self.code)
+            write!(f, "<")?;
+            if self.modifiers.contains(KeyModifiers::CONTROL) {
+                write!(f, "C-")?;
+            }
+            if self.modifiers.contains(KeyModifiers::SHIFT) && !is_capital {
+                write!(f, "S-")?;
+            }
+            if self.modifiers.contains(KeyModifiers::ALT) {
+                write!(f, "A-")?;
+            }
+            write!(f, "{}>", self.code)
         }
     }
 }
 
-type KeyEvents = Vec<KeyEvent>;
+impl FromStr for KeyEvent {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut slf = Self {
+            code: KeyCode::Esc,
+            modifiers: KeyModifiers::empty(),
+        };
+        if s.starts_with("<") && s.ends_with(">") {
+            let mut inner = &s[1..s.len() - 1];
+
+            loop {
+                if let Some(remainder) = inner.strip_prefix("c-") {
+                    slf.modifiers |= KeyModifiers::CONTROL;
+                    inner = remainder;
+                    continue;
+                }
+                if let Some(remainder) = inner.strip_prefix("C-") {
+                    slf.modifiers |= KeyModifiers::CONTROL;
+                    inner = remainder;
+                    continue;
+                }
+                if let Some(remainder) = inner.strip_prefix("a-") {
+                    slf.modifiers |= KeyModifiers::ALT;
+                    inner = remainder;
+                    continue;
+                }
+                if let Some(remainder) = inner.strip_prefix("A-") {
+                    slf.modifiers |= KeyModifiers::ALT;
+                    inner = remainder;
+                    continue;
+                }
+                if let Some(remainder) = inner.strip_prefix("s-") {
+                    slf.modifiers |= KeyModifiers::SHIFT;
+                    inner = remainder;
+                    continue;
+                }
+                if let Some(remainder) = inner.strip_prefix("S-") {
+                    slf.modifiers |= KeyModifiers::SHIFT;
+                    inner = remainder;
+                    continue;
+                }
+                break;
+            }
+
+            slf.code = if inner.len() == 1 {
+                let c = inner.chars().next().unwrap();
+                if c.is_uppercase() {
+                    slf.modifiers |= KeyModifiers::SHIFT;
+                }
+                KeyCode::Char(c)
+            } else {
+                match inner.to_lowercase().as_str() {
+                    "enter" => KeyCode::Enter,
+                    "esc" => KeyCode::Esc,
+                    "up" => KeyCode::Up,
+                    "down" => KeyCode::Down,
+                    "left" => KeyCode::Left,
+                    "right" => KeyCode::Right,
+                    "home" => KeyCode::Home,
+                    "end" => KeyCode::End,
+                    "pageup" => KeyCode::PageUp,
+                    "pagedown" => KeyCode::PageDown,
+                    _ => return Err(()),
+                }
+            };
+        } else if s.len() == 1 {
+            let c = s.chars().next().unwrap();
+            if c.is_uppercase() {
+                slf.modifiers |= KeyModifiers::SHIFT;
+            }
+            slf.code = KeyCode::Char(c)
+        } else {
+            return Err(());
+        }
+        Ok(slf)
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct KeyEvents(pub Vec<KeyEvent>);
+
+impl FromStr for KeyEvents {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut slf = Self(Vec::new());
+        let mut ke = String::new();
+        for c in s.chars() {
+            if c == '<' {
+                ke.push(c);
+            } else if c == '>' {
+                ke.push(c);
+                let key_event = KeyEvent::from_str(&ke)?;
+                slf.0.push(key_event);
+                ke.clear();
+            } else if ke.is_empty() {
+                slf.0.push(KeyEvent::from_str(&c.to_string())?);
+            } else {
+                ke.push(c);
+            }
+        }
+        Ok(slf)
+    }
+}
+
+impl Display for KeyEvents {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for event in &self.0 {
+            write!(f, "{}", event)?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct KeyBinds {
-    pub normal_bindings: Vec<(KeyEvents, Box<dyn Command>)>,
-    pub command_bindings: Vec<(KeyEvents, Box<dyn Command>)>,
-    pub compose_bindings: Vec<(KeyEvents, Box<dyn Command>)>,
-    pub popup_bindings: Vec<(KeyEvents, Box<dyn Command>)>,
+    pub normal_bindings: Vec<(KeyEvents, String)>,
+    pub command_bindings: Vec<(KeyEvents, String)>,
+    pub compose_bindings: Vec<(KeyEvents, String)>,
+    pub popup_bindings: Vec<(KeyEvents, String)>,
 }
 
 impl Default for KeyBinds {
     fn default() -> Self {
-        let mut normal = Vec::<(KeyEvents, Box<dyn Command>)>::new();
-        normal.push((vec![char('q')], Box::new(Quit)));
-        normal.push((vec![char('J')], Box::new(NextContact)));
-        normal.push((vec![code_shift(KeyCode::Down)], Box::new(NextContact)));
-        normal.push((vec![char('K')], Box::new(PrevContact)));
-        normal.push((vec![code_shift(KeyCode::Up)], Box::new(PrevContact)));
-        normal.push((vec![char('j')], Box::new(NextMessage)));
-        normal.push((vec![code(KeyCode::Down)], Box::new(NextMessage)));
-        normal.push((vec![char('k')], Box::new(PrevMessage)));
-        normal.push((vec![code(KeyCode::Up)], Box::new(PrevMessage)));
-        normal.push((vec![char(':')], Box::new(CommandMode)));
-        normal.push((vec![char('i')], Box::new(ComposeMode)));
-        normal.push((vec![char('g')], Box::new(SelectMessage { index: 0 })));
-        normal.push((vec![char('G')], Box::new(SelectMessage { index: -1 })));
-        normal.push((vec![char('I')], Box::new(ComposeInEditor)));
-        normal.push((vec![code(KeyCode::Enter)], Box::new(SendMessage)));
-        normal.push((vec![char('?')], Box::new(Keybindings)));
-        normal.push((vec![char('h')], Box::new(CommandHistory)));
+        let mut normal = Vec::<(KeyEvents, String)>::new();
+        normal.push((KeyEvents::from_str("q").unwrap(), ":quit<enter>".to_owned()));
+        normal.push((
+            KeyEvents::from_str("J").unwrap(),
+            ":next-contact<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("<s-down>").unwrap(),
+            ":next-contact<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("K").unwrap(),
+            ":prev-contact<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("<s-up>").unwrap(),
+            ":prev-contact<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("j").unwrap(),
+            ":next-message<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("<down>").unwrap(),
+            ":next-message<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("k").unwrap(),
+            ":prev-message<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("<up>").unwrap(),
+            ":prev-message<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("i").unwrap(),
+            ":mode-compose<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("g").unwrap(),
+            ":select-message 0<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("G").unwrap(),
+            ":select-message -1<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("I").unwrap(),
+            ":compose-in-editor<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("<enter>").unwrap(),
+            ":send-message<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("?").unwrap(),
+            ":keybindings<enter>".to_owned(),
+        ));
+        normal.push((
+            KeyEvents::from_str("h").unwrap(),
+            ":command-history<enter>".to_owned(),
+        ));
 
-        let mut command = Vec::<(KeyEvents, Box<dyn Command>)>::new();
-        command.push((vec![code(KeyCode::Esc)], Box::new(NormalMode)));
-        command.push((vec![code(KeyCode::Up)], Box::new(PrevCommand)));
-        command.push((vec![code(KeyCode::Down)], Box::new(NextCommand)));
-        command.push((vec![code(KeyCode::Enter)], Box::new(ExecuteCommand)));
-
-        let mut compose = Vec::<(KeyEvents, Box<dyn Command>)>::new();
-        compose.push((vec![code(KeyCode::Esc)], Box::new(NormalMode)));
-
-        let mut popup = Vec::<(KeyEvents, Box<dyn Command>)>::new();
-        popup.push((vec![code(KeyCode::Esc)], Box::new(NormalMode)));
-        popup.push((vec![char(':')], Box::new(CommandMode)));
-        popup.push((vec![char('j')], Box::new(ScrollPopup { amount: 1 })));
-        popup.push((vec![char('k')], Box::new(ScrollPopup { amount: -1 })));
+        let mut popup = Vec::<(KeyEvents, String)>::new();
+        popup.push((
+            KeyEvents::from_str("j").unwrap(),
+            ":scroll-popup 1<enter>".to_owned(),
+        ));
+        popup.push((
+            KeyEvents::from_str("k").unwrap(),
+            ":scroll-popup -1<enter>".to_owned(),
+        ));
 
         Self {
             normal_bindings: normal,
-            command_bindings: command,
-            compose_bindings: compose,
+            command_bindings: Vec::new(),
+            compose_bindings: Vec::new(),
             popup_bindings: popup,
         }
     }
 }
 
 impl KeyBinds {
-    pub fn get(&self, events: &[KeyEvent], mode: Mode) -> Result<&Box<dyn Command>, bool> {
+    pub fn get(&self, events: &KeyEvents, mode: Mode) -> Result<&String, bool> {
         let bindings = match mode {
             Mode::Normal => &self.normal_bindings,
             Mode::Command { .. } => &self.command_bindings,
@@ -95,14 +254,14 @@ impl KeyBinds {
             if keys == events {
                 return Ok(command);
             }
-            if keys.starts_with(events) {
+            if keys.0.starts_with(&events.0) {
                 prefix = true;
             }
         }
         Err(prefix)
     }
 
-    pub fn iter(&self, mode: Mode) -> impl Iterator<Item = &(KeyEvents, Box<dyn Command>)> {
+    pub fn iter(&self, mode: Mode) -> impl Iterator<Item = &(KeyEvents, String)> {
         match mode {
             Mode::Normal => &self.normal_bindings,
             Mode::Command { .. } => &self.command_bindings,
@@ -113,27 +272,32 @@ impl KeyBinds {
     }
 }
 
-fn char(c: char) -> KeyEvent {
-    KeyEvent {
-        code: KeyCode::Char(c),
-        modifiers: if c.is_uppercase() {
-            KeyModifiers::SHIFT
-        } else {
-            KeyModifiers::NONE
-        },
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn code(code: KeyCode) -> KeyEvent {
-    KeyEvent {
-        code,
-        modifiers: KeyModifiers::NONE,
+    #[test]
+    fn parse_key_events() {
+        insta::assert_debug_snapshot!(KeyEvents::from_str("a<enter><c-esc>"));
     }
-}
 
-fn code_shift(code: KeyCode) -> KeyEvent {
-    KeyEvent {
-        code,
-        modifiers: KeyModifiers::SHIFT,
+    #[test]
+    fn parse_key_event() {
+        insta::assert_debug_snapshot!(KeyEvent::from_str("a"));
+        insta::assert_debug_snapshot!(KeyEvent::from_str("<c-a>"));
+        insta::assert_debug_snapshot!(KeyEvent::from_str("<s-c-a>"));
+        insta::assert_debug_snapshot!(KeyEvent::from_str("<esc>"));
+    }
+
+    #[test]
+    fn display_key_event() {
+        insta::assert_debug_snapshot!(vec![
+            KeyEvent::from_str("a").unwrap().to_string(),
+            KeyEvent::from_str("A").unwrap().to_string(),
+            KeyEvent::from_str("<c-a>").unwrap().to_string(),
+            KeyEvent::from_str("<c-A>").unwrap().to_string(),
+            KeyEvent::from_str("<up>").unwrap().to_string(),
+            KeyEvent::from_str("<c-up>").unwrap().to_string(),
+        ]);
     }
 }

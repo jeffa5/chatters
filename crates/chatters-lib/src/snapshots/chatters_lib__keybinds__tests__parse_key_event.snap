@@ -1,0 +1,14 @@
+---
+source: crates/chatters-lib/src/keybinds.rs
+expression: "KeyEvent::from_str(\"a\")"
+---
+Ok(
+    KeyEvent {
+        code: Char(
+            'a',
+        ),
+        modifiers: KeyModifiers(
+            0x0,
+        ),
+    },
+)

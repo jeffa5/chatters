@@ -33,7 +33,7 @@ use textwrap::Options;
 use crate::backends::Contact;
 use crate::backends::ContactId;
 use crate::keybinds::KeyBinds;
-use crate::keybinds::KeyEvent;
+use crate::keybinds::KeyEvents;
 
 mod command_line;
 mod compose;
@@ -109,7 +109,7 @@ pub struct TuiState {
     pub command_line: CommandLine,
     pub mode: Mode,
     pub popup: Option<Popup>,
-    pub key_events: Vec<KeyEvent>,
+    pub key_events: KeyEvents,
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -243,14 +243,9 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     let completions = tui_state.command_line.completions().join(" ");
-    let key_events = tui_state
-        .key_events
-        .iter()
-        .map(|ke| ke.to_string())
-        .collect::<String>();
     let status_line = Paragraph::new(Line::from(format!(
         "{} {} {}",
-        tui_state.mode, completions, key_events
+        tui_state.mode, completions, tui_state.key_events
     )))
     .style(Style::new().reversed());
     frame.render_widget(status_line, rect);
@@ -419,24 +414,24 @@ fn render_keybinds() -> (&'static str, String) {
     let keybindings = KeyBinds::default();
     let normal_keybinds = keybindings
         .iter(Mode::Normal)
-        .map(|(k, c)| format!("{:?} :{}", k, c.names()[0]))
+        .map(|(k, c)| format!("{} = {}", k, c))
         .collect::<Vec<_>>()
         .join("\n");
     let command_keybinds = keybindings
         .iter(Mode::Command {
             previous: BasicMode::Normal,
         })
-        .map(|(k, c)| format!("{:?} :{}", k, c.names()[0]))
+        .map(|(k, c)| format!("{} = {}", k, c))
         .collect::<Vec<_>>()
         .join("\n");
     let compose_keybinds = keybindings
         .iter(Mode::Compose)
-        .map(|(k, c)| format!("{:?} :{}", k, c.names()[0]))
+        .map(|(k, c)| format!("{} = {}", k, c))
         .collect::<Vec<_>>()
         .join("\n");
     let popup_keybinds = keybindings
         .iter(Mode::Popup)
-        .map(|(k, c)| format!("{:?} :{}", k, c.names()[0]))
+        .map(|(k, c)| format!("{} = {}", k, c))
         .collect::<Vec<_>>()
         .join("\n");
 
