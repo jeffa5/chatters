@@ -258,7 +258,7 @@ fn process_user_event(
                                 return false;
                             };
                             let _ = command.parse(pargs);
-                            let completions = command.complete();
+                            let completions = command.complete(tui_state);
                             tui_state.command_line.set_completions(completions);
                         } else {
                             let commands = commands::commands();

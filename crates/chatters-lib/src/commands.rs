@@ -55,7 +55,7 @@ pub trait Command: std::fmt::Debug {
 
     fn names(&self) -> Vec<&'static str>;
 
-    fn complete(&self) -> Vec<String>;
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String>;
 
     fn dyn_clone(&self) -> Box<dyn Command>;
 }
@@ -117,7 +117,7 @@ impl Command for Quit {
         vec!["quit"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -154,7 +154,7 @@ impl Command for NextContact {
         vec!["next-contact"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -191,7 +191,7 @@ impl Command for PrevContact {
         vec!["prev-contact"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -226,7 +226,7 @@ impl Command for NextMessage {
         vec!["next-message"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -261,7 +261,7 @@ impl Command for PrevMessage {
         vec!["prev-message"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -311,7 +311,7 @@ impl Command for SelectMessage {
         vec!["select-message"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -392,7 +392,7 @@ impl Command for SelectContact {
         vec!["select-contact"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -433,7 +433,7 @@ impl Command for NormalMode {
         vec!["mode-normal"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -476,7 +476,7 @@ impl Command for CommandMode {
         vec!["mode-command"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -511,7 +511,7 @@ impl Command for ComposeMode {
         vec!["mode-compose"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -571,7 +571,7 @@ impl Command for SendMessage {
         vec!["send-message"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -640,7 +640,7 @@ impl Command for React {
         vec!["react"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         if self.emoji.is_empty() {
             return Vec::new();
         }
@@ -713,7 +713,7 @@ impl Command for Unreact {
         vec!["unreact"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -794,7 +794,7 @@ impl Command for ExecuteCommand {
         vec!["execute-command"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -834,7 +834,7 @@ impl Command for ReloadContacts {
         vec!["reload-contacts"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -882,7 +882,7 @@ impl Command for ReloadMessages {
         vec!["reload-messages"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -936,7 +936,7 @@ impl Command for ComposeInEditor {
         vec!["compose-in-editor"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -974,7 +974,7 @@ impl Command for ClearCompose {
         vec!["clear-compose"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1039,7 +1039,7 @@ impl Command for DownloadAttachments {
         vec!["download-attachments"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1105,7 +1105,7 @@ impl Command for OpenAttachments {
         vec!["open-attachments"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         // TODO: get tui_state here and present the indices of attachments
         Vec::new()
     }
@@ -1150,7 +1150,7 @@ impl Command for MessageInfo {
         vec!["message-info"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1194,7 +1194,7 @@ impl Command for ContactInfo {
         vec!["contact-info"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1233,7 +1233,7 @@ impl Command for Keybindings {
         vec!["keybindings"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1272,7 +1272,7 @@ impl Command for Commands {
         vec!["commands"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1317,7 +1317,7 @@ impl Command for Reply {
         vec!["reply"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1353,7 +1353,7 @@ impl Command for CommandHistory {
         vec!["command-history"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1393,7 +1393,7 @@ impl Command for PrevCommand {
         vec!["prev-command"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1433,7 +1433,7 @@ impl Command for NextCommand {
         vec!["next-command"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1480,7 +1480,7 @@ impl Command for ScrollPopup {
         vec!["scroll-popup"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         Vec::new()
     }
 
@@ -1535,7 +1535,7 @@ impl Command for AttachFile {
         vec!["attach-file"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         let Some(path) = &self.path else {
             return Vec::new();
         };
@@ -1611,7 +1611,7 @@ impl Command for DetachFile {
         vec!["detach-file"]
     }
 
-    fn complete(&self) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
         // TODO: given tuistate we can enumerate the attachments
         Vec::new()
     }
