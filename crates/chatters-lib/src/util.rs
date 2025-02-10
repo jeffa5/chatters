@@ -36,7 +36,7 @@ pub struct Options {
 pub async fn run<B: Backend + Clone>(options: Options) {
     let db_path = options.data_local_dir.join("db");
 
-    let config = load_config(&options.config_file).await;
+    let config = load_config(&options.config_file);
     debug!(config:?; "Loaded config file");
 
     let backend = match B::load(&db_path).await {
@@ -91,7 +91,7 @@ pub async fn run<B: Backend + Clone>(options: Options) {
 
     let ui = async move {
         let terminal = ratatui::init();
-        run_ui(terminal, b_tx, f_rx, self_id, &config).await;
+        run_ui(terminal, b_tx, f_rx, self_id, &config, options.config_file).await;
         ratatui::restore();
     };
     pin_mut!(ui);
@@ -134,6 +134,7 @@ async fn run_ui(
     mut backend_actor_rx: mpsc::UnboundedReceiver<FrontendMessage>,
     self_id: Vec<u8>,
     config: &Config,
+    config_path: PathBuf,
 ) {
     // select on two channels, one for keyboard events, another for messages from the backend
     // (responses)
@@ -143,6 +144,7 @@ async fn run_ui(
     let mut tui_state = TuiState::default();
     tui_state.self_id = self_id;
     tui_state.config = config.clone();
+    tui_state.config_path = config_path;
 
     let mut event_stream = EventStream::new();
 
@@ -458,9 +460,7 @@ fn process_backend_message(
     }
 }
 
-async fn load_config(path: &Path) -> Config {
-    let content = tokio::fs::read_to_string(path)
-        .await
-        .expect("Config file was missing");
+pub fn load_config(path: &Path) -> Config {
+    let content = std::fs::read_to_string(path).expect("Config file was missing");
     toml::from_str(&content).expect("Malformed config file")
 }

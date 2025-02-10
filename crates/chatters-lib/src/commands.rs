@@ -76,6 +76,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Unreact::default()));
     v.push(Box::new(ReloadContacts::default()));
     v.push(Box::new(ReloadMessages::default()));
+    v.push(Box::new(ReloadConfig::default()));
     v.push(Box::new(ComposeInEditor::default()));
     v.push(Box::new(ClearCompose::default()));
     v.push(Box::new(DownloadAttachments::default()));
@@ -1652,6 +1653,42 @@ impl Command for DetachFiles {
         Box::new(Self {
             indices: self.indices.clone(),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct ReloadConfig;
+
+impl Command for ReloadConfig {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let config = crate::util::load_config(&tui_state.config_path);
+        tui_state.config = config;
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["reload-config"]
+    }
+
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
     }
 }
 

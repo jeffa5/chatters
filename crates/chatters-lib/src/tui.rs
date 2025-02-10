@@ -28,6 +28,7 @@ use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::Table;
 use ratatui::Frame;
 use std::fmt::Display;
+use std::path::PathBuf;
 use textwrap::Options;
 
 use crate::backends::Contact;
@@ -111,6 +112,7 @@ pub struct TuiState {
     pub popup: Option<Popup>,
     pub key_events: KeyEvents,
     pub config: Config,
+    pub config_path: PathBuf,
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
