@@ -382,7 +382,7 @@ fn render_message_info(
         .to_string();
     let text = vec![
         format!("Sender name: {}", sender_name),
-        format!("Sender id:   {:?}", message.sender),
+        format!("Sender id:   {}", hex::encode(&message.sender)),
         format!("Time:        {}", time.to_rfc3339()),
         String::new(),
         message.render(width).join("\n"),
