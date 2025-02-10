@@ -14,6 +14,19 @@ pub enum ContactId {
     Group(Vec<u8>),
 }
 
+impl std::fmt::Display for ContactId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContactId::User(vec) => {
+                write!(f, "User {}", hex::encode(vec))
+            }
+            ContactId::Group(vec) => {
+                write!(f, "Group {}", hex::encode(vec))
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Message {
     pub timestamp: u64,
