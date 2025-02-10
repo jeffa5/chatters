@@ -44,7 +44,7 @@ impl Message {
             }
         }
         if !self.content.is_empty() {
-            let content = wrap_text(&self.content, width);
+            let content = wrap_text(self.content.trim(), width);
             for line in content.lines {
                 lines.push(format!("  {line}"));
             }
