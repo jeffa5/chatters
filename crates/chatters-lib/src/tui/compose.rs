@@ -115,16 +115,7 @@ impl ratatui::widgets::Widget for &Compose {
         if !self.attachments.is_empty() {
             let mut lines = Vec::new();
             for attachment in &self.attachments {
-                // TODO: move this to a method
-                let downloaded = attachment
-                    .file_name()
-                    .clone()
-                    .unwrap_or_else(|| "not downloaded".to_owned());
-                let text = format!(
-                    "+ {} {}B ({})",
-                    attachment.name, attachment.size, downloaded
-                );
-                lines.push(ratatui::text::Line::from(text));
+                lines.push(ratatui::text::Line::from(attachment.message_line()));
             }
             Paragraph::new(lines).render(vertical[attachments_index], buf);
         }

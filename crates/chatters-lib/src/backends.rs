@@ -61,6 +61,28 @@ impl MessageAttachment {
             .as_ref()
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
     }
+
+    pub fn human_size(&self) -> String {
+        // starts in bytes
+        let size = self.size;
+        if size > 1_000_000_000 {
+            format!("{}GB", size / 1_000_000_000)
+        } else if size > 1_000_000 {
+            format!("{}MB", size / 1_000_000)
+        } else if size > 1_000 {
+            format!("{}KB", size / 1_000)
+        } else {
+            format!("{}B", size)
+        }
+    }
+
+    pub fn message_line(&self) -> String {
+        let downloaded = self
+            .file_name()
+            .clone()
+            .unwrap_or_else(|| "not downloaded".to_owned());
+        format!("+ {} {} ({})", self.name, self.human_size(), downloaded)
+    }
 }
 
 #[derive(Debug)]

@@ -40,15 +40,7 @@ impl Message {
         }
         if !self.attachments.is_empty() {
             for attachment in &self.attachments {
-                // TODO: move this to a method
-                let downloaded = attachment
-                    .file_name()
-                    .clone()
-                    .unwrap_or_else(|| "not downloaded".to_owned());
-                lines.push(format!(
-                    "+ {} {}B ({})",
-                    attachment.name, attachment.size, downloaded
-                ));
+                lines.push(attachment.message_line());
             }
         }
         if !self.content.is_empty() {
