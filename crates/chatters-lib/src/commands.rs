@@ -88,7 +88,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ScrollPopup::default()));
     v.push(Box::new(AttachFiles::default()));
-    v.push(Box::new(DetachFile::default()));
+    v.push(Box::new(DetachFiles::default()));
     v
 }
 
@@ -1591,40 +1591,56 @@ impl Command for AttachFiles {
 }
 
 #[derive(Debug)]
-pub struct DetachFile {
-    index: Option<usize>,
+pub struct DetachFiles {
+    indices: Vec<usize>,
 }
 
-impl Command for DetachFile {
+impl Command for DetachFiles {
     fn execute(
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(index) = &self.index else {
+        if self.indices.is_empty() {
             return Err(Error::MissingArgument("index".to_owned()));
-        };
+        }
 
-        tui_state.compose.detach_file(*index);
+        let mut indices = self.indices.clone();
+
+        indices.sort();
+        indices.reverse();
+
+        for index in indices {
+            tui_state.compose.detach_file(index);
+        }
 
         Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args
-            .free_from_str()
-            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
-        self.index = Some(index);
+        loop {
+            let index = args
+                .opt_free_from_str()
+                .map_err(|_e| Error::MissingArgument("indices".to_owned()))?;
+            match index {
+                Some(index) => {
+                    self.indices.push(index);
+                }
+                None => break,
+            }
+        }
         check_unused_args(args)?;
         Ok(())
     }
 
     fn default() -> Self {
-        Self { index: None }
+        Self {
+            indices: Vec::new(),
+        }
     }
 
     fn names(&self) -> Vec<&'static str> {
-        vec!["detach-file"]
+        vec!["detach-files"]
     }
 
     fn complete(&self, tui_state: &TuiState) -> Vec<String> {
@@ -1634,7 +1650,7 @@ impl Command for DetachFile {
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
-            index: self.index.clone(),
+            indices: self.indices.clone(),
         })
     }
 }
