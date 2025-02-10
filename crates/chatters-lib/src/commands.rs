@@ -1039,8 +1039,12 @@ impl Command for DownloadAttachments {
         vec!["download-attachments"]
     }
 
-    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
-        Vec::new()
+    fn complete(&self, tui_state: &TuiState) -> Vec<String> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Vec::new();
+        };
+        let count = message.attachments.len();
+        (0..count).map(|i| i.to_string()).collect()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1105,9 +1109,12 @@ impl Command for OpenAttachments {
         vec!["open-attachments"]
     }
 
-    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
-        // TODO: get tui_state here and present the indices of attachments
-        Vec::new()
+    fn complete(&self, tui_state: &TuiState) -> Vec<String> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Vec::new();
+        };
+        let count = message.attachments.len();
+        (0..count).map(|i| i.to_string()).collect()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1611,9 +1618,9 @@ impl Command for DetachFile {
         vec!["detach-file"]
     }
 
-    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
-        // TODO: given tuistate we can enumerate the attachments
-        Vec::new()
+    fn complete(&self, tui_state: &TuiState) -> Vec<String> {
+        let count = tui_state.compose.attachments().len();
+        (0..count).map(|i| i.to_string()).collect()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
