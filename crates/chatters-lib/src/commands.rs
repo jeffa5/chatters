@@ -1492,7 +1492,7 @@ impl Command for ScrollPopup {
 
 #[derive(Debug)]
 pub struct AttachFile {
-    path: Option<PathBuf>,
+    path: Option<String>,
 }
 
 impl Command for AttachFile {
@@ -1505,7 +1505,14 @@ impl Command for AttachFile {
             return Err(Error::MissingArgument("path".to_owned()));
         };
 
-        // TODO: expand tilde in paths
+        let path = if path.starts_with("~/") {
+            let home = std::env::var("HOME").expect("HOME environment variable was not set");
+            let stripped_path = path.strip_prefix("~/").unwrap();
+            let home_path = PathBuf::from(home);
+            home_path.join(stripped_path)
+        } else {
+            PathBuf::from(path)
+        };
 
         if !path.is_file() {
             return Err(Error::InvalidArgument {
@@ -1519,7 +1526,7 @@ impl Command for AttachFile {
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
         let path = args
-            .free_from_os_str(|s| PathBuf::try_from(s))
+            .free_from_str()
             .map_err(|_e| Error::MissingArgument("path".to_owned()))?;
         self.path = Some(path);
         check_unused_args(args)?;
