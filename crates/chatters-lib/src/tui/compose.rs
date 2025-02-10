@@ -46,6 +46,13 @@ impl Compose {
         })
     }
 
+    pub fn detach_file(&mut self, index: usize) {
+        if index >= self.attachments.len() {
+            return;
+        }
+        self.attachments.remove(index);
+    }
+
     pub fn lines(&self) -> &[String] {
         self.textarea.lines()
     }

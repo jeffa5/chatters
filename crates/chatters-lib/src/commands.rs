@@ -70,7 +70,6 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(SelectMessage::default()));
     v.push(Box::new(SelectContact::default()));
     v.push(Box::new(NormalMode::default()));
-    v.push(Box::new(CommandMode::default()));
     v.push(Box::new(ComposeMode::default()));
     v.push(Box::new(SendMessage::default()));
     v.push(Box::new(React::default()));
@@ -89,7 +88,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ScrollPopup::default()));
     v.push(Box::new(AttachFile::default()));
-    v.push(Box::new(ExecuteCommand::default()));
+    v.push(Box::new(DetachFile::default()));
     v
 }
 
@@ -1571,6 +1570,55 @@ impl Command for AttachFile {
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
             path: self.path.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct DetachFile {
+    index: Option<usize>,
+}
+
+impl Command for DetachFile {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(index) = &self.index else {
+            return Err(Error::MissingArgument("index".to_owned()));
+        };
+
+        tui_state.compose.detach_file(*index);
+
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let index = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
+        self.index = Some(index);
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self { index: None }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["detach-file"]
+    }
+
+    fn complete(&self) -> Vec<String> {
+        // TODO: given tuistate we can enumerate the attachments
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            index: self.index.clone(),
         })
     }
 }
