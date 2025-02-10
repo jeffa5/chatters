@@ -416,6 +416,7 @@ impl Command for NormalMode {
         tui_state.mode = Mode::Normal;
         tui_state.popup = None;
         tui_state.key_events.0.clear();
+        tui_state.command_line.clear();
         Ok(CommandSuccess::Nothing)
     }
 
