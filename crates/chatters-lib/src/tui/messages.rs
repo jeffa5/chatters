@@ -66,7 +66,7 @@ impl Message {
                     }
                 })
                 .collect::<Vec<_>>();
-            lines.push(format!("  {}", react_line.join(" ")));
+            lines.push(format!("r {}", react_line.join(" ")));
         }
         lines
     }
