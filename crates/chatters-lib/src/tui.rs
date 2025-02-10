@@ -102,7 +102,6 @@ pub enum PopupType {
 #[derive(Debug, Default)]
 pub struct TuiState {
     pub self_id: Vec<u8>,
-    pub attachments_path: String,
     pub contacts: Contacts,
     pub messages: Messages,
     pub compose: Compose,
