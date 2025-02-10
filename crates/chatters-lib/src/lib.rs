@@ -2,6 +2,7 @@ pub mod backend_actor;
 pub mod backends;
 pub mod command_history;
 pub mod commands;
+pub mod config;
 pub mod keybinds;
 pub mod log;
 pub mod message;

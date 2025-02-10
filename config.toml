@@ -1,0 +1,34 @@
+[keybinds.normal]
+
+q = ":quit<Enter>"
+
+J = ":next-contact<Enter>"
+"<S-Down>" = ":next-contact<Enter>"
+
+K = ":prev-contact<Enter>"
+"<S-Up>" = ":prev-contact<Enter>"
+
+j = ":next-message<Enter>"
+"<Down>" = ":next-message<Enter>"
+
+k = ":prev-message<Enter>"
+"<Up>" = ":prev-message<Enter>"
+
+i = ":mode-compose<Enter>"
+
+g = ":select-message 0<Enter>"
+G = ":select-message -1<Enter>"
+
+I = ":compose-in-editor<Enter>"
+
+"<Enter>" = ":send-message<Enter>"
+
+"?" = ":keybindings<Enter>"
+h = ":command-history<Enter>"
+
+a = ":attach-file "
+
+[keybinds.popup]
+
+j = ":scroll-popup 1<Enter>"
+k = ":scroll-popup -1<Enter>"

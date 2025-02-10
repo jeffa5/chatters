@@ -1,7 +1,8 @@
 use crate::commands::{
     self, Command as _, CommandMode, ExecuteCommand, NextCommand, NormalMode, PrevCommand,
 };
-use crate::keybinds::{KeyBinds, KeyEvents};
+use crate::config::Config;
+use crate::keybinds::KeyEvents;
 use crate::message::BackendMessage;
 use crate::tui::{render, Mode, TuiState};
 use crate::{
@@ -21,6 +22,7 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
 use std::ffi::OsString;
 use std::io::Stdout;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr as _;
 
@@ -28,10 +30,15 @@ use std::str::FromStr as _;
 pub struct Options {
     pub device_name: String,
     pub data_local_dir: PathBuf,
+    pub config_file: PathBuf,
 }
 
 pub async fn run<B: Backend + Clone>(options: Options) {
     let db_path = options.data_local_dir.join("db");
+
+    let config = load_config(&options.config_file).await;
+    debug!(config:?; "Loaded config file");
+
     let backend = match B::load(&db_path).await {
         Ok(b) => b,
         Err(Error::Unlinked) => {
@@ -84,7 +91,7 @@ pub async fn run<B: Backend + Clone>(options: Options) {
 
     let ui = async move {
         let terminal = ratatui::init();
-        run_ui(terminal, b_tx, f_rx, self_id).await;
+        run_ui(terminal, b_tx, f_rx, self_id, &config).await;
         ratatui::restore();
     };
     pin_mut!(ui);
@@ -126,6 +133,7 @@ async fn run_ui(
     backend_actor_tx: mpsc::UnboundedSender<BackendMessage>,
     mut backend_actor_rx: mpsc::UnboundedReceiver<FrontendMessage>,
     self_id: Vec<u8>,
+    config: &Config,
 ) {
     // select on two channels, one for keyboard events, another for messages from the backend
     // (responses)
@@ -134,6 +142,7 @@ async fn run_ui(
 
     let mut tui_state = TuiState::default();
     tui_state.self_id = self_id;
+    tui_state.config = config.clone();
 
     let mut event_stream = EventStream::new();
 
@@ -153,7 +162,13 @@ async fn run_ui(
 
         match select(event_future, backend_future).await {
             Either::Left((event, _)) => {
-                if process_user_event(&mut tui_state, &backend_actor_tx, &mut terminal, event) {
+                if process_user_event(
+                    &mut tui_state,
+                    &backend_actor_tx,
+                    &mut terminal,
+                    &config,
+                    event,
+                ) {
                     break;
                 }
             }
@@ -168,10 +183,10 @@ fn process_user_event(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    config: &Config,
     event: Event,
 ) -> bool {
     // dbg!(&event);
-    let keybinds = KeyBinds::default();
 
     let mode = tui_state.mode;
 
@@ -202,9 +217,10 @@ fn process_user_event(
             debug!(key_events:? = tui_state.key_events; "Looking for a key binding");
             match mode {
                 Mode::Normal => {
-                    match keybinds.get(&tui_state.key_events, mode) {
+                    match config.keybinds.get(&tui_state.key_events, mode) {
                         Ok(command) => {
-                            if execute_command(tui_state, ba_tx, terminal, command.clone()) {
+                            if execute_command(tui_state, ba_tx, terminal, config, command.clone())
+                            {
                                 return true;
                             }
                         }
@@ -288,9 +304,10 @@ fn process_user_event(
                     }
                 }
                 Mode::Compose => {
-                    match keybinds.get(&tui_state.key_events, mode) {
+                    match config.keybinds.get(&tui_state.key_events, mode) {
                         Ok(command) => {
-                            if execute_command(tui_state, ba_tx, terminal, command.clone()) {
+                            if execute_command(tui_state, ba_tx, terminal, config, command.clone())
+                            {
                                 return true;
                             }
                         }
@@ -309,9 +326,9 @@ fn process_user_event(
                         }
                     }
                 }
-                Mode::Popup => match keybinds.get(&tui_state.key_events, mode) {
+                Mode::Popup => match config.keybinds.get(&tui_state.key_events, mode) {
                     Ok(command) => {
-                        if execute_command(tui_state, ba_tx, terminal, command.clone()) {
+                        if execute_command(tui_state, ba_tx, terminal, config, command.clone()) {
                             return true;
                         }
                     }
@@ -337,6 +354,7 @@ fn execute_command(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    config: &Config,
     cmd: String,
 ) -> bool {
     tui_state.key_events.0.clear();
@@ -351,6 +369,7 @@ fn execute_command(
             tui_state,
             ba_tx,
             terminal,
+            config,
             Event::Key(KeyEvent {
                 code: key_event.code,
                 modifiers: key_event.modifiers,
@@ -437,4 +456,11 @@ fn process_backend_message(
             // do nothing, just trigger a UI redraw
         }
     }
+}
+
+async fn load_config(path: &Path) -> Config {
+    let content = tokio::fs::read_to_string(path)
+        .await
+        .expect("Config file was missing");
+    toml::from_str(&content).expect("Malformed config file")
 }

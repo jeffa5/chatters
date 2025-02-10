@@ -32,6 +32,7 @@ use textwrap::Options;
 
 use crate::backends::Contact;
 use crate::backends::ContactId;
+use crate::config::Config;
 use crate::keybinds::KeyBinds;
 use crate::keybinds::KeyEvents;
 
@@ -109,6 +110,7 @@ pub struct TuiState {
     pub mode: Mode,
     pub popup: Option<Popup>,
     pub key_events: KeyEvents,
+    pub config: Config,
 }
 
 pub fn render(frame: &mut Frame<'_>, tui_state: &mut TuiState) {
@@ -340,7 +342,7 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
                 .unwrap();
             render_contact_info(contact)
         }
-        PopupType::Keybinds => render_keybinds(),
+        PopupType::Keybinds => render_keybinds(&tui_state.config.keybinds),
         PopupType::Commands => render_commands(),
         PopupType::CommandHistory => render_command_line_history(tui_state),
     };
@@ -401,7 +403,7 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
     .unwrap();
     let text = vec![
         format!("Name:              {}", contact.name),
-        format!("Id:                {:?}", contact.id),
+        format!("Id:                {}", contact.id),
         format!("Last message time: {}", time.to_rfc3339()),
         format!("Description:       {}", contact.description),
     ]
@@ -409,8 +411,7 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
     ("Contact info", text)
 }
 
-fn render_keybinds() -> (&'static str, String) {
-    let keybindings = KeyBinds::default();
+fn render_keybinds(keybindings: &KeyBinds) -> (&'static str, String) {
     let normal_keybinds = keybindings
         .iter(Mode::Normal)
         .map(|(k, c)| format!("{} = {}", k, c))

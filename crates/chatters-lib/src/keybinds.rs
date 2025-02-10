@@ -1,10 +1,10 @@
-use std::{fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::tui::Mode;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyEvent {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,
@@ -113,7 +113,46 @@ impl FromStr for KeyEvent {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+impl serde::Serialize for KeyEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.to_string();
+        serializer.serialize_str(&s)
+    }
+}
+
+struct KeyEventVisitor;
+
+impl<'de> serde::de::Visitor<'de> for KeyEventVisitor {
+    type Value = KeyEvent;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string representing a key event")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match KeyEvent::from_str(value) {
+            Ok(ke) => Ok(ke),
+            Err(_) => Err(E::custom(format!("failed to parse key event: {}", value))),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KeyEvent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(KeyEventVisitor)
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct KeyEvents(pub Vec<KeyEvent>);
 
 impl FromStr for KeyEvents {
@@ -149,105 +188,64 @@ impl Display for KeyEvents {
     }
 }
 
-#[derive(Debug)]
-pub struct KeyBinds {
-    pub normal_bindings: Vec<(KeyEvents, String)>,
-    pub command_bindings: Vec<(KeyEvents, String)>,
-    pub compose_bindings: Vec<(KeyEvents, String)>,
-    pub popup_bindings: Vec<(KeyEvents, String)>,
+impl serde::Serialize for KeyEvents {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.to_string();
+        serializer.serialize_str(&s)
+    }
 }
 
-impl Default for KeyBinds {
-    fn default() -> Self {
-        let mut normal = Vec::<(KeyEvents, String)>::new();
-        normal.push((KeyEvents::from_str("q").unwrap(), ":quit<enter>".to_owned()));
-        normal.push((
-            KeyEvents::from_str("J").unwrap(),
-            ":next-contact<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("<s-down>").unwrap(),
-            ":next-contact<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("K").unwrap(),
-            ":prev-contact<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("<s-up>").unwrap(),
-            ":prev-contact<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("j").unwrap(),
-            ":next-message<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("<down>").unwrap(),
-            ":next-message<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("k").unwrap(),
-            ":prev-message<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("<up>").unwrap(),
-            ":prev-message<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("i").unwrap(),
-            ":mode-compose<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("g").unwrap(),
-            ":select-message 0<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("G").unwrap(),
-            ":select-message -1<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("I").unwrap(),
-            ":compose-in-editor<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("<enter>").unwrap(),
-            ":send-message<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("?").unwrap(),
-            ":keybindings<enter>".to_owned(),
-        ));
-        normal.push((
-            KeyEvents::from_str("h").unwrap(),
-            ":command-history<enter>".to_owned(),
-        ));
+struct KeyEventsVisitor;
 
-        let mut popup = Vec::<(KeyEvents, String)>::new();
-        popup.push((
-            KeyEvents::from_str("j").unwrap(),
-            ":scroll-popup 1<enter>".to_owned(),
-        ));
-        popup.push((
-            KeyEvents::from_str("k").unwrap(),
-            ":scroll-popup -1<enter>".to_owned(),
-        ));
+impl<'de> serde::de::Visitor<'de> for KeyEventsVisitor {
+    type Value = KeyEvents;
 
-        Self {
-            normal_bindings: normal,
-            command_bindings: Vec::new(),
-            compose_bindings: Vec::new(),
-            popup_bindings: popup,
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string representing key events")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match KeyEvents::from_str(value) {
+            Ok(ke) => Ok(ke),
+            Err(_) => Err(E::custom(format!("failed to parse key events: {}", value))),
         }
     }
+}
+
+impl<'de> serde::Deserialize<'de> for KeyEvents {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(KeyEventsVisitor)
+    }
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KeyBinds {
+    #[serde(default)]
+    pub normal: HashMap<KeyEvents, String>,
+    #[serde(default)]
+    pub command: HashMap<KeyEvents, String>,
+    #[serde(default)]
+    pub compose: HashMap<KeyEvents, String>,
+    #[serde(default)]
+    pub popup: HashMap<KeyEvents, String>,
 }
 
 impl KeyBinds {
     pub fn get(&self, events: &KeyEvents, mode: Mode) -> Result<&String, bool> {
         let bindings = match mode {
-            Mode::Normal => &self.normal_bindings,
-            Mode::Command { .. } => &self.command_bindings,
-            Mode::Compose => &self.compose_bindings,
-            Mode::Popup => &self.popup_bindings,
+            Mode::Normal => &self.normal,
+            Mode::Command { .. } => &self.command,
+            Mode::Compose => &self.compose,
+            Mode::Popup => &self.popup,
         };
         let mut prefix = false;
         for (keys, command) in bindings {
@@ -261,12 +259,12 @@ impl KeyBinds {
         Err(prefix)
     }
 
-    pub fn iter(&self, mode: Mode) -> impl Iterator<Item = &(KeyEvents, String)> {
+    pub fn iter(&self, mode: Mode) -> impl Iterator<Item = (&KeyEvents, &String)> {
         match mode {
-            Mode::Normal => &self.normal_bindings,
-            Mode::Command { .. } => &self.command_bindings,
-            Mode::Compose => &self.compose_bindings,
-            Mode::Popup => &self.popup_bindings,
+            Mode::Normal => &self.normal,
+            Mode::Command { .. } => &self.command,
+            Mode::Compose => &self.compose,
+            Mode::Popup => &self.popup,
         }
         .iter()
     }
