@@ -1,5 +1,6 @@
 use std::{
     ffi::OsString,
+    fs::read_dir,
     io::{Read, Seek, Write as _},
     path::PathBuf,
 };
@@ -1506,14 +1507,7 @@ impl Command for AttachFile {
             return Err(Error::MissingArgument("path".to_owned()));
         };
 
-        let path = if path.starts_with("~/") {
-            let home = std::env::var("HOME").expect("HOME environment variable was not set");
-            let stripped_path = path.strip_prefix("~/").unwrap();
-            let home_path = PathBuf::from(home);
-            home_path.join(stripped_path)
-        } else {
-            PathBuf::from(path)
-        };
+        let path = expand_tilde(path);
 
         if !path.is_file() {
             return Err(Error::InvalidArgument {
@@ -1543,8 +1537,35 @@ impl Command for AttachFile {
     }
 
     fn complete(&self) -> Vec<String> {
-        // TODO: complete paths
-        Vec::new()
+        let Some(path) = &self.path else {
+            return Vec::new();
+        };
+
+        let path = expand_tilde(path);
+
+        let file_name = path.file_name().unwrap().to_string_lossy().into_owned();
+
+        if path.is_dir() {
+            read_dir(path)
+                .unwrap()
+                .map(|e| {
+                    let e = e.unwrap();
+                    e.file_name().to_string_lossy().into_owned()
+                })
+                .collect()
+        } else if let Some(path) = path.parent() {
+            debug!(path:?, file_name:?; "Getting completions for parent path");
+            read_dir(path)
+                .unwrap()
+                .map(|e| {
+                    let e = e.unwrap();
+                    e.file_name().to_string_lossy().into_owned()
+                })
+                .filter(|f| f.starts_with(&file_name))
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1588,4 +1609,15 @@ fn check_unused_args(args: pico_args::Arguments) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn expand_tilde(s: &str) -> PathBuf {
+    if s.starts_with("~/") {
+        let home = std::env::var("HOME").expect("HOME environment variable was not set");
+        let stripped_path = s.strip_prefix("~/").unwrap();
+        let home_path = PathBuf::from(home);
+        home_path.join(stripped_path)
+    } else {
+        PathBuf::from(s)
+    }
 }
