@@ -38,6 +38,7 @@ impl Compose {
     }
 
     pub fn attach_file(&mut self, path: PathBuf) {
+        // TODO: check for duplicate path
         self.attachments.push(MessageAttachment {
             name: path.file_name().unwrap().to_string_lossy().into_owned(),
             index: 0,

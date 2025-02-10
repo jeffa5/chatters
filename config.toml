@@ -26,7 +26,7 @@ I = ":compose-in-editor<Enter>"
 "?" = ":keybindings<Enter>"
 h = ":command-history<Enter>"
 
-aa = ":attach-file "
+aa = ":attach-files "
 ad = ":detach-file "
 
 [keybinds.popup]

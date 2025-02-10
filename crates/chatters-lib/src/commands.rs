@@ -87,7 +87,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(CommandHistory::default()));
     v.push(Box::new(Reply::default()));
     v.push(Box::new(ScrollPopup::default()));
-    v.push(Box::new(AttachFile::default()));
+    v.push(Box::new(AttachFiles::default()));
     v.push(Box::new(DetachFile::default()));
     v
 }
@@ -1499,51 +1499,60 @@ impl Command for ScrollPopup {
 }
 
 #[derive(Debug)]
-pub struct AttachFile {
-    path: Option<String>,
+pub struct AttachFiles {
+    paths: Vec<String>,
 }
 
-impl Command for AttachFile {
+impl Command for AttachFiles {
     fn execute(
         &self,
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        let Some(path) = &self.path else {
+        if self.paths.is_empty() {
             return Err(Error::MissingArgument("path".to_owned()));
-        };
-
-        let path = expand_tilde(path);
-
-        if !path.is_file() {
-            return Err(Error::InvalidArgument {
-                arg: "path".to_owned(),
-                value: path.to_string_lossy().into_owned(),
-            });
         }
-        tui_state.compose.attach_file(path.clone());
+
+        for path in &self.paths {
+            let path = expand_tilde(path);
+
+            if !path.is_file() {
+                return Err(Error::InvalidArgument {
+                    arg: "path".to_owned(),
+                    value: path.to_string_lossy().into_owned(),
+                });
+            }
+            tui_state.compose.attach_file(path.clone());
+        }
         Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let path = args
-            .free_from_str()
-            .map_err(|_e| Error::MissingArgument("path".to_owned()))?;
-        self.path = Some(path);
+        loop {
+            let path = args
+                .opt_free_from_str()
+                .map_err(|_e| Error::MissingArgument("paths".to_owned()))?;
+            match path {
+                Some(path) => {
+                    self.paths.push(path);
+                }
+                None => break,
+            }
+        }
         check_unused_args(args)?;
         Ok(())
     }
 
     fn default() -> Self {
-        Self { path: None }
+        Self { paths: Vec::new() }
     }
 
     fn names(&self) -> Vec<&'static str> {
-        vec!["attach-file"]
+        vec!["attach-files"]
     }
 
     fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
-        let Some(path) = &self.path else {
+        let Some(path) = self.paths.last() else {
             return Vec::new();
         };
 
@@ -1576,7 +1585,7 @@ impl Command for AttachFile {
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
-            path: self.path.clone(),
+            paths: self.paths.clone(),
         })
     }
 }
