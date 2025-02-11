@@ -90,6 +90,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ScrollPopup::default()));
     v.push(Box::new(AttachFiles::default()));
     v.push(Box::new(DetachFiles::default()));
+    v.push(Box::new(GotoQuoted::default()));
     v
 }
 
@@ -1681,6 +1682,48 @@ impl Command for ReloadConfig {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-config"]
+    }
+
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct GotoQuoted;
+
+impl Command for GotoQuoted {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Err(Error::NoMessageSelected);
+        };
+        let Some(quoted) = &message.quote else {
+            return Err(Error::Failure("No quote to follow".to_owned()));
+        };
+        tui_state.messages.select_message(quoted.timestamp);
+
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["goto-quoted"]
     }
 
     fn complete(&self, _tui_state: &TuiState) -> Vec<String> {

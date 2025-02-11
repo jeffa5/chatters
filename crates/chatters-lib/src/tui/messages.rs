@@ -75,6 +75,7 @@ impl Message {
 pub struct Messages {
     pub messages_by_ts: BTreeMap<u64, Message>,
     pub messages_by_index: Vec<u64>,
+    pub timestamp_to_index: BTreeMap<u64, usize>,
     pub state: ListState,
 }
 
@@ -134,6 +135,12 @@ impl Messages {
             }
         }
         self.messages_by_index = self.messages_by_ts.keys().copied().collect();
+        self.timestamp_to_index = self
+            .messages_by_index
+            .iter()
+            .enumerate()
+            .map(|(i, ts)| (*ts, i))
+            .collect();
     }
 
     pub fn get_by_index(&self, index: usize) -> Option<&Message> {
@@ -165,6 +172,13 @@ impl Messages {
 
     pub fn selected(&self) -> Option<&Message> {
         self.state.selected().and_then(|i| self.get_by_index(i))
+    }
+
+    pub fn select_message(&mut self, timestamp: u64) {
+        let Some(index) = self.timestamp_to_index.get(&timestamp) else {
+            return;
+        };
+        self.state.select(Some(*index));
     }
 }
 
