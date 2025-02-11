@@ -3,6 +3,7 @@ use std::{
     fs::read_dir,
     io::{Read, Seek, Write as _},
     path::PathBuf,
+    process::Stdio,
 };
 
 use futures::channel::mpsc;
@@ -91,6 +92,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(AttachFiles::default()));
     v.push(Box::new(DetachFiles::default()));
     v.push(Box::new(GotoQuoted::default()));
+    v.push(Box::new(PipeMessage::default()));
     v
 }
 
@@ -1732,6 +1734,67 @@ impl Command for GotoQuoted {
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self)
+    }
+}
+
+#[derive(Debug)]
+pub struct PipeMessage {
+    command: String,
+}
+
+impl Command for PipeMessage {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Err(Error::NoMessageSelected);
+        };
+
+        let mut child = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&self.command)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let stdin = child.stdin.as_mut().unwrap();
+        writeln!(stdin, "{}", message.content).unwrap();
+        child.wait().unwrap();
+
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        let command = args
+            .finish()
+            .into_iter()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        self.command = command.join(" ");
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self {
+            command: String::new(),
+        }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["pipe-message"]
+    }
+
+    fn complete(&self, _tui_state: &TuiState) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            command: self.command.clone(),
+        })
     }
 }
 
