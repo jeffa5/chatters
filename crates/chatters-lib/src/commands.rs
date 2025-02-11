@@ -4,6 +4,7 @@ use std::{
     io::{Read, Seek, Write as _},
     path::PathBuf,
     process::Stdio,
+    sync::LazyLock,
 };
 
 use futures::channel::mpsc;
@@ -1132,6 +1133,14 @@ pub struct OpenLink {
     index: usize,
 }
 
+static LINK_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        // from https://stackoverflow.com/a/63022807
+        r"([\w+]+://)?([\w\d-]+\.)*[\w-]+[\.:]\w+([/?=&\#\.]?[\w-]+)*/?",
+    )
+    .unwrap()
+});
+
 impl Command for OpenLink {
     fn execute(
         &self,
@@ -1142,14 +1151,7 @@ impl Command for OpenLink {
             return Err(Error::NoMessageSelected);
         };
 
-        // TODO: make this lazy
-        let link_regex = regex::Regex::new(
-            // from https://stackoverflow.com/a/63022807
-            r"([\w+]+://)?([\w\d-]+\.)*[\w-]+[\.:]\w+([/?=&\#\.]?[\w-]+)*/?",
-        )
-        .unwrap();
-
-        let mut links = link_regex.find_iter(&message.content).map(|m| m.as_str());
+        let mut links = LINK_REGEX.find_iter(&message.content).map(|m| m.as_str());
         let Some(link) = links.nth(self.index) else {
             return Err(Error::Failure("Index past the number of links".to_owned()));
         };
