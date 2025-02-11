@@ -538,6 +538,7 @@ dependencies = [
  "qrcode-generator",
  "rand 0.9.0",
  "ratatui",
+ "regex",
  "serde",
  "shell-words",
  "tempfile",

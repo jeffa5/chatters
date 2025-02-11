@@ -82,6 +82,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(ClearCompose::default()));
     v.push(Box::new(DownloadAttachments::default()));
     v.push(Box::new(OpenAttachments::default()));
+    v.push(Box::new(OpenLink::default()));
     v.push(Box::new(MessageInfo::default()));
     v.push(Box::new(ContactInfo::default()));
     v.push(Box::new(Keybindings::default()));
@@ -1111,6 +1112,72 @@ impl Command for OpenAttachments {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["open-attachments"]
+    }
+
+    fn complete(&self, tui_state: &TuiState) -> Vec<String> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Vec::new();
+        };
+        let count = message.attachments.len();
+        (0..count).map(|i| i.to_string()).collect()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self { index: self.index })
+    }
+}
+
+#[derive(Debug)]
+pub struct OpenLink {
+    index: usize,
+}
+
+impl Command for OpenLink {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(message) = tui_state.messages.selected() else {
+            return Err(Error::NoMessageSelected);
+        };
+
+        // TODO: make this lazy
+        let link_regex = regex::Regex::new(
+            // from https://stackoverflow.com/a/63022807
+            r"([\w+]+://)?([\w\d-]+\.)*[\w-]+[\.:]\w+([/?=&\#\.]?[\w-]+)*/?",
+        )
+        .unwrap();
+
+        let mut links = link_regex.find_iter(&message.content).map(|m| m.as_str());
+        let Some(link) = links.nth(self.index) else {
+            return Err(Error::Failure("Index past the number of links".to_owned()));
+        };
+
+        debug!(link:?; "Opening link");
+        open::that(link).unwrap();
+
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let index = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
+        *self = Self { index };
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self
+    where
+        Self: Sized,
+    {
+        Self { index: 0 }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["open-link"]
     }
 
     fn complete(&self, tui_state: &TuiState) -> Vec<String> {
