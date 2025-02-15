@@ -125,7 +125,7 @@ impl serde::Serialize for KeyEvent {
 
 struct KeyEventVisitor;
 
-impl<'de> serde::de::Visitor<'de> for KeyEventVisitor {
+impl serde::de::Visitor<'_> for KeyEventVisitor {
     type Value = KeyEvent;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -200,7 +200,7 @@ impl serde::Serialize for KeyEvents {
 
 struct KeyEventsVisitor;
 
-impl<'de> serde::de::Visitor<'de> for KeyEventsVisitor {
+impl serde::de::Visitor<'_> for KeyEventsVisitor {
     type Value = KeyEvents;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

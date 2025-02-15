@@ -1538,7 +1538,7 @@ impl Command for ScrollPopup {
         if self.amount > 0 {
             popup.scroll += self.amount as u16;
         } else if self.amount < 0 {
-            popup.scroll = popup.scroll.saturating_sub(self.amount.abs() as u16);
+            popup.scroll = popup.scroll.saturating_sub(self.amount.unsigned_abs());
         }
         Ok(CommandSuccess::Nothing)
     }

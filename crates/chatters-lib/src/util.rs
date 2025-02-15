@@ -168,7 +168,7 @@ async fn run_ui(
                     &mut tui_state,
                     &backend_actor_tx,
                     &mut terminal,
-                    &config,
+                    config,
                     event,
                 ) {
                     break;
@@ -246,7 +246,7 @@ fn process_user_event(
                         // complete existing command
                         let cmd = tui_state.command_line.text();
                         if cmd.contains(' ') {
-                            let args = shell_words::split(&cmd)
+                            let args = shell_words::split(cmd)
                                 .unwrap()
                                 .into_iter()
                                 .map(OsString::from)
@@ -267,7 +267,7 @@ fn process_user_event(
                             let commands = commands::commands();
                             let completions = commands
                                 .into_iter()
-                                .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(&cmd)))
+                                .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(cmd)))
                                 .map(|s| s.to_owned())
                                 .collect::<Vec<_>>();
                             if completions.len() == 1 {

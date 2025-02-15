@@ -300,8 +300,8 @@ impl Backend for Matrix {
                 text,
                 attachments: _,
             } => {
-                let content = RoomMessageEventContent::text_plain(text);
-                content
+                
+                RoomMessageEventContent::text_plain(text)
             }
             MessageContent::Reaction {
                 message_author: _,
@@ -367,7 +367,7 @@ async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)
 
         match Client::builder()
             .homeserver_url(&homeserver)
-            .sqlite_store(&db_path, Some(&passphrase))
+            .sqlite_store(db_path, Some(&passphrase))
             .build()
             .await
         {

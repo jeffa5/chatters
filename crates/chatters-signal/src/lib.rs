@@ -250,7 +250,7 @@ impl Backend for Signal {
                 let attachments = if attachments.is_empty() {
                     Vec::new()
                 } else {
-                    self.upload_attachments(&attachments).await
+                    self.upload_attachments(attachments).await
                 };
                 // TODO: copy attachments into local data dir if not already present
                 ContentBody::DataMessage(DataMessage {
@@ -530,13 +530,13 @@ impl Signal {
         attachments: &[MessageAttachment],
     ) -> Vec<presage::proto::AttachmentPointer> {
         let attachment_specs: Vec<_> = attachments
-            .into_iter()
+            .iter()
             .filter_map(|a| {
                 let path = a.path.as_ref().unwrap();
-                let data = std::fs::read(&path).unwrap();
+                let data = std::fs::read(path).unwrap();
                 Some((
                     AttachmentSpec {
-                        content_type: mime_guess::from_path(&path)
+                        content_type: mime_guess::from_path(path)
                             .first()
                             .unwrap_or(APPLICATION_OCTET_STREAM)
                             .to_string(),

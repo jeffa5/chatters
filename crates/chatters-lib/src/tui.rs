@@ -384,13 +384,11 @@ fn render_message_info(
         .unwrap()
         .name
         .to_string();
-    let text = vec![
-        format!("Sender name: {}", sender_name),
+    let text = [format!("Sender name: {}", sender_name),
         format!("Sender id:   {}", hex::encode(&message.sender)),
         format!("Time:        {}", time.to_rfc3339()),
         String::new(),
-        message.render(width).join("\n"),
-    ]
+        message.render(width).join("\n")]
     .join("\n");
     ("Message info", text)
 }
@@ -403,12 +401,10 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
         ts_nanos.try_into().unwrap(),
     )
     .unwrap();
-    let text = vec![
-        format!("Name:              {}", contact.name),
+    let text = [format!("Name:              {}", contact.name),
         format!("Id:                {}", contact.id),
         format!("Last message time: {}", time.to_rfc3339()),
-        format!("Description:       {}", contact.description),
-    ]
+        format!("Description:       {}", contact.description)]
     .join("\n");
     ("Contact info", text)
 }
@@ -467,7 +463,6 @@ fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {
         .command_line
         .history
         .iter()
-        .into_iter()
         .map(|c| format!(":{c}"))
         .collect::<Vec<_>>();
 
