@@ -201,6 +201,7 @@ fn process_user_event(
             if code == KeyCode::Char(':')
                 && modifiers.is_empty()
                 && tui_state.key_events.0.is_empty()
+                && !matches!(tui_state.mode, Mode::Compose)
             {
                 if let Err(error) = CommandMode.execute(tui_state, ba_tx) {
                     tui_state.command_line.error = error.to_string();
