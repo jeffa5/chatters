@@ -408,11 +408,17 @@ fn process_backend_message(
             }
         }
         FrontendMessage::LoadedMessages { messages } => {
-            if tui_state.messages.is_empty() && !messages.is_empty() {
-                tui_state.messages.state.select_last();
+            if let Some(contact) = tui_state.contacts.selected_mut() {
+                let last_message = messages.last().unwrap();
+                if last_message.contact_id == contact.id {
+                    contact.last_message_timestamp = Some(last_message.timestamp);
+                    if tui_state.messages.is_empty() && !messages.is_empty() {
+                        tui_state.messages.state.select_last();
+                    }
+                    tui_state.messages.clear();
+                    tui_state.messages.extend(messages);
+                }
             }
-            tui_state.messages.clear();
-            tui_state.messages.extend(messages);
         }
         FrontendMessage::NewMessage { message } => {
             if let Some((i, contact)) = tui_state.contacts.state.selected().and_then(|i| {
@@ -421,7 +427,7 @@ fn process_backend_message(
                     .contact_or_group_by_index_mut(i)
                     .map(|c| (i, c))
             }) {
-                contact.last_message_timestamp = message.timestamp;
+                contact.last_message_timestamp = Some(message.timestamp);
                 if message.contact_id == contact.id {
                     tui_state.contacts.move_by_index(i, 0);
                     tui_state.contacts.state.select(Some(0));

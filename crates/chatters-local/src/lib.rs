@@ -36,7 +36,7 @@ impl Backend for Local {
             id: ContactId::User(vec![0]),
             name: "Self".to_owned(),
             address: "no address".to_owned(),
-            last_message_timestamp: 0,
+            last_message_timestamp: None,
             description: "some description".to_owned(),
         }])
     }

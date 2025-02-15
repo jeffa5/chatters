@@ -16,8 +16,11 @@ use presage::libsignal_service::protocol::ServiceId;
 use presage::libsignal_service::sender::AttachmentSpec;
 use presage::libsignal_service::zkgroup::GroupMasterKeyBytes;
 use presage::proto::body_range::AssociatedValue;
+use presage::proto::sync_message::Sent;
 use presage::proto::AttachmentPointer;
 use presage::proto::BodyRange;
+use presage::proto::EditMessage;
+use presage::proto::SyncMessage;
 use presage::store::Thread;
 use presage::{
     libsignal_service::configuration::SignalServers, manager::Registered,
@@ -159,9 +162,6 @@ impl Backend for Signal {
             } else {
                 contact.name.clone()
             };
-            let last_message_timestamp = self
-                .last_message_timestamp(&Thread::Contact(contact.uuid))
-                .await;
             debug!(contact:? = contact; "Found contact");
             ret.push(Contact {
                 id: ContactId::User(contact.uuid.into_bytes().to_vec()),
@@ -170,7 +170,7 @@ impl Backend for Signal {
                     .phone_number
                     .map(|n| n.to_string())
                     .unwrap_or_default(),
-                last_message_timestamp,
+                last_message_timestamp: None,
                 description: String::new(),
             });
         }
@@ -182,13 +182,12 @@ impl Backend for Signal {
         let groups = self.manager.store().groups().await.unwrap();
         for group in groups {
             let (key, group) = group.unwrap();
-            let last_message_timestamp = self.last_message_timestamp(&Thread::Group(key)).await;
             debug!(group:? = group; "Found group");
             ret.push(Contact {
                 id: ContactId::Group(key.to_vec()),
                 name: group.title,
                 address: String::new(),
-                last_message_timestamp,
+                last_message_timestamp: None,
                 description: group.description.unwrap_or_default(),
             });
         }
@@ -280,6 +279,12 @@ impl Backend for Signal {
                     ..Default::default()
                 })
             }
+            MessageContent::Edit {
+                timestamp: _,
+                text: _,
+            } => {
+                todo!()
+            }
         };
         let quote = quoting.map(|quoted| Quote {
             timestamp: quoted.timestamp,
@@ -351,39 +356,76 @@ impl Backend for Signal {
 }
 
 impl Signal {
-    async fn last_message_timestamp(&self, thread_id: &Thread) -> u64 {
-        self.manager
-            .store()
-            .messages(thread_id, ..)
-            .await
-            .unwrap()
-            .rev()
-            .map(|m| m.unwrap())
-            .filter(|m| {
-                extract_data_message(m).map_or(false, |dm| {
-                    !dm.attachments.is_empty() || dm.body.is_some() || dm.reaction.is_some()
-                })
-            })
-            .next()
-            .map(|m| m.metadata.timestamp)
-            .unwrap_or_default()
-    }
-
     async fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
         debug!(message:? = message; "Converting message to frontend message");
         let timestamp = message.metadata.timestamp;
         let thread = Thread::try_from(&message).unwrap();
         let sender = message.metadata.sender.raw_uuid();
-        if let Some(dm) = extract_data_message(&message) {
-            if let Some(m) = self
-                .data_message_to_message(timestamp, sender, thread, dm)
-                .await
-            {
-                return Some(m);
-            }
+        if let Some(m) = self
+            .signal_message_to_message(timestamp, sender, thread, &message)
+            .await
+        {
+            return Some(m);
         }
         debug!(message:? = message; "Unhandled backend message during conversion to frontend message");
         None
+    }
+
+    async fn signal_message_to_message(
+        &mut self,
+        timestamp: u64,
+        sender: Uuid,
+        thread: Thread,
+        content: &Content,
+    ) -> Option<Message> {
+        match &content.body {
+            ContentBody::DataMessage(dm) => {
+                return self
+                    .data_message_to_message(timestamp, sender, thread, dm)
+                    .await
+            }
+            ContentBody::SynchronizeMessage(SyncMessage {
+                sent: Some(Sent {
+                    message: Some(dm), ..
+                }),
+                ..
+            }) => {
+                return self
+                    .data_message_to_message(timestamp, sender, thread, dm)
+                    .await
+            }
+            ContentBody::SynchronizeMessage(SyncMessage {
+                sent:
+                    Some(Sent {
+                        edit_message:
+                            Some(EditMessage {
+                                target_sent_timestamp: Some(target_sent_timestamp),
+                                data_message:
+                                    Some(DataMessage {
+                                        body: Some(text), ..
+                                    }),
+                            }),
+                        ..
+                    }),
+                ..
+            }) => {
+                let msg = Message {
+                    timestamp: *target_sent_timestamp,
+                    sender: sender.into_bytes().to_vec(),
+                    contact_id: match thread {
+                        Thread::Contact(uuid) => ContactId::User(uuid.into_bytes().to_vec()),
+                        Thread::Group(key) => ContactId::Group(key.to_vec()),
+                    },
+                    content: MessageContent::Edit {
+                        timestamp,
+                        text: text.clone(),
+                    },
+                    quote: None,
+                };
+                return Some(msg);
+            }
+            _ => None,
+        }
     }
 
     async fn data_message_to_message(
@@ -565,21 +607,6 @@ impl Signal {
 
         attachments.unwrap()
     }
-}
-
-fn extract_data_message(content: &Content) -> Option<&DataMessage> {
-    match &content.body {
-        ContentBody::DataMessage(dm) => return Some(dm),
-        ContentBody::SynchronizeMessage(sm) if sm.sent.is_some() => {
-            if let Some(sent) = &sm.sent {
-                if let Some(dm) = &sent.message {
-                    return Some(dm);
-                }
-            }
-        }
-        _ => {}
-    }
-    None
 }
 
 async fn self_name(manager: &mut Manager<SledStore, Registered>) -> String {

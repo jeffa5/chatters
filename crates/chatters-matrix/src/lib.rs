@@ -224,7 +224,7 @@ impl Backend for Matrix {
                     .await
                     .map_or(room.room_id().to_string(), |n| n.to_string()),
                 address: String::new(),
-                last_message_timestamp: 0,
+                last_message_timestamp: None,
                 description: String::new(),
             };
             users.push(user);
@@ -246,7 +246,7 @@ impl Backend for Matrix {
                 id: ContactId::Group(room.room_id().as_bytes().to_vec()),
                 name: room.name().unwrap(),
                 address: String::new(),
-                last_message_timestamp: 0,
+                last_message_timestamp: None,
                 description: String::new(),
             };
             groups.push(group);
@@ -299,16 +299,19 @@ impl Backend for Matrix {
             MessageContent::Text {
                 text,
                 attachments: _,
-            } => {
-                
-                RoomMessageEventContent::text_plain(text)
-            }
+            } => RoomMessageEventContent::text_plain(text),
             MessageContent::Reaction {
                 message_author: _,
                 timestamp: _,
                 reaction: _,
                 remove: _,
             } => todo!(),
+            MessageContent::Edit {
+                timestamp: _,
+                text: _,
+            } => {
+                todo!()
+            }
         };
 
         room.send(matrix_content).await.unwrap();

@@ -151,10 +151,10 @@ fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
         .contacts
         .iter_contacts_and_groups()
         .map(|c| {
-            let age = if c.last_message_timestamp == 0 {
-                String::new()
+            let age = if let Some(ts) = c.last_message_timestamp {
+                biggest_duration_string(now.saturating_sub(ts))
             } else {
-                biggest_duration_string(now.saturating_sub(c.last_message_timestamp))
+                String::new()
             };
             Row::new(vec![
                 Text::from(c.name.to_string()),
@@ -190,7 +190,9 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             .map(|c| c.name.clone())
             .unwrap();
         let sender = truncate_or_pad(sender, sender_width);
-        let age = biggest_duration_string(now.saturating_sub(m.timestamp));
+        let age = biggest_duration_string(
+            now.saturating_sub(m.edits.last().map_or(m.timestamp, |e| e.timestamp)),
+        );
         let sender_time = format!("{sender} {age:>3} ");
 
         let content_width = message_width
@@ -384,27 +386,37 @@ fn render_message_info(
         .unwrap()
         .name
         .to_string();
-    let text = [format!("Sender name: {}", sender_name),
+    let text = [
+        format!("Sender name: {}", sender_name),
         format!("Sender id:   {}", hex::encode(&message.sender)),
         format!("Time:        {}", time.to_rfc3339()),
         String::new(),
-        message.render(width).join("\n")]
+        message.render(width).join("\n"),
+    ]
     .join("\n");
     ("Message info", text)
 }
 
 fn render_contact_info(contact: &Contact) -> (&'static str, String) {
-    let ts_seconds = contact.last_message_timestamp / 1_000;
-    let ts_nanos = (contact.last_message_timestamp % 1_000) * 1_000_000;
-    let time = chrono::DateTime::from_timestamp(
-        ts_seconds.try_into().unwrap(),
-        ts_nanos.try_into().unwrap(),
-    )
-    .unwrap();
-    let text = [format!("Name:              {}", contact.name),
+    let time = contact
+        .last_message_timestamp
+        .map(|ts| {
+            let ts_seconds = ts / 1_000;
+            let ts_nanos = (ts % 1_000) * 1_000_000;
+            let time = chrono::DateTime::from_timestamp(
+                ts_seconds.try_into().unwrap(),
+                ts_nanos.try_into().unwrap(),
+            )
+            .unwrap();
+            time.to_rfc3339()
+        })
+        .unwrap_or_else(|| "unknown".to_owned());
+    let text = [
+        format!("Name:              {}", contact.name),
         format!("Id:                {}", contact.id),
-        format!("Last message time: {}", time.to_rfc3339()),
-        format!("Description:       {}", contact.description)]
+        format!("Last message time: {}", time),
+        format!("Description:       {}", contact.description),
+    ]
     .join("\n");
     ("Contact info", text)
 }

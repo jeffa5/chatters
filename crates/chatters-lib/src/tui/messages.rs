@@ -28,6 +28,13 @@ pub struct Message {
     pub reactions: Vec<Reaction>,
     pub attachments: Vec<MessageAttachment>,
     pub quote: Option<Quote>,
+    pub edits: Vec<MessageEdit>,
+}
+
+#[derive(Debug)]
+pub struct MessageEdit {
+    pub timestamp: u64,
+    pub text: String,
 }
 
 impl Message {
@@ -43,7 +50,16 @@ impl Message {
                 lines.push(attachment.message_line());
             }
         }
-        if !self.content.is_empty() {
+        if let Some(edit) = self.edits.last() {
+            let content = wrap_text(edit.text.trim(), width);
+            for (i, line) in content.lines.iter().enumerate() {
+                if i == 0 {
+                    lines.push(format!("e {line}"));
+                } else {
+                    lines.push(format!("  {line}"));
+                }
+            }
+        } else if !self.content.is_empty() {
             let content = wrap_text(self.content.trim(), width);
             for line in content.lines {
                 lines.push(format!("  {line}"));
@@ -103,6 +119,7 @@ impl Messages {
                                 sender: q.sender,
                                 text: q.text,
                             }),
+                            edits: Vec::new(),
                         },
                     );
                 }
@@ -131,6 +148,16 @@ impl Messages {
                             });
                         }
                     }
+                }
+                crate::backends::MessageContent::Edit {
+                    timestamp: edit_timestamp,
+                    text,
+                } => {
+                    let existing = self.messages_by_ts.get_mut(&message.timestamp).unwrap();
+                    existing.edits.push(MessageEdit {
+                        timestamp: edit_timestamp,
+                        text,
+                    });
                 }
             }
         }

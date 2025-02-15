@@ -48,6 +48,10 @@ pub enum MessageContent {
         reaction: String,
         remove: bool,
     },
+    Edit {
+        timestamp: u64,
+        text: String,
+    },
 }
 
 impl ToString for MessageContent {
@@ -55,6 +59,7 @@ impl ToString for MessageContent {
         match self {
             MessageContent::Text { text, .. } => text,
             MessageContent::Reaction { reaction, .. } => reaction,
+            MessageContent::Edit { text, .. } => text,
         }
         .to_owned()
     }
@@ -110,7 +115,7 @@ pub struct Contact {
     pub id: ContactId,
     pub name: String,
     pub address: String,
-    pub last_message_timestamp: u64,
+    pub last_message_timestamp: Option<u64>,
     pub description: String,
 }
 

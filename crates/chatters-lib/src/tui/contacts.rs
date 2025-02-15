@@ -69,6 +69,12 @@ impl Contacts {
             .selected()
             .and_then(|i| self.contacts_and_groups.get(i))
     }
+
+    pub fn selected_mut(&mut self) -> Option<&mut Contact> {
+        self.state
+            .selected()
+            .and_then(|i| self.contacts_and_groups.get_mut(i))
+    }
 }
 
 impl FromIterator<Contact> for Contacts {
