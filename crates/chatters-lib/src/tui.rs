@@ -438,28 +438,19 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
 }
 
 fn render_keybinds(keybindings: &KeyBinds) -> (&'static str, String) {
-    let normal_keybinds = keybindings
-        .iter(Mode::Normal)
-        .map(|(k, c)| format!("{} = {}", k, c))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let command_keybinds = keybindings
-        .iter(Mode::Command {
-            previous: BasicMode::Normal,
-        })
-        .map(|(k, c)| format!("{} = {}", k, c))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let compose_keybinds = keybindings
-        .iter(Mode::Compose)
-        .map(|(k, c)| format!("{} = {}", k, c))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let popup_keybinds = keybindings
-        .iter(Mode::Popup)
-        .map(|(k, c)| format!("{} = {}", k, c))
-        .collect::<Vec<_>>()
-        .join("\n");
+    fn display_keybinds<'a>(bindings: impl Iterator<Item = (&'a KeyEvents, &'a String)>) -> String {
+        let mut bs = bindings
+            .map(|(k, c)| format!("{} = {}", k, c))
+            .collect::<Vec<_>>();
+        bs.sort();
+        bs.join("\n")
+    }
+    let normal_keybinds = display_keybinds(keybindings.iter(Mode::Normal));
+    let command_keybinds = display_keybinds(keybindings.iter(Mode::Command {
+        previous: BasicMode::Normal,
+    }));
+    let compose_keybinds = display_keybinds(keybindings.iter(Mode::Compose));
+    let popup_keybinds = display_keybinds(keybindings.iter(Mode::Popup));
 
     let text = format!(
         "Normal mode bindings\n{}\n\nCommand mode bindings\n{}\n\nCompose mode bindings\n{}\n\nPopup mode bindings\n{}",
