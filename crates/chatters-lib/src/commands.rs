@@ -1746,29 +1746,29 @@ pub fn complete_command(tui_state: &mut TuiState) {
     let before_cursor: String = cmd_line.chars().take(cursor_index).collect();
 
     let cmds = commands();
-    if before_cursor.contains(' ') {
+    let completions = if before_cursor.contains(' ') {
         let (subcmd, _rest) = before_cursor.split_once(' ').unwrap();
         let Some(command) = cmds.into_iter().find(|c| c.names().contains(&subcmd)) else {
             return;
         };
-        let completions = command.complete(tui_state, &before_cursor);
-        tui_state.command_line.set_completions(completions);
+        command.complete(tui_state, &before_cursor)
     } else {
-        let completions = complete_from_list(
+        complete_from_list(
             &before_cursor,
             &cmds
                 .into_iter()
                 .flat_map(|c| c.names())
                 .map(|n| n.to_owned())
                 .collect::<Vec<_>>(),
-        );
-        if completions.len() == 1 {
-            tui_state
-                .command_line
-                .append_text(completions[0].append.clone());
-        } else if completions.len() > 1 {
-            tui_state.command_line.set_completions(completions);
-        }
+        )
+    };
+    if completions.len() == 1 {
+        tui_state
+            .command_line
+            .append_text(completions[0].append.clone());
+        tui_state.command_line.set_completions(Vec::new());
+    } else {
+        tui_state.command_line.set_completions(completions);
     }
 }
 
