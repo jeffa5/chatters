@@ -20,7 +20,6 @@ use log::{debug, info, warn};
 use qrcode_generator::QrCodeEcc;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::{DefaultTerminal, Terminal};
-use std::ffi::OsString;
 use std::io::Stdout;
 use std::path::Path;
 use std::path::PathBuf;
@@ -246,22 +245,14 @@ fn process_user_event(
                         // complete existing command
                         let cmd = tui_state.command_line.text();
                         if cmd.contains(' ') {
-                            let args = shell_words::split(cmd)
-                                .unwrap()
-                                .into_iter()
-                                .map(OsString::from)
-                                .collect();
-                            let mut pargs = pico_args::Arguments::from_vec(args);
-                            let subcmd = pargs.subcommand().unwrap().unwrap();
+                            let (subcmd, rest) = cmd.split_once(' ').unwrap();
                             let cmds = commands::commands();
-                            let Some(mut command) = cmds
-                                .into_iter()
-                                .find(|c| c.names().contains(&subcmd.as_str()))
+                            let Some(command) =
+                                cmds.into_iter().find(|c| c.names().contains(&subcmd))
                             else {
                                 return false;
                             };
-                            let _ = command.parse(pargs);
-                            let completions = command.complete(tui_state);
+                            let completions = command.complete(tui_state, rest);
                             tui_state.command_line.set_completions(completions);
                         } else {
                             let commands = commands::commands();
@@ -409,14 +400,15 @@ fn process_backend_message(
         }
         FrontendMessage::LoadedMessages { messages } => {
             if let Some(contact) = tui_state.contacts.selected_mut() {
-                let last_message = messages.last().unwrap();
-                if last_message.contact_id == contact.id {
-                    contact.last_message_timestamp = Some(last_message.timestamp);
-                    if tui_state.messages.is_empty() && !messages.is_empty() {
-                        tui_state.messages.state.select_last();
+                if let Some(last_message) = messages.last() {
+                    if last_message.contact_id == contact.id {
+                        contact.last_message_timestamp = Some(last_message.timestamp);
+                        if tui_state.messages.is_empty() && !messages.is_empty() {
+                            tui_state.messages.state.select_last();
+                        }
+                        tui_state.messages.clear();
+                        tui_state.messages.extend(messages);
                     }
-                    tui_state.messages.clear();
-                    tui_state.messages.extend(messages);
                 }
             }
         }
