@@ -1,0 +1,5 @@
+---
+source: crates/chatters-lib/src/commands.rs
+expression: "last_part_of_shell_string(\"abc\")"
+---
+"abc"

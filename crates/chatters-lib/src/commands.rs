@@ -1793,18 +1793,44 @@ pub struct Completion {
     pub append: String,
 }
 
+fn last_part_of_shell_string(s: &str) -> String {
+    let mut sofar = String::new();
+    let mut inquote = false;
+    let mut clear = false;
+    for c in s.chars() {
+        if clear {
+            sofar.clear();
+            clear = false;
+        }
+
+        if !inquote && c == ' ' {
+            sofar.clear();
+            continue;
+        }
+
+        sofar.push(c);
+
+        let is_quote_char = matches!(c, '\'' | '"');
+        if !inquote && is_quote_char {
+            inquote = true;
+        } else if inquote && is_quote_char {
+            inquote = false;
+            clear = true;
+        }
+    }
+    sofar
+}
+
 fn complete_from_list(cmd_line: &str, list: &[String]) -> Vec<Completion> {
-    let Some(last_part) = cmd_line.split(' ').last() else {
-        return Vec::new();
-    };
+    let last_part = last_part_of_shell_string(cmd_line);
 
     let result = list
         .iter()
         .map(|li| shell_words::quote(li))
         .filter_map(|li| {
-            if li.starts_with(last_part) {
+            if li.starts_with(&last_part) {
                 Some(Completion {
-                    append: li.strip_prefix(last_part).unwrap().to_owned(),
+                    append: li.strip_prefix(&last_part).unwrap().to_owned(),
                     display: li.into_owned(),
                 })
             } else {
@@ -1865,5 +1891,16 @@ mod tests {
         insta::assert_debug_snapshot!(complete_from_list("foo", &list));
         insta::assert_debug_snapshot!(complete_from_list("b", &list));
         insta::assert_debug_snapshot!(complete_from_list("bar", &list));
+    }
+
+    #[test]
+    fn test_last_part_of_shell_string() {
+        insta::assert_debug_snapshot!(last_part_of_shell_string("abc"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("'abc"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("'abc'"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("'abc' foo"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("'abc' 'foo"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("'abc' 'foo'"));
+        insta::assert_debug_snapshot!(last_part_of_shell_string("abc foo"));
     }
 }
