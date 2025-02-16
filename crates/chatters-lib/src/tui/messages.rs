@@ -134,9 +134,7 @@ impl Messages {
                         let existing_reaction =
                             m.reactions.iter().position(|r| r.author == message_author);
                         if let Some(existing_reaction) = existing_reaction {
-                            if (remove && m.reactions[existing_reaction].emoji == reaction)
-                                || !remove
-                            {
+                            if m.reactions[existing_reaction].emoji == reaction || !remove {
                                 m.reactions.remove(existing_reaction);
                             }
                         }

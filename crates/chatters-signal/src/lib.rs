@@ -453,7 +453,7 @@ impl Signal {
                     },
                     quote: None,
                 };
-                return Some((msg, Vec::new()));
+                Some((msg, Vec::new()))
             }
             _ => None,
         }
@@ -605,27 +605,27 @@ impl Signal {
     ) -> Vec<presage::proto::AttachmentPointer> {
         let attachment_specs: Vec<_> = attachments
             .iter()
-            .filter_map(|a| {
+            .map(|a| {
                 let path = a.path.as_ref().unwrap();
                 let data = std::fs::read(path).unwrap();
-                Some((
+                (
                     AttachmentSpec {
                         content_type: mime_guess::from_path(path)
                             .first()
                             .unwrap_or(APPLICATION_OCTET_STREAM)
                             .to_string(),
-                        length: data.len(),
-                        file_name: path.file_name().map(|s| s.to_string_lossy().to_string()),
-                        preview: None,
-                        voice_note: None,
-                        borderless: None,
-                        width: None,
-                        height: None,
-                        caption: None,
-                        blur_hash: None,
+                            length: data.len(),
+                            file_name: path.file_name().map(|s| s.to_string_lossy().to_string()),
+                            preview: None,
+                            voice_note: None,
+                            borderless: None,
+                            width: None,
+                            height: None,
+                            caption: None,
+                            blur_hash: None,
                     },
                     data,
-                ))
+                )
             })
             .collect();
 

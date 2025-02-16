@@ -1887,7 +1887,7 @@ fn complete_path(current: &str) -> Vec<Completion> {
     } else {
         Vec::new()
     };
-    complete_from_list(&path.to_string_lossy().into_owned(), &candidates)
+    complete_from_list(&path.to_string_lossy(), &candidates)
 }
 
 #[cfg(test)]

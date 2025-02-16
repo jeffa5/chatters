@@ -252,7 +252,7 @@ fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _n
     let completions = tui_state
         .command_line
         .completions()
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, c)| {
             if Some(i) == selected_completion {
