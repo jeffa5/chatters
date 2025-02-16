@@ -1741,7 +1741,13 @@ fn expand_tilde(s: &str) -> PathBuf {
 }
 
 pub fn complete_command(tui_state: &mut TuiState) {
-    let cmd_line = tui_state.command_line.text();
+    let cmd_line = tui_state.command_line.text_without_completion();
+    if cmd_line == tui_state.command_line.completions_generated_for() {
+        // reuse existing ones, select the next one
+        tui_state.command_line.select_next_completion();
+        return;
+    }
+
     let cursor_index = tui_state.command_line.cursor_index();
     let before_cursor: String = cmd_line.chars().take(cursor_index).collect();
 
@@ -1772,7 +1778,7 @@ pub fn complete_command(tui_state: &mut TuiState) {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Completion {
     pub display: String,
     pub append: String,

@@ -7,13 +7,31 @@ use crate::{command_history::CommandLineHistory, commands::Completion};
 pub struct CommandLine {
     command: TextArea<'static>,
     pub error: String,
-    completions: Vec<Completion>,
+    completions: Completions,
     pub history: CommandLineHistory,
 }
 
 impl CommandLine {
     pub fn text(&self) -> &str {
         self.command.lines().first().unwrap()
+    }
+
+    pub fn text_without_completion(&self) -> String {
+        if let Some(completion) = self
+            .completions
+            .selected
+            .map(|i| self.completions.candidates[i].clone())
+        {
+            let mut textarea = self.command.clone();
+            let char_count = completion.append.chars().count();
+            for _ in 0..char_count {
+                textarea.move_cursor(tui_textarea::CursorMove::Back);
+            }
+            textarea.delete_str(char_count);
+            textarea.lines().first().unwrap().to_owned()
+        } else {
+            self.text().to_owned()
+        }
     }
 
     pub fn set_text(&mut self, text: String) {
@@ -37,19 +55,94 @@ impl CommandLine {
     }
 
     pub fn input(&mut self, key_event: KeyEvent) {
+        self.completions.clear();
         self.command.input(key_event);
     }
 
     pub fn completions(&self) -> &[Completion] {
-        &self.completions
+        self.completions.candidates()
     }
 
-    pub fn set_completions(&mut self, mut completions: Vec<Completion>) {
-        completions.sort_by(|c1, c2| c1.display.cmp(&c2.display));
-        self.completions = completions;
+    pub fn set_completions(&mut self, completions: Vec<Completion>) {
+        self.completions
+            .set_completions(completions, self.text_without_completion());
+    }
+
+    pub fn selected_completion(&self) -> Option<usize> {
+        self.completions.selected
     }
 
     pub fn textarea(&mut self) -> &mut TextArea<'static> {
         &mut self.command
+    }
+
+    pub fn select_next_completion(&mut self) {
+        let last = self
+            .completions
+            .selected
+            .map(|i| self.completions.candidates[i].clone());
+        self.completions.select_next();
+        if let Some(last) = last {
+            let char_count = last.append.chars().count();
+            for _ in 0..char_count {
+                self.command.move_cursor(tui_textarea::CursorMove::Back);
+            }
+            self.command.delete_str(char_count);
+        }
+        if let Some(comp) = self
+            .completions
+            .selected
+            .map(|i| self.completions.candidates[i].clone())
+        {
+            self.command.insert_str(comp.append);
+        }
+    }
+
+    pub fn completions_generated_for(&self) -> &str {
+        &self.completions.generated_for
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Completions {
+    pub candidates: Vec<Completion>,
+    pub selected: Option<usize>,
+    pub generated_for: String,
+}
+
+impl Completions {
+    pub fn candidates(&self) -> &[Completion] {
+        &self.candidates
+    }
+
+    pub fn set_completions(&mut self, mut completions: Vec<Completion>, generated_for: String) {
+        if generated_for != self.generated_for {
+            self.selected = None;
+            completions.sort_by(|c1, c2| c1.display.cmp(&c2.display));
+            self.candidates = completions;
+            self.generated_for = generated_for;
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.candidates.clear();
+        self.selected = None;
+        self.generated_for.clear();
+    }
+
+    fn select_next(&mut self) {
+        if self.candidates.is_empty() {
+            return;
+        }
+        if let Some(index) = self.selected {
+            let new_index = index + 1;
+            if new_index == self.candidates.len() {
+                self.selected = None;
+            } else {
+                self.selected = Some(new_index);
+            }
+        } else {
+            self.selected = Some(0);
+        }
     }
 }

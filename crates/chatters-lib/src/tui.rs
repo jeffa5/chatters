@@ -15,6 +15,7 @@ use ratatui::style::Style;
 use ratatui::style::Styled;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
+use ratatui::text::Span;
 use ratatui::text::Text;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
@@ -247,26 +248,35 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 }
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
+    let selected_completion = tui_state.command_line.selected_completion();
     let completions = tui_state
         .command_line
         .completions()
         .into_iter()
-        .map(|c| c.display.clone())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let status_line = Paragraph::new(Line::from(format!(
-        "{} {} {}",
-        tui_state.mode, completions, tui_state.key_events
-    )))
-    .style(Style::new().reversed());
+        .enumerate()
+        .map(|(i, c)| {
+            if Some(i) == selected_completion {
+                Span::from(c.display.clone()).style(Style::new().bold())
+            } else {
+                Span::from(c.display.clone())
+            }
+        });
+    let mut parts = Vec::new();
+    parts.push(Span::from(tui_state.mode.to_string()));
+    parts.push(Span::from(" "));
+    for completion in completions {
+        parts.push(completion);
+        parts.push(Span::from(" "));
+    }
+    parts.push(Span::from(tui_state.key_events.to_string()));
+
+    let status_line = Paragraph::new(Line::from(parts)).style(Style::new().reversed());
     frame.render_widget(status_line, rect);
 }
 
 fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
     if tui_state.command_line.error.is_empty() {
         if matches!(tui_state.mode, Mode::Command { .. }) {
-            let value = tui_state.command_line.text();
-            (format!(":{}", value), Style::new());
             frame.render_widget(Line::from(":"), rect);
             let inner_rect = rect.inner(Margin {
                 horizontal: 1,
