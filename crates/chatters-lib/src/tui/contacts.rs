@@ -38,6 +38,10 @@ impl Contacts {
         self.contacts_and_groups.get_mut(index)
     }
 
+    pub fn contact_or_group_by_name(&self, name: &str) -> Option<&Contact> {
+        self.contacts_and_groups.iter().find(|c| c.name == name)
+    }
+
     pub fn contact_by_id(&self, id: &Vec<u8>) -> Option<&Contact> {
         self.contacts_by_id.get(id)
     }

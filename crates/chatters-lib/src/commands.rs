@@ -95,6 +95,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(DetachFiles::default()));
     v.push(Box::new(GotoQuoted::default()));
     v.push(Box::new(PipeMessage::default()));
+    v.push(Box::new(Forward::default()));
     v
 }
 
@@ -1863,6 +1864,84 @@ impl Command for PipeMessage {
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
             command: self.command.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Forward {
+    contact_name: String,
+}
+
+impl Command for Forward {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        let Some(contact) = tui_state
+            .contacts
+            .contact_or_group_by_name(&self.contact_name)
+        else {
+            return Err(Error::InvalidArgument {
+                arg: "contact".to_owned(),
+                value: self.contact_name.clone(),
+            });
+        };
+
+        let Some(selected_message) = tui_state.messages.selected() else {
+            return Err(Error::NoMessageSelected);
+        };
+
+        ba_tx
+            .unbounded_send(BackendMessage::SendMessage {
+                contact_id: contact.id.clone(),
+                content: MessageContent::Text {
+                    text: selected_message.content.clone(),
+                    attachments: selected_message.attachments.clone(),
+                },
+                quote: None,
+            })
+            .unwrap();
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let contact_name = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("contact".to_owned()))?;
+        *self = Self { contact_name };
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self {
+            contact_name: String::new(),
+        }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["forward"]
+    }
+
+    fn complete(&self, tui_state: &TuiState) -> Vec<String> {
+        tui_state
+            .contacts
+            .iter_contacts_and_groups()
+            .filter_map(|c| {
+                if c.name.starts_with(&self.contact_name) {
+                    Some(shell_words::quote(&c.name).into_owned())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            contact_name: self.contact_name.clone(),
         })
     }
 }
