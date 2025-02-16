@@ -793,8 +793,18 @@ impl Command for ComposeInEditor {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
+        let Some(contact) = tui_state.contacts.selected() else {
+            return Err(Error::NoContactSelected);
+        };
+
+        let contact_name = contact.name.replace(" ", "_");
+
         let compose_content = tui_state.compose.lines().join("\n");
-        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        let mut tmpfile = tempfile::Builder::new()
+            .prefix(&format!("chatters-{}-", contact_name))
+            .suffix(".txt")
+            .tempfile()
+            .unwrap();
         tmpfile.write_all(compose_content.as_bytes()).unwrap();
         let editor = std::env::var("EDITOR").unwrap_or("vim".to_owned());
         let status = std::process::Command::new(editor)
