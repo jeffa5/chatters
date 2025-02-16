@@ -130,26 +130,27 @@ impl Backend for Signal {
         &mut self,
         ba_tx: mpsc::UnboundedSender<FrontendMessage>,
     ) -> Result<()> {
-        let messages = self.manager.receive_messages().await.unwrap();
-        pin_mut!(messages);
-        while let Some(message) = messages.next().await {
-            debug!(message:? = message; "Received message during background_sync");
-            match message {
-                presage::model::messages::Received::QueueEmpty => {}
-                presage::model::messages::Received::Contacts => {}
-                presage::model::messages::Received::Content(message) => {
-                    if let Some((msg, attachment_pointers)) =
-                        self.message_content_to_frontend_message(*message).await
-                    {
-                        self.attachment_pointers.extend(attachment_pointers);
-                        ba_tx
-                            .unbounded_send(FrontendMessage::NewMessage { message: msg })
-                            .unwrap();
+        loop {
+            let messages = self.manager.receive_messages().await.unwrap();
+            pin_mut!(messages);
+            while let Some(message) = messages.next().await {
+                debug!(message:? = message; "Received message during background_sync");
+                match message {
+                    presage::model::messages::Received::QueueEmpty => {}
+                    presage::model::messages::Received::Contacts => {}
+                    presage::model::messages::Received::Content(message) => {
+                        if let Some((msg, attachment_pointers)) =
+                            self.message_content_to_frontend_message(*message).await
+                        {
+                            self.attachment_pointers.extend(attachment_pointers);
+                            ba_tx
+                                .unbounded_send(FrontendMessage::NewMessage { message: msg })
+                                .unwrap();
+                        }
                     }
                 }
             }
         }
-        Ok(())
     }
 
     async fn users(&self) -> Result<Vec<Contact>> {
