@@ -1800,11 +1800,12 @@ fn complete_from_list(cmd_line: &str, list: &[String]) -> Vec<Completion> {
 
     let result = list
         .iter()
+        .map(|li| shell_words::quote(li))
         .filter_map(|li| {
             if li.starts_with(last_part) {
                 Some(Completion {
-                    display: li.clone(),
                     append: li.strip_prefix(last_part).unwrap().to_owned(),
+                    display: li.into_owned(),
                 })
             } else {
                 None
