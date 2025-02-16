@@ -49,7 +49,10 @@ pub trait Command: std::fmt::Debug {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess>;
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()>;
+    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
+        check_unused_args(args)?;
+        Ok(())
+    }
 
     fn default() -> Self
     where
@@ -57,7 +60,9 @@ pub trait Command: std::fmt::Debug {
 
     fn names(&self) -> Vec<&'static str>;
 
-    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<String>;
+    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
+        Vec::new()
+    }
 
     fn dyn_clone(&self) -> Box<dyn Command>;
 }
@@ -111,21 +116,12 @@ impl Command for Quit {
         Ok(CommandSuccess::Quit)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["quit"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -148,21 +144,12 @@ impl Command for NextContact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["next-contact"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -185,21 +172,12 @@ impl Command for PrevContact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["prev-contact"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -220,21 +198,12 @@ impl Command for NextMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["next-message"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -255,21 +224,12 @@ impl Command for PrevMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["prev-message"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -316,10 +276,6 @@ impl Command for SelectMessage {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["select-message"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -399,10 +355,6 @@ impl Command for SelectContact {
         vec!["select-contact"]
     }
 
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
-    }
-
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
             index: self.index,
@@ -427,21 +379,12 @@ impl Command for NormalMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-normal"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -470,21 +413,12 @@ impl Command for CommandMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-command"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -505,21 +439,12 @@ impl Command for ComposeMode {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["mode-compose"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -565,21 +490,12 @@ impl Command for SendMessage {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["send-message"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -706,21 +622,12 @@ impl Command for Unreact {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["unreact"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -787,21 +694,12 @@ impl Command for ExecuteCommand {
         }
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["execute-command"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -824,11 +722,6 @@ impl Command for ReloadContacts {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -838,10 +731,6 @@ impl Command for ReloadContacts {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-contacts"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -872,11 +761,6 @@ impl Command for ReloadMessages {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -886,10 +770,6 @@ impl Command for ReloadMessages {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-messages"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -926,11 +806,6 @@ impl Command for ComposeInEditor {
         Ok(CommandSuccess::Clear)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -940,10 +815,6 @@ impl Command for ComposeInEditor {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["compose-in-editor"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -964,11 +835,6 @@ impl Command for ClearCompose {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -978,10 +844,6 @@ impl Command for ClearCompose {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["clear-compose"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1214,11 +1076,6 @@ impl Command for MessageInfo {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -1228,10 +1085,6 @@ impl Command for MessageInfo {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["message-info"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1258,11 +1111,6 @@ impl Command for ContactInfo {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -1272,10 +1120,6 @@ impl Command for ContactInfo {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["contact-info"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1297,11 +1141,6 @@ impl Command for Keybindings {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -1311,10 +1150,6 @@ impl Command for Keybindings {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["keybindings"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1336,11 +1171,6 @@ impl Command for Commands {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -1350,10 +1180,6 @@ impl Command for Commands {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["commands"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1381,11 +1207,6 @@ impl Command for Reply {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self
     where
         Self: Sized,
@@ -1395,10 +1216,6 @@ impl Command for Reply {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reply"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1420,21 +1237,12 @@ impl Command for CommandHistory {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["command-history"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1460,21 +1268,12 @@ impl Command for PrevCommand {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["prev-command"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1500,21 +1299,12 @@ impl Command for NextCommand {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["next-command"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1558,10 +1348,6 @@ impl Command for ScrollPopup {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["scroll-popup"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1742,21 +1528,12 @@ impl Command for ReloadConfig {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["reload-config"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1784,21 +1561,12 @@ impl Command for GotoQuoted {
         Ok(CommandSuccess::Nothing)
     }
 
-    fn parse(&mut self, args: pico_args::Arguments) -> Result<()> {
-        check_unused_args(args)?;
-        Ok(())
-    }
-
     fn default() -> Self {
         Self
     }
 
     fn names(&self) -> Vec<&'static str> {
         vec!["goto-quoted"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1854,10 +1622,6 @@ impl Command for PipeMessage {
 
     fn names(&self) -> Vec<&'static str> {
         vec!["pipe-message"]
-    }
-
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
-        Vec::new()
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
