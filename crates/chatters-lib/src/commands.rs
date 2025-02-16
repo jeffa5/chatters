@@ -362,6 +362,15 @@ impl Command for SelectContact {
             name: self.name.clone(),
         })
     }
+
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
+        let names = tui_state
+            .contacts
+            .iter_contacts_and_groups()
+            .map(|c| c.name.clone())
+            .collect::<Vec<_>>();
+        complete_from_list(args, &names)
+    }
 }
 
 #[derive(Debug)]
