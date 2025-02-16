@@ -138,7 +138,10 @@ impl Backend for Signal {
                 presage::model::messages::Received::QueueEmpty => {}
                 presage::model::messages::Received::Contacts => {}
                 presage::model::messages::Received::Content(message) => {
-                    if let Some(msg) = self.message_content_to_frontend_message(*message).await {
+                    if let Some((msg, attachment_pointers)) =
+                        self.message_content_to_frontend_message(*message).await
+                    {
+                        self.attachment_pointers.extend(attachment_pointers);
                         ba_tx
                             .unbounded_send(FrontendMessage::NewMessage { message: msg })
                             .unwrap();
@@ -162,6 +165,9 @@ impl Backend for Signal {
             } else {
                 contact.name.clone()
             };
+            let last_message_timestamp = self
+                .last_message_timestamp(&Thread::Contact(contact.uuid))
+                .await;
             debug!(contact:? = contact; "Found contact");
             ret.push(Contact {
                 id: ContactId::User(contact.uuid.into_bytes().to_vec()),
@@ -170,7 +176,7 @@ impl Backend for Signal {
                     .phone_number
                     .map(|n| n.to_string())
                     .unwrap_or_default(),
-                last_message_timestamp: None,
+                last_message_timestamp,
                 description: String::new(),
             });
         }
@@ -182,12 +188,13 @@ impl Backend for Signal {
         let groups = self.manager.store().groups().await.unwrap();
         for group in groups {
             let (key, group) = group.unwrap();
+            let last_message_timestamp = self.last_message_timestamp(&Thread::Group(key)).await;
             debug!(group:? = group; "Found group");
             ret.push(Contact {
                 id: ContactId::Group(key.to_vec()),
                 name: group.title,
                 address: String::new(),
-                last_message_timestamp: None,
+                last_message_timestamp,
                 description: group.description.unwrap_or_default(),
             });
         }
@@ -214,7 +221,10 @@ impl Backend for Signal {
         for message in messages {
             match message {
                 Ok(message) => {
-                    if let Some(msg) = self.message_content_to_frontend_message(message).await {
+                    if let Some((msg, attachment_pointers)) =
+                        self.message_content_to_frontend_message(message).await
+                    {
+                        self.attachment_pointers.extend(attachment_pointers);
                         ret.push(msg)
                     }
                 }
@@ -356,7 +366,27 @@ impl Backend for Signal {
 }
 
 impl Signal {
-    async fn message_content_to_frontend_message(&mut self, message: Content) -> Option<Message> {
+    async fn last_message_timestamp(&self, thread_id: &Thread) -> Option<u64> {
+        let messages = self
+            .manager
+            .store()
+            .messages(thread_id, ..)
+            .await
+            .unwrap()
+            .rev()
+            .map(|m| m.unwrap());
+        for msg in messages {
+            if let Some((msg, _)) = self.message_content_to_frontend_message(msg).await {
+                return Some(msg.timestamp);
+            }
+        }
+        None
+    }
+
+    async fn message_content_to_frontend_message(
+        &self,
+        message: Content,
+    ) -> Option<(Message, Vec<AttachmentPointer>)> {
         debug!(message:? = message; "Converting message to frontend message");
         let timestamp = message.metadata.timestamp;
         let thread = Thread::try_from(&message).unwrap();
@@ -372,12 +402,12 @@ impl Signal {
     }
 
     async fn signal_message_to_message(
-        &mut self,
+        &self,
         timestamp: u64,
         sender: Uuid,
         thread: Thread,
         content: &Content,
-    ) -> Option<Message> {
+    ) -> Option<(Message, Vec<AttachmentPointer>)> {
         match &content.body {
             ContentBody::DataMessage(dm) => {
                 return self
@@ -422,19 +452,19 @@ impl Signal {
                     },
                     quote: None,
                 };
-                return Some(msg);
+                return Some((msg, Vec::new()));
             }
             _ => None,
         }
     }
 
     async fn data_message_to_message(
-        &mut self,
+        &self,
         timestamp: u64,
         sender: Uuid,
         thread: Thread,
         dm: &DataMessage,
-    ) -> Option<Message> {
+    ) -> Option<(Message, Vec<AttachmentPointer>)> {
         let mut message = Message {
             timestamp,
             sender: sender.into_bytes().to_vec(),
@@ -451,6 +481,7 @@ impl Signal {
 
         if dm.body.is_some() || !dm.attachments.is_empty() || dm.quote.is_some() {
             assert!(dm.reaction.is_none());
+            let mut attachment_pointers = Vec::new();
             let attachments =
                 dm.attachments
                     .iter()
@@ -460,7 +491,7 @@ impl Signal {
                             Local::now().format("%Y-%m-%d-%H-%M-%s").to_string()
                         });
                         let size = attachment_pointer.size.unwrap() as u64;
-                        self.attachment_pointers.push(attachment_pointer.clone());
+                        attachment_pointers.push(attachment_pointer.clone());
                         let attachment_name = self.attachment_name(attachment_pointer);
                         let attachment_path = self.attachments_dir.join(&attachment_name);
                         let downloaded_path = if attachment_path.is_file() {
@@ -494,7 +525,7 @@ impl Signal {
                     text,
                 });
             }
-            return Some(message);
+            return Some((message, attachment_pointers));
         } else if let Some(r) = &dm.reaction {
             assert!(dm.body.is_none());
             assert!(dm.attachments.is_empty());
@@ -506,7 +537,7 @@ impl Signal {
                 reaction: emoji,
                 remove: r.remove(),
             };
-            return Some(message);
+            return Some((message, Vec::new()));
         }
         None
     }
