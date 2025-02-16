@@ -351,15 +351,21 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
     let width = area.width.saturating_sub(2) as usize;
     let (title, text) = match &popup.typ {
         PopupType::MessageInfo { timestamp } => {
-            let message = tui_state.messages.get_by_timestamp(*timestamp).unwrap();
+            let Some(message) = tui_state.messages.get_by_timestamp(*timestamp) else {
+                warn!(timestamp:?; "No message with timestamp when rendering popup for message info");
+                return;
+            };
             render_message_info(width, tui_state, message)
         }
         PopupType::ContactInfo { id } => {
-            let contact = tui_state
+            let Some(contact) = tui_state
                 .contacts
                 .iter_contacts_and_groups()
                 .find(|c| &c.id == id)
-                .unwrap();
+            else {
+                warn!(id:?; "No contact with id when rendering popup for contact info");
+                return;
+            };
             render_contact_info(contact)
         }
         PopupType::Keybinds => render_keybinds(&tui_state.config.keybinds),
