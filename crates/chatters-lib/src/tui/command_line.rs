@@ -98,7 +98,7 @@ impl CommandLine {
         }
     }
 
-    pub fn completions_generated_for(&self) -> &str {
+    pub fn completions_generated_for(&self) -> &Option<String> {
         &self.completions.generated_for
     }
 }
@@ -107,7 +107,7 @@ impl CommandLine {
 pub struct Completions {
     pub candidates: Vec<Completion>,
     pub selected: Option<usize>,
-    pub generated_for: String,
+    pub generated_for: Option<String>,
 }
 
 impl Completions {
@@ -116,18 +116,18 @@ impl Completions {
     }
 
     pub fn set_completions(&mut self, mut completions: Vec<Completion>, generated_for: String) {
-        if generated_for != self.generated_for {
+        if Some(&generated_for) != self.generated_for.as_ref() {
             self.selected = None;
             completions.sort_by(|c1, c2| c1.display.cmp(&c2.display));
             self.candidates = completions;
-            self.generated_for = generated_for;
+            self.generated_for = Some(generated_for);
         }
     }
 
     pub fn clear(&mut self) {
         self.candidates.clear();
         self.selected = None;
-        self.generated_for.clear();
+        self.generated_for = None;
     }
 
     fn select_next(&mut self) {

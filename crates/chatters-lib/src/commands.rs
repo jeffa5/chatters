@@ -1761,7 +1761,7 @@ fn expand_tilde(s: &str) -> PathBuf {
 
 pub fn complete_command(tui_state: &mut TuiState) {
     let cmd_line = tui_state.command_line.text_without_completion();
-    if cmd_line == tui_state.command_line.completions_generated_for() {
+    if Some(&cmd_line) == tui_state.command_line.completions_generated_for().as_ref() {
         // reuse existing ones, select the next one
         tui_state.command_line.select_next_completion();
         return;
@@ -1778,6 +1778,7 @@ pub fn complete_command(tui_state: &mut TuiState) {
         };
         command.complete(tui_state, &before_cursor)
     } else {
+        debug!(before_cursor:?; "completing raw commands");
         complete_from_list(
             &before_cursor,
             &cmds
