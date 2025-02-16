@@ -91,6 +91,7 @@ pub async fn run<B: Backend + Clone>(options: Options) {
     let ui = async move {
         let terminal = ratatui::init();
         run_ui(terminal, b_tx, f_rx, self_id, &config, options.config_file).await;
+        debug!("Finished run_ui task");
         ratatui::restore();
     };
     pin_mut!(ui);
@@ -107,20 +108,26 @@ pub async fn run<B: Backend + Clone>(options: Options) {
 
     let frontend = async move {
         select(ui, tick).await;
+        debug!("Finished frontend task");
     };
     pin_mut!(frontend);
 
-    let actor = async move { ba.run().await };
+    let actor = async move {
+        ba.run().await;
+        debug!("Finished backend actor task");
+    };
     pin_mut!(actor);
 
     let sync = async move {
         info!("Starting background sync");
         backend2.background_sync(f_tx).await.unwrap();
+        debug!("Finished background sync task");
     };
     pin_mut!(sync);
 
     let backend = async move {
         select(actor, sync).await;
+        debug!("Finished backend task");
     };
     pin_mut!(backend);
 
