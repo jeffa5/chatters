@@ -249,31 +249,7 @@ fn process_user_event(
                     // mode itself
                     tui_state.key_events.0.clear();
                     if code == KeyCode::Tab {
-                        // complete existing command
-                        let cmd = tui_state.command_line.text();
-                        if cmd.contains(' ') {
-                            let (subcmd, rest) = cmd.split_once(' ').unwrap();
-                            let cmds = commands::commands();
-                            let Some(command) =
-                                cmds.into_iter().find(|c| c.names().contains(&subcmd))
-                            else {
-                                return false;
-                            };
-                            let completions = command.complete(tui_state, rest);
-                            tui_state.command_line.set_completions(completions);
-                        } else {
-                            let commands = commands::commands();
-                            let completions = commands
-                                .into_iter()
-                                .flat_map(|c| c.names().into_iter().filter(|n| n.starts_with(cmd)))
-                                .map(|s| s.to_owned())
-                                .collect::<Vec<_>>();
-                            if completions.len() == 1 {
-                                tui_state.command_line.set_text(completions[0].clone());
-                            } else if completions.len() > 1 {
-                                tui_state.command_line.set_completions(completions);
-                            }
-                        }
+                        commands::complete_command(tui_state);
                     } else if code == KeyCode::Enter {
                         match ExecuteCommand.execute(tui_state, ba_tx) {
                             Ok(cs) => match cs {

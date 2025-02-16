@@ -1,0 +1,10 @@
+---
+source: crates/chatters-lib/src/commands.rs
+expression: "complete_from_list(\"foo\", &list)"
+---
+[
+    Completion {
+        display: "foo",
+        append: "",
+    },
+]

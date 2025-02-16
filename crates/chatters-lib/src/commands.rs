@@ -1,4 +1,5 @@
 use std::{
+    env::current_dir,
     ffi::OsString,
     fs::read_dir,
     io::{Read, Seek, Write as _},
@@ -60,7 +61,7 @@ pub trait Command: std::fmt::Debug {
 
     fn names(&self) -> Vec<&'static str>;
 
-    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState, _args: &str) -> Vec<Completion> {
         Vec::new()
     }
 
@@ -563,15 +564,12 @@ impl Command for React {
         vec!["react"]
     }
 
-    fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<String> {
-        let emoji = args;
-
-        emojis::iter()
+    fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<Completion> {
+        let candidates = emojis::iter()
             .flat_map(|e| e.shortcodes())
-            .filter(|s| s.starts_with(emoji))
             .map(|s| s.to_owned())
-            .take(10)
-            .collect()
+            .collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -907,12 +905,13 @@ impl Command for DownloadAttachments {
         vec!["download-attachments"]
     }
 
-    fn complete(&self, tui_state: &TuiState, _args: &str) -> Vec<String> {
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
         let count = message.attachments.len();
-        (0..count).map(|i| i.to_string()).collect()
+        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -977,12 +976,13 @@ impl Command for OpenAttachments {
         vec!["open-attachments"]
     }
 
-    fn complete(&self, tui_state: &TuiState, _args: &str) -> Vec<String> {
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
         let count = message.attachments.len();
-        (0..count).map(|i| i.to_string()).collect()
+        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1044,12 +1044,13 @@ impl Command for OpenLink {
         vec!["open-link"]
     }
 
-    fn complete(&self, tui_state: &TuiState, _args: &str) -> Vec<String> {
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
         let count = message.attachments.len();
-        (0..count).map(|i| i.to_string()).collect()
+        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1410,36 +1411,12 @@ impl Command for AttachFiles {
         vec!["attach-files"]
     }
 
-    fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<String> {
+    fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let Some(path) = args.split(' ').last() else {
             return Vec::new();
         };
 
-        let path = expand_tilde(path);
-
-        let file_name = path.file_name().unwrap().to_string_lossy().into_owned();
-
-        if path.is_dir() {
-            read_dir(path)
-                .unwrap()
-                .map(|e| {
-                    let e = e.unwrap();
-                    e.file_name().to_string_lossy().into_owned()
-                })
-                .collect()
-        } else if let Some(path) = path.parent() {
-            debug!(path:?, file_name:?; "Getting completions for parent path");
-            read_dir(path)
-                .unwrap()
-                .map(|e| {
-                    let e = e.unwrap();
-                    e.file_name().to_string_lossy().into_owned()
-                })
-                .filter(|f| f.starts_with(&file_name))
-                .collect()
-        } else {
-            Vec::new()
-        }
+        complete_path(path)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1502,9 +1479,10 @@ impl Command for DetachFiles {
         vec!["detach-files"]
     }
 
-    fn complete(&self, tui_state: &TuiState, _args: &str) -> Vec<String> {
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let count = tui_state.compose.attachments().len();
-        (0..count).map(|i| i.to_string()).collect()
+        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1688,10 +1666,10 @@ impl Command for Forward {
         vec!["forward"]
     }
 
-    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<String> {
+    fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let contact_name = args;
 
-        tui_state
+        let candidates = tui_state
             .contacts
             .iter_contacts_and_groups()
             .filter_map(|c| {
@@ -1701,7 +1679,8 @@ impl Command for Forward {
                     None
                 }
             })
-            .collect()
+            .collect::<Vec<_>>();
+        complete_from_list(args, &candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1748,12 +1727,127 @@ fn check_unused_args(args: pico_args::Arguments) -> Result<()> {
 }
 
 fn expand_tilde(s: &str) -> PathBuf {
-    if s.starts_with("~/") {
+    if s.starts_with("~") {
         let home = std::env::var("HOME").expect("HOME environment variable was not set");
+        if s == "~" {
+            return PathBuf::from(home);
+        }
         let stripped_path = s.strip_prefix("~/").unwrap();
         let home_path = PathBuf::from(home);
         home_path.join(stripped_path)
     } else {
         PathBuf::from(s)
+    }
+}
+
+pub fn complete_command(tui_state: &mut TuiState) {
+    let cmd_line = tui_state.command_line.text();
+    let cursor_index = tui_state.command_line.cursor_index();
+    let before_cursor: String = cmd_line.chars().take(cursor_index).collect();
+
+    let cmds = commands();
+    if before_cursor.contains(' ') {
+        let (subcmd, _rest) = before_cursor.split_once(' ').unwrap();
+        let Some(command) = cmds.into_iter().find(|c| c.names().contains(&subcmd)) else {
+            return;
+        };
+        let completions = command.complete(tui_state, &before_cursor);
+        tui_state.command_line.set_completions(completions);
+    } else {
+        let completions = complete_from_list(
+            &before_cursor,
+            &cmds
+                .into_iter()
+                .flat_map(|c| c.names())
+                .map(|n| n.to_owned())
+                .collect::<Vec<_>>(),
+        );
+        if completions.len() == 1 {
+            tui_state
+                .command_line
+                .append_text(completions[0].append.clone());
+        } else if completions.len() > 1 {
+            tui_state.command_line.set_completions(completions);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Completion {
+    pub display: String,
+    pub append: String,
+}
+
+fn complete_from_list(cmd_line: &str, list: &[String]) -> Vec<Completion> {
+    let Some(last_part) = cmd_line.split(' ').last() else {
+        return Vec::new();
+    };
+
+    let result = list
+        .iter()
+        .filter_map(|li| {
+            if li.starts_with(last_part) {
+                Some(Completion {
+                    display: li.clone(),
+                    append: li.strip_prefix(last_part).unwrap().to_owned(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+    debug!(cmd_line:?, list:?, result:?; "Completed from list");
+    result
+}
+
+fn complete_path(current: &str) -> Vec<Completion> {
+    let path = if current.is_empty() {
+        current_dir().unwrap()
+    } else {
+        expand_tilde(current)
+    };
+
+    let file_name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    debug!(path:?, file_name:?, is_dir:? = path.is_dir(); "Getting completions for path");
+
+    let candidates = if path.is_dir() {
+        read_dir(&path)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                e.path().to_string_lossy().into_owned()
+            })
+            .collect::<Vec<_>>()
+    } else if let Some(path) = path.parent() {
+        let Ok(entries) = read_dir(path) else {
+            return Vec::new();
+        };
+        entries
+            .map(|e| {
+                let e = e.unwrap();
+                e.path().to_string_lossy().into_owned()
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    complete_from_list(&path.to_string_lossy().into_owned(), &candidates)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_completion() {
+        let list = ["foo".to_owned(), "bar".to_owned(), "baz".to_owned()];
+        insta::assert_debug_snapshot!(complete_from_list("f", &list));
+        insta::assert_debug_snapshot!(complete_from_list("foo", &list));
+        insta::assert_debug_snapshot!(complete_from_list("b", &list));
+        insta::assert_debug_snapshot!(complete_from_list("bar", &list));
     }
 }

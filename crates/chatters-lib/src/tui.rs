@@ -247,7 +247,13 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 }
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let completions = tui_state.command_line.completions().join(" ");
+    let completions = tui_state
+        .command_line
+        .completions()
+        .into_iter()
+        .map(|c| c.display.clone())
+        .collect::<Vec<_>>()
+        .join(" ");
     let status_line = Paragraph::new(Line::from(format!(
         "{} {} {}",
         tui_state.mode, completions, tui_state.key_events

@@ -1,13 +1,13 @@
 use crossterm::event::KeyEvent;
 use tui_textarea::TextArea;
 
-use crate::command_history::CommandLineHistory;
+use crate::{command_history::CommandLineHistory, commands::Completion};
 
 #[derive(Debug, Default)]
 pub struct CommandLine {
     command: TextArea<'static>,
     pub error: String,
-    completions: Vec<String>,
+    completions: Vec<Completion>,
     pub history: CommandLineHistory,
 }
 
@@ -21,6 +21,10 @@ impl CommandLine {
         self.command.move_cursor(tui_textarea::CursorMove::End);
     }
 
+    pub fn append_text(&mut self, text: String) {
+        self.command.insert_str(text);
+    }
+
     pub fn clear(&mut self) {
         self.command = TextArea::default();
         self.error.clear();
@@ -28,16 +32,20 @@ impl CommandLine {
         self.history.clear_selection();
     }
 
+    pub fn cursor_index(&self) -> usize {
+        self.command.cursor().1
+    }
+
     pub fn input(&mut self, key_event: KeyEvent) {
         self.command.input(key_event);
     }
 
-    pub fn completions(&self) -> &[String] {
+    pub fn completions(&self) -> &[Completion] {
         &self.completions
     }
 
-    pub fn set_completions(&mut self, mut completions: Vec<String>) {
-        completions.sort();
+    pub fn set_completions(&mut self, mut completions: Vec<Completion>) {
+        completions.sort_by(|c1, c2| c1.display.cmp(&c2.display));
         self.completions = completions;
     }
 
