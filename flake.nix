@@ -104,6 +104,9 @@
         pkgs.openssl
         pkgs.pkg-config
         pkgs.sqlite
+
+        # for notifications
+        pkgs.libnotify
       ];
 
       PROTOC = "${pkgs.protobuf}/bin/protoc";
