@@ -396,18 +396,21 @@ fn process_backend_message(
             }
         }
         FrontendMessage::NewMessage { message } => {
-            if let Some((i, contact)) = tui_state.contacts.state.selected().and_then(|i| {
-                tui_state
-                    .contacts
-                    .contact_or_group_by_index_mut(i)
-                    .map(|c| (i, c))
-            }) {
+            if let Some(contact) = tui_state
+                .contacts
+                .contact_or_group_by_id_mut(&message.contact_id)
+            {
                 contact.last_message_timestamp = Some(message.timestamp);
-                if message.contact_id == contact.id {
-                    tui_state.contacts.move_by_index(i, 0);
-                    tui_state.contacts.state.select(Some(0));
+            }
 
+            let selected = tui_state.contacts.state.selected();
+            if let Some(i) = tui_state.contacts.index_by_id(&message.contact_id) {
+                tui_state.contacts.move_by_index(i, 0);
+                if selected == Some(i) {
+                    tui_state.contacts.state.select(Some(0));
                     tui_state.messages.add_single(message);
+                } else if let Some(selected) = selected {
+                    tui_state.contacts.state.select(Some(selected + 1));
                 }
             }
         }

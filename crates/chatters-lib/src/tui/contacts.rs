@@ -38,6 +38,14 @@ impl Contacts {
         self.contacts_and_groups.get_mut(index)
     }
 
+    pub fn contact_or_group_by_id_mut(&mut self, id: &ContactId) -> Option<&mut Contact> {
+        self.contacts_and_groups.iter_mut().find(|c| &c.id == id)
+    }
+
+    pub fn index_by_id(&mut self, id: &ContactId) -> Option<usize> {
+        self.contacts_and_groups.iter().position(|c| &c.id == id)
+    }
+
     pub fn contact_or_group_by_name(&self, name: &str) -> Option<&Contact> {
         self.contacts_and_groups.iter().find(|c| c.name == name)
     }
