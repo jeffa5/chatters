@@ -58,10 +58,13 @@ impl Backend for Signal {
     async fn load(path: &Path) -> Result<Self> {
         info!(path:? = path; "Loading signal backend");
         let db_path = path.join("db");
-        let config_store =
-            SledStore::open(db_path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
-                .await
-                .unwrap();
+        let config_store = SledStore::open(
+            db_path,
+            MigrationConflictStrategy::Raise,
+            OnNewIdentity::Trust,
+        )
+        .await
+        .unwrap();
 
         let mut manager = match Manager::load_registered(config_store).await {
             Ok(manager) => manager,
@@ -100,10 +103,13 @@ impl Backend for Signal {
         provisioning_link_tx: oneshot::Sender<Url>,
     ) -> Result<Self> {
         let db_path = path.join("db");
-        let config_store =
-            SledStore::open(db_path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
-                .await
-                .unwrap();
+        let config_store = SledStore::open(
+            db_path,
+            MigrationConflictStrategy::Raise,
+            OnNewIdentity::Trust,
+        )
+        .await
+        .unwrap();
         let mut manager = Manager::link_secondary_device(
             config_store,
             SignalServers::Production,
