@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use ratatui::widgets::ListState;
+use ratatui::{text::Span, widgets::ListState};
 
 use crate::backends::{ContactId, MessageAttachment};
 
@@ -38,31 +38,31 @@ pub struct MessageEdit {
 }
 
 impl Message {
-    pub fn render(&self, width: usize) -> Vec<String> {
+    pub fn render(&self, width: usize) -> Vec<Span<'static>> {
         let mut lines = Vec::new();
         if let Some(quote) = &self.quote {
             if let Some(line) = quote.text.lines().next() {
-                lines.push(format!("> {line}"));
+                lines.push(Span::from(format!("> {line}")));
             }
         }
         if !self.attachments.is_empty() {
             for attachment in &self.attachments {
-                lines.push(attachment.message_line());
+                lines.push(Span::from(attachment.message_line()));
             }
         }
         if let Some(edit) = self.edits.last() {
             let content = wrap_text(edit.text.trim(), width);
             for (i, line) in content.lines.iter().enumerate() {
                 if i == 0 {
-                    lines.push(format!("e {line}"));
+                    lines.push(Span::from(format!("e {line}")));
                 } else {
-                    lines.push(format!("  {line}"));
+                    lines.push(Span::from(format!("  {line}")));
                 }
             }
         } else if !self.content.is_empty() {
             let content = wrap_text(self.content.trim(), width);
             for line in content.lines {
-                lines.push(format!("  {line}"));
+                lines.push(Span::from(format!("  {line}")));
             }
         }
         if !self.reactions.is_empty() {
@@ -82,7 +82,7 @@ impl Message {
                     }
                 })
                 .collect::<Vec<_>>();
-            lines.push(format!("r {}", react_line.join(" ")));
+            lines.push(Span::from(format!("r {}", react_line.join(" "))));
         }
         lines
     }

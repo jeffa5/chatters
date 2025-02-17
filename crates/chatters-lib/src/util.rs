@@ -415,7 +415,6 @@ fn process_backend_message(
                         tui_state.contacts.state.select(Some(selected + 1));
                     }
                 }
-
             }
         }
         FrontendMessage::DownloadedAttachment {

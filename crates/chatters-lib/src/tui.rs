@@ -201,19 +201,20 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
             .saturating_sub(1);
         let content_indent = " ".repeat(sender_time.len());
 
-        let mut lines = m.render(content_width);
-
-        for (i, line) in lines.iter_mut().enumerate() {
-            if i == 0 {
-                line.insert_str(0, &sender_time);
-            } else {
-                line.insert_str(0, &content_indent);
-            }
-        }
-        if lines.is_empty() {
+        let content_lines = m.render(content_width);
+        if content_lines.is_empty() {
             warn!(message:? = m; "Message with no information...");
         }
-        lines.join("\n")
+
+        let mut lines = Vec::new();
+        for (i, line) in content_lines.into_iter().enumerate() {
+            if i == 0 {
+                lines.push(Line::from(vec![Span::from(sender_time.clone()), line]));
+            } else {
+                lines.push(Line::from(vec![Span::from(content_indent.clone()), line]));
+            }
+        }
+        lines
     });
     let messages = List::default()
         .items(message_items)
@@ -373,8 +374,6 @@ fn render_popup(frame: &mut Frame<'_>, area: Rect, tui_state: &mut TuiState) {
         PopupType::CommandHistory => render_command_line_history(tui_state),
     };
 
-    let text = wrap_text(&text, width);
-
     let line_count = text.lines.len() as u16;
     let max_scroll = line_count.saturating_sub(area.height.saturating_sub(2));
     let popup = tui_state.popup.as_mut().unwrap();
@@ -394,7 +393,7 @@ fn render_message_info(
     width: usize,
     tui_state: &TuiState,
     message: &Message,
-) -> (&'static str, String) {
+) -> (&'static str, Text<'static>) {
     let ts_seconds = message.timestamp / 1_000;
     let ts_nanos = (message.timestamp % 1_000) * 1_000_000;
     let time = chrono::DateTime::from_timestamp(
@@ -408,18 +407,18 @@ fn render_message_info(
         .unwrap()
         .name
         .to_string();
-    let text = [
-        format!("Sender name: {}", sender_name),
-        format!("Sender id:   {}", hex::encode(&message.sender)),
-        format!("Time:        {}", time.to_rfc3339()),
-        String::new(),
-        message.render(width).join("\n"),
-    ]
-    .join("\n");
-    ("Message info", text)
+    let mut text = vec![
+        Line::from(format!("Sender name: {}", sender_name)),
+        Line::from(format!("Sender id:   {}", hex::encode(&message.sender))),
+        Line::from(format!("Time:        {}", time.to_rfc3339())),
+        Line::from(""),
+    ];
+    let message_lines = message.render(width).into_iter().map(|s| Line::from(s));
+    text.extend(message_lines);
+    ("Message info", Text::from(text))
 }
 
-fn render_contact_info(contact: &Contact) -> (&'static str, String) {
+fn render_contact_info(contact: &Contact) -> (&'static str, Text) {
     let time = contact
         .last_message_timestamp
         .map(|ts| {
@@ -433,17 +432,16 @@ fn render_contact_info(contact: &Contact) -> (&'static str, String) {
             time.to_rfc3339()
         })
         .unwrap_or_else(|| "unknown".to_owned());
-    let text = [
-        format!("Name:              {}", contact.name),
-        format!("Id:                {}", contact.id),
-        format!("Last message time: {}", time),
-        format!("Description:       {}", contact.description),
-    ]
-    .join("\n");
-    ("Contact info", text)
+    let text = vec![
+        Line::from(format!("Name:              {}", contact.name)),
+        Line::from(format!("Id:                {}", contact.id)),
+        Line::from(format!("Last message time: {}", time)),
+        Line::from(format!("Description:       {}", contact.description)),
+    ];
+    ("Contact info", Text::from(text))
 }
 
-fn render_keybinds(keybindings: &KeyBinds) -> (&'static str, String) {
+fn render_keybinds(keybindings: &KeyBinds) -> (&'static str, Text) {
     fn display_keybinds<'a>(bindings: impl Iterator<Item = (&'a KeyEvents, &'a String)>) -> String {
         let mut bs = bindings
             .map(|(k, c)| format!("{} = {}", k, c))
@@ -463,10 +461,10 @@ fn render_keybinds(keybindings: &KeyBinds) -> (&'static str, String) {
         normal_keybinds, command_keybinds, compose_keybinds, popup_keybinds
     );
 
-    ("Keybindings", text)
+    ("Keybindings", Text::from(text))
 }
 
-fn render_commands() -> (&'static str, String) {
+fn render_commands() -> (&'static str, Text<'static>) {
     let mut commands = crate::commands::commands()
         .into_iter()
         .map(|c| {
@@ -480,10 +478,10 @@ fn render_commands() -> (&'static str, String) {
     commands.sort();
     let text = commands.join("\n");
 
-    ("Commands", text)
+    ("Commands", Text::from(text))
 }
 
-fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {
+fn render_command_line_history(tui_state: &TuiState) -> (&'static str, Text<'static>) {
     let lines = tui_state
         .command_line
         .history
@@ -491,7 +489,7 @@ fn render_command_line_history(tui_state: &TuiState) -> (&'static str, String) {
         .map(|c| format!(":{c}"))
         .collect::<Vec<_>>();
 
-    ("Command history", lines.join("\n"))
+    ("Command history", Text::from(lines.join("\n")))
 }
 
 fn popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
