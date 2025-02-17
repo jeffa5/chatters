@@ -50,11 +50,37 @@
       release = false;
       buildRustCrateForPkgs = customBuildRustCrateForPkgs;
     };
+    wrap-chatters = {
+      pkg,
+      name,
+    }:
+      pkgs.stdenvNoCC.mkDerivation {
+        inherit name;
+        src = ./.;
+        buildPhase = ''
+          mkdir $out
+          cp -r ${pkg.build}/* $out/.
+        '';
+        installPhase = ''
+          mkdir -p $out/share/${name}
+          cp $src/config.toml $out/share/${name}/config.toml
+        '';
+      };
+    chatters-local = wrap-chatters {
+      pkg = cargoNix.workspaceMembers.chatters-local;
+      name = "chatters-local";
+    };
+    chatters-signal = wrap-chatters {
+      pkg = cargoNix.workspaceMembers.chatters-signal;
+      name = "chatters-signal";
+    };
+    chatters-matrix = wrap-chatters {
+      pkg = cargoNix.workspaceMembers.chatters-matrix;
+      name = "chatters-matrix";
+    };
   in {
-    packages.${system} = rec {
-      chatters-local = cargoNix.workspaceMembers.chatters-local.build;
-      chatters-signal = cargoNix.workspaceMembers.chatters-signal.build;
-      chatters-matrix = cargoNix.workspaceMembers.chatters-matrix.build;
+    packages.${system} = {
+      inherit chatters-local chatters-signal chatters-matrix;
       chatters = pkgs.symlinkJoin {
         name = "chatters";
         paths = [
