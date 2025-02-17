@@ -181,7 +181,7 @@ async fn run_ui(
                 }
             }
             Either::Right((message, _)) => {
-                process_backend_message(&mut tui_state, &backend_actor_tx, message);
+                process_backend_message(&mut tui_state, &backend_actor_tx, &config, message);
             }
         }
     }
@@ -361,6 +361,7 @@ fn execute_command(
 fn process_backend_message(
     tui_state: &mut TuiState,
     ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    config: &Config,
     msg: FrontendMessage,
 ) {
     // dbg!(&msg);
@@ -400,18 +401,21 @@ fn process_backend_message(
                 .contacts
                 .contact_or_group_by_id_mut(&message.contact_id)
             {
-                contact.last_message_timestamp = Some(message.timestamp);
-            }
+                config.hooks.do_on_new_message(contact, &message);
 
-            let selected = tui_state.contacts.state.selected();
-            if let Some(i) = tui_state.contacts.index_by_id(&message.contact_id) {
-                tui_state.contacts.move_by_index(i, 0);
-                if selected == Some(i) {
-                    tui_state.contacts.state.select(Some(0));
-                    tui_state.messages.add_single(message);
-                } else if let Some(selected) = selected {
-                    tui_state.contacts.state.select(Some(selected + 1));
+                contact.last_message_timestamp = Some(message.timestamp);
+
+                let selected = tui_state.contacts.state.selected();
+                if let Some(i) = tui_state.contacts.index_by_id(&message.contact_id) {
+                    tui_state.contacts.move_by_index(i, 0);
+                    if selected == Some(i) {
+                        tui_state.contacts.state.select(Some(0));
+                        tui_state.messages.add_single(message);
+                    } else if let Some(selected) = selected {
+                        tui_state.contacts.state.select(Some(selected + 1));
+                    }
                 }
+
             }
         }
         FrontendMessage::DownloadedAttachment {

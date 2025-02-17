@@ -1,4 +1,5 @@
 pub mod backend_actor;
+pub mod hooks;
 pub mod backends;
 pub mod command_history;
 pub mod commands;

@@ -1,3 +1,6 @@
+[hooks]
+on_new_message = "notify-send --app-name \"$CHATTERS_APP_NAME\" \"New message from $CHATTERS_CONTACT_NAME\" \"$CHATTERS_MESSAGE_BODY\""
+
 [keybinds.normal]
 
 q = ":quit<Enter>"
