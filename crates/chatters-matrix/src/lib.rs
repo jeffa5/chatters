@@ -67,7 +67,7 @@ pub struct Matrix {
 }
 
 impl Backend for Matrix {
-    async fn load(path: &std::path::Path) -> Result<Self> {
+    async fn load(path: &Path) -> Result<Self> {
         let session_file = get_session_file(path);
         if !session_file.exists() {
             return Err(Error::Unlinked);
@@ -114,7 +114,7 @@ impl Backend for Matrix {
     }
 
     async fn link(
-        path: &std::path::Path,
+        path: &Path,
         _device_name: &str,
         _provisioning_link_tx: futures::channel::oneshot::Sender<url::Url>,
     ) -> Result<Self> {
@@ -340,14 +340,14 @@ impl Backend for Matrix {
 }
 
 fn get_session_file(path: &Path) -> PathBuf {
-    path.parent().unwrap().join("session.json")
+    path.join("session.json")
 }
 
 /// Build a new client.
 async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)> {
     let mut rng = rand::rng();
 
-    let db_path = data_dir;
+    let db_path = data_dir.join("db");
 
     // Generate a random passphrase.
     let passphrase: String = (&mut rng)
@@ -370,7 +370,7 @@ async fn build_client(data_dir: &Path) -> anyhow::Result<(Client, ClientSession)
 
         match Client::builder()
             .homeserver_url(&homeserver)
-            .sqlite_store(db_path, Some(&passphrase))
+            .sqlite_store(&db_path, Some(&passphrase))
             .build()
             .await
         {

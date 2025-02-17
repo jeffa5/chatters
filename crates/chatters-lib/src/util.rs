@@ -33,17 +33,17 @@ pub struct Options {
 }
 
 pub async fn run<B: Backend + Clone>(options: Options) {
-    let db_path = options.data_local_dir.join("db");
+    let backend_path = options.data_local_dir.join("backend");
 
     let config = load_config(&options.config_file);
     debug!(config:?; "Loaded config file");
 
-    let backend = match B::load(&db_path).await {
+    let backend = match B::load(&backend_path).await {
         Ok(b) => b,
         Err(Error::Unlinked) => {
             let (provisioning_link_tx, provisioning_link_rx) = futures::channel::oneshot::channel();
             let backend = futures::future::join(
-                B::link(&db_path, &options.device_name, provisioning_link_tx),
+                B::link(&backend_path, &options.device_name, provisioning_link_tx),
                 async move {
                     match provisioning_link_rx.await {
                         Ok(url) => {

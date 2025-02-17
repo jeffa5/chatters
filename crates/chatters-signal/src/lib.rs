@@ -57,8 +57,9 @@ pub struct Signal {
 impl Backend for Signal {
     async fn load(path: &Path) -> Result<Self> {
         info!(path:? = path; "Loading signal backend");
+        let db_path = path.join("db");
         let config_store =
-            SledStore::open(path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
+            SledStore::open(db_path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
                 .await
                 .unwrap();
 
@@ -81,7 +82,7 @@ impl Backend for Signal {
         let self_uuid = manager.whoami().await.unwrap().aci;
         let self_name = self_name(&mut manager).await;
 
-        let attachments_dir = path.parent().unwrap().join("attachments");
+        let attachments_dir = path.join("attachments");
         create_dir_all(&attachments_dir).unwrap();
 
         Ok(Signal {
@@ -98,8 +99,9 @@ impl Backend for Signal {
         device_name: &str,
         provisioning_link_tx: oneshot::Sender<Url>,
     ) -> Result<Self> {
+        let db_path = path.join("db");
         let config_store =
-            SledStore::open(path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
+            SledStore::open(db_path, MigrationConflictStrategy::Raise, OnNewIdentity::Trust)
                 .await
                 .unwrap();
         let mut manager = Manager::link_secondary_device(
@@ -114,7 +116,7 @@ impl Backend for Signal {
         let self_uuid = manager.whoami().await.unwrap().aci;
         let self_name = self_name(&mut manager).await;
 
-        let attachments_dir = path.parent().unwrap().join("attachments");
+        let attachments_dir = path.join("attachments");
         create_dir_all(&attachments_dir).unwrap();
 
         Ok(Self {
