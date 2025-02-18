@@ -921,10 +921,12 @@ impl Command for DownloadAttachments {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
-        let count = message.attachments.len();
-        let indices = (0..count).map(|i| i.to_string());
-        let names = message.attachments.iter().map(|a| a.name.clone());
-        let candidates = indices.chain(names);
+        let candidates = message
+            .attachments
+            .iter()
+            .enumerate()
+            .filter(|(_i, m)| m.path.is_none())
+            .flat_map(|(i, m)| [i.to_string(), m.name.clone()]);
         complete_from_iter(args, candidates)
     }
 
@@ -1005,10 +1007,12 @@ impl Command for OpenAttachments {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
-        let count = message.attachments.len();
-        let indices = (0..count).map(|i| i.to_string());
-        let names = message.attachments.iter().map(|a| a.name.clone());
-        let candidates = indices.chain(names);
+        let candidates = message
+            .attachments
+            .iter()
+            .enumerate()
+            .filter(|(_i, m)| m.path.is_some())
+            .flat_map(|(i, m)| [i.to_string(), m.name.clone()]);
         complete_from_iter(args, candidates)
     }
 
@@ -1086,12 +1090,10 @@ impl Command for OpenLink {
         let Some(message) = tui_state.messages.selected() else {
             return Vec::new();
         };
-        let count = message.attachments.len();
-        let indices = (0..count).map(|i| i.to_string());
-        let urls = LINK_REGEX
+        let candidates = LINK_REGEX
             .find_iter(&message.content)
-            .map(|m| m.as_str().to_owned());
-        let candidates = indices.chain(urls);
+            .enumerate()
+            .flat_map(|(i, m)| [i.to_string(), m.as_str().to_owned()]);
         complete_from_iter(args, candidates)
     }
 
@@ -1472,7 +1474,8 @@ impl Command for AttachFiles {
 
 #[derive(Debug)]
 pub struct DetachFiles {
-    indices: Vec<usize>,
+    // TODO: allow vec of items
+    item: Option<IndexOrString>,
 }
 
 impl Command for DetachFiles {
@@ -1481,42 +1484,46 @@ impl Command for DetachFiles {
         tui_state: &mut TuiState,
         _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
-        if self.indices.is_empty() {
-            return Err(Error::MissingArgument("index".to_owned()));
-        }
+        match &self.item {
+            Some(item) => {
+                let index = match item {
+                    IndexOrString::Index(i) => Some(*i),
+                    IndexOrString::Str(name) => tui_state
+                        .compose
+                        .attachments()
+                        .iter()
+                        .position(|a| &a.name == name),
+                };
+                if let Some(index) = index {
+                    tui_state.compose.detach_file(index);
+                }
+            }
+            None => {
+                // detach all
+                let mut indices = (0..tui_state.compose.attachments().len()).collect::<Vec<_>>();
+                indices.sort();
+                indices.reverse();
 
-        let mut indices = self.indices.clone();
-
-        indices.sort();
-        indices.reverse();
-
-        for index in indices {
-            tui_state.compose.detach_file(index);
+                for index in indices {
+                    tui_state.compose.detach_file(index);
+                }
+            }
         }
 
         Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        loop {
-            let index = args
-                .opt_free_from_str()
-                .map_err(|_e| Error::MissingArgument("indices".to_owned()))?;
-            match index {
-                Some(index) => {
-                    self.indices.push(index);
-                }
-                None => break,
-            }
-        }
+        let item = args
+            .opt_free_from_str()
+            .map_err(|_e| Error::MissingArgument("item".to_owned()))?;
+        self.item = item;
         check_unused_args(args)?;
         Ok(())
     }
 
     fn default() -> Self {
-        Self {
-            indices: Vec::new(),
-        }
+        Self { item: None }
     }
 
     fn names(&self) -> Vec<&'static str> {
@@ -1524,14 +1531,18 @@ impl Command for DetachFiles {
     }
 
     fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
-        let count = tui_state.compose.attachments().len();
-        let candidates = (0..count).map(|i| i.to_string());
+        let candidates = tui_state
+            .compose
+            .attachments()
+            .iter()
+            .enumerate()
+            .flat_map(|(i, a)| [i.to_string(), a.name.clone()]);
         complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
-            indices: self.indices.clone(),
+            item: self.item.clone(),
         })
     }
 }
