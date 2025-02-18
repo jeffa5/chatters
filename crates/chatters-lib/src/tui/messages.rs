@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 
-use ratatui::{text::Span, widgets::ListState};
+use ratatui::{
+    style::{Style, Stylize as _},
+    text::Span,
+    widgets::ListState,
+};
 
 use crate::backends::{ContactId, MessageAttachment};
 
@@ -42,7 +46,7 @@ impl Message {
         let mut lines = Vec::new();
         if let Some(quote) = &self.quote {
             if let Some(line) = quote.text.lines().next() {
-                lines.push(Span::from(format!("> {line}")));
+                lines.push(Span::from(format!("> {line}")).style(Style::new().italic()));
             }
         }
         if !self.attachments.is_empty() {
