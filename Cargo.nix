@@ -1639,10 +1639,6 @@ rec {
             packageId = "hex";
           }
           {
-            name = "insta";
-            packageId = "insta";
-          }
-          {
             name = "log";
             packageId = "log";
             features = [ "kv" ];
@@ -1654,10 +1650,6 @@ rec {
           {
             name = "pico-args";
             packageId = "pico-args";
-          }
-          {
-            name = "qr2term";
-            packageId = "qr2term";
           }
           {
             name = "qrcode-generator";
@@ -1712,6 +1704,12 @@ rec {
           {
             name = "url";
             packageId = "url";
+          }
+        ];
+        devDependencies = [
+          {
+            name = "insta";
+            packageId = "insta";
           }
         ];
 
@@ -10357,43 +10355,6 @@ rec {
           "arbitrary" = [ "dep:arbitrary" ];
           "default" = [ "std" ];
           "std" = [ "prost/std" ];
-        };
-      };
-      "qr2term" = rec {
-        crateName = "qr2term";
-        version = "0.3.3";
-        edition = "2021";
-        sha256 = "0mx9a0d03xpx7dgjcv55p4hkz9c1b6xlsq8rk83plx79705wcrv8";
-        authors = [
-          "Tim Visée <3a4fb3964f@sinenomine.email>"
-        ];
-        dependencies = [
-          {
-            name = "crossterm";
-            packageId = "crossterm";
-            usesDefaultFeatures = false;
-            features = [ "windows" ];
-          }
-          {
-            name = "qrcode";
-            packageId = "qrcode";
-            usesDefaultFeatures = false;
-          }
-        ];
-
-      };
-      "qrcode" = rec {
-        crateName = "qrcode";
-        version = "0.14.1";
-        edition = "2021";
-        crateBin = [];
-        sha256 = "1v693x68yg90wfpas5v4bf6cfmnq9dq54qfgd3kb33j07r3851yn";
-        authors = [
-          "kennytm <kennytm@gmail.com>"
-        ];
-        features = {
-          "default" = [ "image" "svg" "pic" ];
-          "image" = [ "dep:image" ];
         };
       };
       "qrcode-generator" = rec {
