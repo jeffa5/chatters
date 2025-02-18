@@ -348,14 +348,13 @@ impl Command for SelectContact {
     }
 
     fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
-        let mut names = tui_state
+        let names = tui_state
             .contacts
             .iter_contacts_and_groups()
-            .map(|c| c.name.clone())
-            .collect::<Vec<_>>();
+            .map(|c| c.name.clone());
         let indices = (0..tui_state.contacts.len()).map(|i| i.to_string());
-        names.extend(indices);
-        complete_from_list(args, &names)
+        let candidates = indices.chain(names);
+        complete_from_iter(args, candidates)
     }
 }
 
@@ -562,9 +561,8 @@ impl Command for React {
     fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let candidates = emojis::iter()
             .flat_map(|e| e.shortcodes())
-            .map(|s| s.to_owned())
-            .collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+            .map(|s| s.to_owned());
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -924,10 +922,10 @@ impl Command for DownloadAttachments {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let indices = (0..count).map(|i| i.to_string());
         let names = message.attachments.iter().map(|a| a.name.clone());
-        indices.extend(names);
-        complete_from_list(args, &indices)
+        let candidates = indices.chain(names);
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1008,10 +1006,10 @@ impl Command for OpenAttachments {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let indices = (0..count).map(|i| i.to_string());
         let names = message.attachments.iter().map(|a| a.name.clone());
-        indices.extend(names);
-        complete_from_list(args, &indices)
+        let candidates = indices.chain(names);
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1089,12 +1087,12 @@ impl Command for OpenLink {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let indices = (0..count).map(|i| i.to_string());
         let urls = LINK_REGEX
             .find_iter(&message.content)
             .map(|m| m.as_str().to_owned());
-        indices.extend(urls);
-        complete_from_list(args, &indices)
+        let candidates = indices.chain(urls);
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1527,8 +1525,8 @@ impl Command for DetachFiles {
 
     fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
         let count = tui_state.compose.attachments().len();
-        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+        let candidates = (0..count).map(|i| i.to_string());
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1724,9 +1722,8 @@ impl Command for Forward {
                 } else {
                     None
                 }
-            })
-            .collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+            });
+        complete_from_iter(args, candidates)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
@@ -1806,14 +1803,11 @@ pub fn complete_command(tui_state: &mut TuiState) {
         command.complete(tui_state, &before_cursor)
     } else {
         debug!(before_cursor:?; "completing raw commands");
-        complete_from_list(
-            &before_cursor,
-            &cmds
-                .into_iter()
-                .flat_map(|c| c.names())
-                .map(|n| n.to_owned())
-                .collect::<Vec<_>>(),
-        )
+        let candidates = cmds
+            .into_iter()
+            .flat_map(|c| c.names())
+            .map(|n| n.to_owned());
+        complete_from_iter(&before_cursor, candidates)
     };
     if completions.len() == 1 {
         tui_state
@@ -1859,24 +1853,23 @@ fn last_part_of_shell_string(s: &str) -> String {
     sofar
 }
 
-fn complete_from_list(cmd_line: &str, list: &[String]) -> Vec<Completion> {
+fn complete_from_iter(cmd_line: &str, items: impl IntoIterator<Item = String>) -> Vec<Completion> {
     let last_part = last_part_of_shell_string(cmd_line);
 
-    let result = list
-        .iter()
-        .map(|li| shell_words::quote(li))
+    let result = items
+        .into_iter()
+        .map(|li| shell_words::quote(&li).into_owned())
         .filter_map(|li| {
             if li.starts_with(&last_part) {
                 Some(Completion {
                     append: li.strip_prefix(&last_part).unwrap().to_owned(),
-                    display: li.into_owned(),
+                    display: li,
                 })
             } else {
                 None
             }
         })
         .collect();
-    debug!(cmd_line:?, list:?, result:?; "Completed from list");
     result
 }
 
@@ -1915,7 +1908,7 @@ fn complete_path(current: &str) -> Vec<Completion> {
     } else {
         Vec::new()
     };
-    complete_from_list(&path.to_string_lossy(), &candidates)
+    complete_from_iter(&path.to_string_lossy(), candidates)
 }
 
 #[derive(Debug, Clone)]
@@ -1942,10 +1935,10 @@ mod tests {
     #[test]
     fn test_list_completion() {
         let list = ["foo".to_owned(), "bar".to_owned(), "baz".to_owned()];
-        insta::assert_debug_snapshot!(complete_from_list("f", &list));
-        insta::assert_debug_snapshot!(complete_from_list("foo", &list));
-        insta::assert_debug_snapshot!(complete_from_list("b", &list));
-        insta::assert_debug_snapshot!(complete_from_list("bar", &list));
+        insta::assert_debug_snapshot!(complete_from_iter("f", list.clone()));
+        insta::assert_debug_snapshot!(complete_from_iter("foo", list.clone()));
+        insta::assert_debug_snapshot!(complete_from_iter("b", list.clone()));
+        insta::assert_debug_snapshot!(complete_from_iter("bar", list.clone()));
     }
 
     #[test]

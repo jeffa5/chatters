@@ -1,0 +1,9 @@
+---
+source: crates/chatters-lib/src/commands.rs
+expression: "IndexOrString::from_str(\"1\")"
+---
+Ok(
+    Index(
+        1,
+    ),
+)

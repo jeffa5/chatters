@@ -1,0 +1,9 @@
+---
+source: crates/chatters-lib/src/commands.rs
+expression: "IndexOrString::from_str(\"/test/\")"
+---
+Ok(
+    Str(
+        "/test/",
+    ),
+)
