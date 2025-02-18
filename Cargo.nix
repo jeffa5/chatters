@@ -1184,9 +1184,9 @@ rec {
       };
       "blake3" = rec {
         crateName = "blake3";
-        version = "1.5.5";
+        version = "1.6.0";
         edition = "2021";
-        sha256 = "07k07q7f2m0hr6z944gf0wn1s15f3gwsydhpz2ssbpn44hc0rvmq";
+        sha256 = "0dvr1jy2ap40hkk5q837mbg29bh8ajbyi1bi8kg0rqg3hmr26c0j";
         authors = [
           "Jack O'Connor <oconnor663@gmail.com>"
           "Samuel Neves"
@@ -1210,6 +1210,11 @@ rec {
             packageId = "constant_time_eq";
             usesDefaultFeatures = false;
           }
+          {
+            name = "memmap2";
+            packageId = "memmap2";
+            optional = true;
+          }
         ];
         buildDependencies = [
           {
@@ -1218,7 +1223,7 @@ rec {
           }
         ];
         features = {
-          "default" = [ "std" ];
+          "default" = [ "std" "mmap" ];
           "digest" = [ "dep:digest" ];
           "mmap" = [ "std" "dep:memmap2" ];
           "rayon" = [ "dep:rayon-core" "std" ];
@@ -1226,7 +1231,7 @@ rec {
           "traits-preview" = [ "dep:digest" ];
           "zeroize" = [ "dep:zeroize" "arrayvec/zeroize" ];
         };
-        resolvedDefaultFeatures = [ "default" "std" ];
+        resolvedDefaultFeatures = [ "default" "mmap" "std" ];
       };
       "block-buffer" = rec {
         crateName = "block-buffer";
@@ -2009,10 +2014,10 @@ rec {
       };
       "clap" = rec {
         crateName = "clap";
-        version = "4.5.29";
+        version = "4.5.30";
         edition = "2021";
         crateBin = [];
-        sha256 = "110193i6270qsr6mpc4nghqs4bcz2d1631a3ncrkca3rv25bvkla";
+        sha256 = "0vcyrn4ymq2gd56sl3xnfki8q8llg64sj3rj3qx33mgsf66v3dwj";
         dependencies = [
           {
             name = "clap_builder";
@@ -2051,9 +2056,9 @@ rec {
       };
       "clap_builder" = rec {
         crateName = "clap_builder";
-        version = "4.5.29";
+        version = "4.5.30";
         edition = "2021";
-        sha256 = "1yf2r66wl4ybia10wdpycidyqz8sp9bi9k4sskgy3isivb5k5fpn";
+        sha256 = "0369xis2ar46icsaxqyy37976mlb62alzyx4j53k99vq2w3v4pd3";
         dependencies = [
           {
             name = "anstream";
@@ -8345,6 +8350,26 @@ rec {
         };
         resolvedDefaultFeatures = [ "alloc" "default" "std" ];
       };
+      "memmap2" = rec {
+        crateName = "memmap2";
+        version = "0.9.5";
+        edition = "2018";
+        sha256 = "0krpvvkpg4i3l05cv3q2xk24a1vj5c86gbrli2wzhj1qkpnpwgzx";
+        authors = [
+          "Dan Burkert <dan@danburkert.com>"
+          "Yevhenii Reizner <razrfalcon@gmail.com>"
+        ];
+        dependencies = [
+          {
+            name = "libc";
+            packageId = "libc";
+            target = { target, features }: (target."unix" or false);
+          }
+        ];
+        features = {
+          "stable_deref_trait" = [ "dep:stable_deref_trait" ];
+        };
+      };
       "mime" = rec {
         crateName = "mime";
         version = "0.3.17";
@@ -14179,9 +14204,9 @@ rec {
       };
       "tempfile" = rec {
         crateName = "tempfile";
-        version = "3.17.0";
+        version = "3.17.1";
         edition = "2021";
-        sha256 = "0cqd1zid8j3yz86fcs6m3qkdsax1j3iqk54i5n6aibyjfwm7c3x4";
+        sha256 = "0c52ggq5vy5mzgk5ly36cgzs1cig3cv6r1jarijmzxgkn6na1r92";
         authors = [
           "Steven Allen <steven@stebalien.com>"
           "The Rust Project Developers"
@@ -15472,10 +15497,9 @@ rec {
       };
       "typenum" = rec {
         crateName = "typenum";
-        version = "1.17.0";
+        version = "1.18.0";
         edition = "2018";
-        sha256 = "09dqxv69m9lj9zvv6xw5vxaqx15ps0vxyy5myg33i0kbqvq0pzs2";
-        build = "build/main.rs";
+        sha256 = "0gwgz8n91pv40gabrr1lzji0b0hsmg0817njpy397bq7rvizzk0x";
         authors = [
           "Paho Lurie-Gregg <paho@paholg.com>"
           "Andre Bogus <bogusandre@gmail.com>"
@@ -15842,9 +15866,9 @@ rec {
       };
       "uuid" = rec {
         crateName = "uuid";
-        version = "1.13.1";
+        version = "1.13.2";
         edition = "2018";
-        sha256 = "1l6cdln80l288dj5pgc44fsbc8xabyadxy37da9p6cq8psj7rn6f";
+        sha256 = "1mp00dcyhshzz1qzd5njx9ijw5772wd8cxi8rhg9y9fgnzzl27wc";
         authors = [
           "Ashley Mannix<ashleymannix@live.com.au>"
           "Dylan DPC<dylan.dpc@gmail.com>"
