@@ -406,7 +406,9 @@ fn process_backend_message(
                 .contacts
                 .contact_or_group_by_id_mut(&message.contact_id)
             {
-                config.hooks.do_on_new_message(contact, &sender, &message);
+                if message.sender != tui_state.self_id {
+                    config.hooks.do_on_new_message(contact, &sender, &message);
+                }
 
                 contact.last_message_timestamp = Some(message.timestamp);
 
