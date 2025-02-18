@@ -397,11 +397,16 @@ fn process_backend_message(
             }
         }
         FrontendMessage::NewMessage { message } => {
+            let sender = tui_state
+                .contacts
+                .contact_by_id(&message.sender)
+                .unwrap()
+                .clone();
             if let Some(contact) = tui_state
                 .contacts
                 .contact_or_group_by_id_mut(&message.contact_id)
             {
-                config.hooks.do_on_new_message(contact, &message);
+                config.hooks.do_on_new_message(contact, &sender, &message);
 
                 contact.last_message_timestamp = Some(message.timestamp);
 

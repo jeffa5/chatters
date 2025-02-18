@@ -10,7 +10,7 @@ pub struct Hooks {
 }
 
 impl Hooks {
-    pub fn do_on_new_message(&self, contact: &Contact, message: &Message) {
+    pub fn do_on_new_message(&self, contact: &Contact, sender: &Contact, message: &Message) {
         let Some(script) = &self.on_new_message else {
             return;
         };
@@ -21,6 +21,7 @@ impl Hooks {
             std::env::args().next().unwrap(),
         );
         envs.insert("CHATTERS_CONTACT_NAME".to_owned(), contact.name.clone());
+        envs.insert("CHATTERS_SENDER_NAME".to_owned(), sender.name.clone());
         envs.insert(
             "CHATTERS_MESSAGE_BODY".to_owned(),
             message.content.to_string(),
