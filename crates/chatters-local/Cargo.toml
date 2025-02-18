@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.42.0", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros"] }
 url = "2.5.4"
 futures = "0.3.31"
 directories = "5.0.1"
 anyhow = "1.0.95"
-clap = { version = "4.5.27", features = ["derive"] }
+clap = { version = "4.5.30", features = ["derive"] }
 
 chatters-lib = { path = "../chatters-lib" }

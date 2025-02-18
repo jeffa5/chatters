@@ -7,7 +7,7 @@ edition = "2021"
 presage = { git = "https://github.com/whisperfish/presage" }
 presage-store-sled = { git = "https://github.com/whisperfish/presage" }
 
-tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
 hex = "0.4.3"
 mime_guess = "2.0.5"
 url = "2.5.4"
@@ -16,6 +16,6 @@ log = { version = "0.4.25", features = ["kv"] }
 futures = "0.3.31"
 chrono = "0.4.39"
 directories = "5.0.1"
-clap = { version = "4.5.27", features = ["derive"] }
+clap = { version = "4.5.30", features = ["derive"] }
 
 chatters-lib = { path = "../chatters-lib" }

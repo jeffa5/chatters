@@ -6379,27 +6379,6 @@ rec {
         };
         resolvedDefaultFeatures = [ "default" "use_alloc" "use_std" ];
       };
-      "itertools 0.14.0" = rec {
-        crateName = "itertools";
-        version = "0.14.0";
-        edition = "2018";
-        sha256 = "118j6l1vs2mx65dqhwyssbrxpawa90886m3mzafdvyip41w2q69b";
-        authors = [
-          "bluss"
-        ];
-        dependencies = [
-          {
-            name = "either";
-            packageId = "either";
-            usesDefaultFeatures = false;
-          }
-        ];
-        features = {
-          "default" = [ "use_std" ];
-          "use_std" = [ "use_alloc" "either/use_std" ];
-        };
-        resolvedDefaultFeatures = [ "default" "use_alloc" "use_std" ];
-      };
       "itoa" = rec {
         crateName = "itoa";
         version = "1.0.14";
@@ -10232,7 +10211,7 @@ rec {
           }
           {
             name = "itertools";
-            packageId = "itertools 0.14.0";
+            packageId = "itertools 0.10.5";
             usesDefaultFeatures = false;
             features = [ "use_alloc" ];
           }
@@ -10313,7 +10292,7 @@ rec {
           }
           {
             name = "itertools";
-            packageId = "itertools 0.14.0";
+            packageId = "itertools 0.10.5";
           }
           {
             name = "proc-macro2";
