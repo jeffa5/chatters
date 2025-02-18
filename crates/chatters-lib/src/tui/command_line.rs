@@ -115,10 +115,9 @@ impl Completions {
         &self.candidates
     }
 
-    pub fn set_completions(&mut self, mut completions: Vec<Completion>, generated_for: String) {
+    pub fn set_completions(&mut self, completions: Vec<Completion>, generated_for: String) {
         if Some(&generated_for) != self.generated_for.as_ref() {
             self.selected = None;
-            completions.sort_by(|c1, c2| c1.display.cmp(&c2.display));
             self.candidates = completions;
             self.generated_for = Some(generated_for);
         }
