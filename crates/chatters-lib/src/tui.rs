@@ -41,7 +41,7 @@ use crate::keybinds::KeyEvents;
 mod command_line;
 mod compose;
 mod contacts;
-mod messages;
+pub mod messages;
 pub use messages::Quote;
 
 fn timestamp() -> u64 {

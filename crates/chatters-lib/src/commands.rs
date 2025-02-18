@@ -1,10 +1,12 @@
 use std::{
+    convert::Infallible,
     env::current_dir,
     ffi::OsString,
     fs::read_dir,
     io::{Read, Seek, Write as _},
     path::PathBuf,
     process::Stdio,
+    str::FromStr,
     sync::LazyLock,
 };
 
@@ -286,8 +288,7 @@ impl Command for SelectMessage {
 
 #[derive(Debug)]
 pub struct SelectContact {
-    pub index: Option<isize>,
-    pub name: Option<String>,
+    pub item: IndexOrString,
 }
 
 impl Command for SelectContact {
@@ -297,34 +298,24 @@ impl Command for SelectContact {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         let last_selected = tui_state.contacts.state.selected();
-        let index = if let Some(name) = &self.name {
-            let Some(index) = tui_state
-                .contacts
-                .iter_contacts_and_groups()
-                .position(|c| c.name.starts_with(name))
-            else {
-                return Err(Error::InvalidArgument {
-                    arg: "name".to_owned(),
-                    value: name.to_owned(),
-                });
-            };
-            index as isize
-        } else if let Some(index) = self.index {
-            index
-        } else {
-            return Err(Error::MissingArgument("index or name".to_owned()));
+        let index = match &self.item {
+            IndexOrString::Index(index) => *index,
+            IndexOrString::Str(name) => {
+                let Some(index) = tui_state
+                    .contacts
+                    .iter_contacts_and_groups()
+                    .position(|c| c.name.starts_with(name))
+                else {
+                    return Err(Error::InvalidArgument {
+                        arg: "item".to_owned(),
+                        value: name.to_owned(),
+                    });
+                };
+                index
+            }
         };
 
-        let abs_index: usize = index.abs().try_into().unwrap();
-        if index < 0 {
-            let num_contacts = tui_state.contacts.len();
-            tui_state
-                .contacts
-                .state
-                .select(Some(num_contacts - (abs_index % num_contacts)));
-        } else {
-            tui_state.contacts.state.select(Some(abs_index));
-        }
+        tui_state.contacts.state.select(Some(index));
 
         after_contact_changed(tui_state, ba_tx, last_selected);
 
@@ -332,23 +323,17 @@ impl Command for SelectContact {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let name: String = args
+        let item = args
             .free_from_str()
-            .map_err(|_e| Error::MissingArgument("name".to_owned()))?;
-        if name.chars().all(|c| c.is_numeric()) {
-            // actually index
-            self.index = name.parse().ok();
-        } else {
-            self.name = Some(name);
-        }
+            .map_err(|_e| Error::MissingArgument("item".to_owned()))?;
+        self.item = item;
         check_unused_args(args)?;
         Ok(())
     }
 
     fn default() -> Self {
         Self {
-            index: None,
-            name: None,
+            item: IndexOrString::Index(0),
         }
     }
 
@@ -358,17 +343,18 @@ impl Command for SelectContact {
 
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
-            index: self.index,
-            name: self.name.clone(),
+            item: self.item.clone(),
         })
     }
 
     fn complete(&self, tui_state: &TuiState, args: &str) -> Vec<Completion> {
-        let names = tui_state
+        let mut names = tui_state
             .contacts
             .iter_contacts_and_groups()
             .map(|c| c.name.clone())
             .collect::<Vec<_>>();
+        let indices = (0..tui_state.contacts.len()).map(|i| i.to_string());
+        names.extend(indices);
         complete_from_list(args, &names)
     }
 }
@@ -871,7 +857,7 @@ impl Command for ClearCompose {
 #[derive(Debug)]
 pub struct DownloadAttachments {
     // TODO: change to vec of indices
-    index: Option<usize>,
+    item: Option<IndexOrString>,
 }
 
 impl Command for DownloadAttachments {
@@ -881,8 +867,9 @@ impl Command for DownloadAttachments {
         ba_tx: &mpsc::UnboundedSender<BackendMessage>,
     ) -> Result<CommandSuccess> {
         if let Some(message) = tui_state.messages.selected() {
-            if let Some(index) = self.index {
-                if let Some(attachment) = message.attachments.get(index) {
+            let download_attachment =
+                |message: &crate::tui::messages::Message,
+                 attachment: &crate::backends::MessageAttachment| {
                     ba_tx
                         .unbounded_send(BackendMessage::DownloadAttachment {
                             contact_id: message.contact_id.clone(),
@@ -890,16 +877,24 @@ impl Command for DownloadAttachments {
                             index: attachment.index,
                         })
                         .unwrap();
+                };
+            match &self.item {
+                Some(item) => {
+                    let attachment = match item {
+                        IndexOrString::Index(index) => message.attachments.get(*index),
+                        IndexOrString::Str(name) => {
+                            message.attachments.iter().find(|a| &a.name == name)
+                        }
+                    };
+
+                    if let Some(attachment) = attachment {
+                        download_attachment(&message, attachment)
+                    }
                 }
-            } else {
-                for attachment in &message.attachments {
-                    ba_tx
-                        .unbounded_send(BackendMessage::DownloadAttachment {
-                            contact_id: message.contact_id.clone(),
-                            timestamp: message.timestamp,
-                            index: attachment.index,
-                        })
-                        .unwrap();
+                None => {
+                    for attachment in &message.attachments {
+                        download_attachment(&message, attachment)
+                    }
                 }
             }
         }
@@ -907,8 +902,8 @@ impl Command for DownloadAttachments {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args.opt_free_from_str().unwrap();
-        *self = Self { index };
+        let item = args.opt_free_from_str().unwrap();
+        *self = Self { item };
         check_unused_args(args)?;
         Ok(())
     }
@@ -917,7 +912,7 @@ impl Command for DownloadAttachments {
     where
         Self: Sized,
     {
-        Self { index: None }
+        Self { item: None }
     }
 
     fn names(&self) -> Vec<&'static str> {
@@ -929,19 +924,23 @@ impl Command for DownloadAttachments {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let names = message.attachments.iter().map(|a| a.name.clone());
+        indices.extend(names);
+        complete_from_list(args, &indices)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
-        Box::new(Self { index: self.index })
+        Box::new(Self {
+            item: self.item.clone(),
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct OpenAttachments {
     // TODO: change to vec of indices
-    index: Option<usize>,
+    item: Option<IndexOrString>,
 }
 
 impl Command for OpenAttachments {
@@ -965,21 +964,30 @@ impl Command for OpenAttachments {
                 ))
             }
         };
-        if let Some(index) = self.index {
-            if let Some(attachment) = message.attachments.get(index) {
-                open_attachment(&attachment.path)?;
+        match &self.item {
+            Some(item) => {
+                let attachment = match item {
+                    IndexOrString::Index(index) => message.attachments.get(*index),
+                    IndexOrString::Str(name) => {
+                        message.attachments.iter().find(|a| &a.name == name)
+                    }
+                };
+                if let Some(attachment) = attachment {
+                    open_attachment(&attachment.path)?;
+                }
             }
-        } else {
-            for attachment in &message.attachments {
-                open_attachment(&attachment.path)?;
+            None => {
+                for attachment in &message.attachments {
+                    open_attachment(&attachment.path)?;
+                }
             }
         }
         Ok(CommandSuccess::Nothing)
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args.opt_free_from_str().unwrap();
-        *self = Self { index };
+        let item = args.opt_free_from_str().unwrap();
+        *self = Self { item };
         check_unused_args(args)?;
         Ok(())
     }
@@ -988,7 +996,7 @@ impl Command for OpenAttachments {
     where
         Self: Sized,
     {
-        Self { index: None }
+        Self { item: None }
     }
 
     fn names(&self) -> Vec<&'static str> {
@@ -1000,18 +1008,22 @@ impl Command for OpenAttachments {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let names = message.attachments.iter().map(|a| a.name.clone());
+        indices.extend(names);
+        complete_from_list(args, &indices)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
-        Box::new(Self { index: self.index })
+        Box::new(Self {
+            item: self.item.clone(),
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct OpenLink {
-    index: usize,
+    item: IndexOrString,
 }
 
 static LINK_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
@@ -1033,8 +1045,15 @@ impl Command for OpenLink {
         };
 
         let mut links = LINK_REGEX.find_iter(&message.content).map(|m| m.as_str());
-        let Some(link) = links.nth(self.index) else {
-            return Err(Error::Failure("Index past the number of links".to_owned()));
+
+        let link = match &self.item {
+            IndexOrString::Index(index) => {
+                let Some(link) = links.nth(*index) else {
+                    return Err(Error::Failure("Index past the number of links".to_owned()));
+                };
+                link
+            }
+            IndexOrString::Str(link) => link,
         };
 
         debug!(link:?; "Opening link");
@@ -1044,10 +1063,10 @@ impl Command for OpenLink {
     }
 
     fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
-        let index = args
+        let item = args
             .free_from_str()
-            .map_err(|_e| Error::MissingArgument("index".to_owned()))?;
-        *self = Self { index };
+            .map_err(|_e| Error::MissingArgument("item".to_owned()))?;
+        *self = Self { item };
         check_unused_args(args)?;
         Ok(())
     }
@@ -1056,7 +1075,9 @@ impl Command for OpenLink {
     where
         Self: Sized,
     {
-        Self { index: 0 }
+        Self {
+            item: IndexOrString::Index(0),
+        }
     }
 
     fn names(&self) -> Vec<&'static str> {
@@ -1068,12 +1089,18 @@ impl Command for OpenLink {
             return Vec::new();
         };
         let count = message.attachments.len();
-        let candidates = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
-        complete_from_list(args, &candidates)
+        let mut indices = (0..count).map(|i| i.to_string()).collect::<Vec<_>>();
+        let urls = LINK_REGEX
+            .find_iter(&message.content)
+            .map(|m| m.as_str().to_owned());
+        indices.extend(urls);
+        complete_from_list(args, &indices)
     }
 
     fn dyn_clone(&self) -> Box<dyn Command> {
-        Box::new(Self { index: self.index })
+        Box::new(Self {
+            item: self.item.clone(),
+        })
     }
 }
 
@@ -1891,6 +1918,23 @@ fn complete_path(current: &str) -> Vec<Completion> {
     complete_from_list(&path.to_string_lossy(), &candidates)
 }
 
+#[derive(Debug, Clone)]
+pub enum IndexOrString {
+    Index(usize),
+    Str(String),
+}
+
+impl FromStr for IndexOrString {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.parse::<usize>() {
+            Ok(num) => Ok(Self::Index(num)),
+            Err(_) => Ok(Self::Str(s.to_owned())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1913,5 +1957,13 @@ mod tests {
         insta::assert_debug_snapshot!(last_part_of_shell_string("'abc' 'foo"));
         insta::assert_debug_snapshot!(last_part_of_shell_string("'abc' 'foo'"));
         insta::assert_debug_snapshot!(last_part_of_shell_string("abc foo"));
+    }
+
+    #[test]
+    fn test_index_or_string_from_str() {
+        insta::assert_debug_snapshot!(IndexOrString::from_str("1"));
+        insta::assert_debug_snapshot!(IndexOrString::from_str("+1"));
+        insta::assert_debug_snapshot!(IndexOrString::from_str("/test/"));
+        insta::assert_debug_snapshot!(IndexOrString::from_str("12/test/"));
     }
 }
