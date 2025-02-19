@@ -104,6 +104,7 @@ pub fn commands() -> Vec<Box<dyn Command>> {
     v.push(Box::new(GotoQuoted::default()));
     v.push(Box::new(PipeMessage::default()));
     v.push(Box::new(Forward::default()));
+    v.push(Box::new(AlignMessage::default()));
     v
 }
 
@@ -1740,6 +1741,72 @@ impl Command for Forward {
     fn dyn_clone(&self) -> Box<dyn Command> {
         Box::new(Self {
             contact_name: self.contact_name.clone(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct AlignMessage {
+    alignment: Alignment,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Alignment {
+    Top,
+    Bottom,
+}
+
+impl FromStr for Alignment {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "top" => Ok(Self::Top),
+            "bottom" => Ok(Self::Bottom),
+            _ => Err(format!("Failed to match {s:?} to one of 'top' or 'bottom'")),
+        }
+    }
+}
+
+impl Command for AlignMessage {
+    fn execute(
+        &self,
+        tui_state: &mut TuiState,
+        _ba_tx: &mpsc::UnboundedSender<BackendMessage>,
+    ) -> Result<CommandSuccess> {
+        match self.alignment {
+            Alignment::Top => tui_state.messages.state.align_top(),
+            Alignment::Bottom => tui_state.messages.state.align_bottom(),
+        }
+        Ok(CommandSuccess::Nothing)
+    }
+
+    fn parse(&mut self, mut args: pico_args::Arguments) -> Result<()> {
+        let alignment = args
+            .free_from_str()
+            .map_err(|_e| Error::MissingArgument("alignment".to_owned()))?;
+        *self = Self { alignment };
+        check_unused_args(args)?;
+        Ok(())
+    }
+
+    fn default() -> Self {
+        Self {
+            alignment: Alignment::Bottom,
+        }
+    }
+
+    fn names(&self) -> Vec<&'static str> {
+        vec!["align-message"]
+    }
+
+    fn complete(&self, _tui_state: &TuiState, args: &str) -> Vec<Completion> {
+        complete_from_iter(args, ["top".to_owned(), "bottom".to_owned()])
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Command> {
+        Box::new(Self {
+            alignment: self.alignment,
         })
     }
 }

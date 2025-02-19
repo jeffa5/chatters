@@ -32,6 +32,9 @@ h = ":command-history<Enter>"
 aa = ":attach-files "
 ad = ":detach-files "
 
+zt = ":align-message top<Enter>"
+zb = ":align-message bottom<Enter>"
+
 [keybinds.popup]
 
 j = ":scroll-popup 1<Enter>"

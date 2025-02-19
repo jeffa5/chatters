@@ -40,6 +40,16 @@ impl ListState {
     pub fn offset(&self) -> usize {
         self.offset
     }
+
+    pub fn align_top(&mut self) {
+        if let Some(selected) = self.selected {
+            self.offset = selected;
+        }
+    }
+
+    pub fn align_bottom(&mut self) {
+        self.offset = 0;
+    }
 }
 
 #[derive(Debug, Default)]
@@ -81,20 +91,6 @@ impl StatefulWidget for &VerticalList {
                 state.selected = Some(selected);
             }
             state.offset = state.offset.min(selected);
-
-            loop {
-                let height = self
-                    .items
-                    .iter()
-                    .skip(state.offset)
-                    .map(|t| t.lines.len())
-                    .sum::<usize>();
-                if height < area.height as usize && state.offset > 0 {
-                    state.offset -= 1;
-                    continue;
-                }
-                break;
-            }
 
             loop {
                 let height = self
@@ -189,22 +185,6 @@ impl StatefulWidget for &HorizontalList {
                     .iter()
                     .skip(state.offset)
                     .map(|t| t.content.len())
-                    .collect::<Vec<_>>();
-                let width = widths.iter().sum::<usize>() + widths.len().saturating_sub(1);
-
-                if width < area.width as usize && state.offset > 0 {
-                    state.offset -= 1;
-                    continue;
-                }
-                break;
-            }
-
-            loop {
-                let widths = self
-                    .items
-                    .iter()
-                    .skip(state.offset)
-                    .map(|t| t.content.len())
                     .take(selected.saturating_sub(state.offset).saturating_add(1))
                     .collect::<Vec<_>>();
                 let width = widths.iter().sum::<usize>() + widths.len().saturating_sub(1);
@@ -276,23 +256,6 @@ mod tests {
         assert_snapshot!(terminal.backend());
 
         state.select_previous();
-        terminal
-            .draw(|frame| frame.render_stateful_widget(&list, frame.area(), &mut state))
-            .unwrap();
-        assert_snapshot!(terminal.backend());
-    }
-
-    #[test]
-    fn test_vertical_list_keep_large_list_filling_screen() {
-        let list = VerticalList {
-            items: (0..20).map(|i| Text::from(i.to_string())).collect(),
-            selected_item_style: Style::new(),
-        };
-        let mut state = ListState {
-            offset: 15,
-            selected: Some(20),
-        };
-        let mut terminal = Terminal::new(TestBackend::new(20, 10)).unwrap();
         terminal
             .draw(|frame| frame.render_stateful_widget(&list, frame.area(), &mut state))
             .unwrap();
