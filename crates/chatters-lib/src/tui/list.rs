@@ -120,6 +120,8 @@ impl StatefulWidget for &VerticalList {
             }
             let item_height = item.lines.len() as u16;
 
+            let remaining_height = area.height.saturating_sub(used_height);
+
             let mut text = item.clone();
             if Some(i) == state.selected {
                 text = text.style(self.selected_item_style);
@@ -128,7 +130,7 @@ impl StatefulWidget for &VerticalList {
             text.render(
                 Rect {
                     y: area.y + used_height,
-                    height: item_height,
+                    height: item_height.min(remaining_height),
                     ..area
                 },
                 buf,
@@ -208,6 +210,8 @@ impl StatefulWidget for &HorizontalList {
             }
             let item_width = item.content.len() as u16 + 1;
 
+            let remaining_width = area.width.saturating_sub(used_width);
+
             let mut text = item.clone();
             if Some(i) == state.selected {
                 text = text.style(self.selected_item_style);
@@ -216,7 +220,7 @@ impl StatefulWidget for &HorizontalList {
             text.render(
                 Rect {
                     x: area.x + used_width,
-                    width: item_width,
+                    width: item_width.min(remaining_width),
                     ..area
                 },
                 buf,
