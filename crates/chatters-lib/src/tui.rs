@@ -1,6 +1,7 @@
 use command_line::CommandLine;
 use compose::Compose;
 use contacts::Contacts;
+use list::HorizontalList;
 use list::VerticalList;
 use log::warn;
 use messages::Message;
@@ -250,30 +251,43 @@ fn render_compose(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _
 }
 
 fn render_status(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {
-    let selected_completion = tui_state.command_line.selected_completion();
+    let revstyle = Style::new().reversed();
+
+    frame.render_widget(
+        Line::from(" ".repeat(rect.width as usize)).style(revstyle),
+        rect,
+    );
+
     let completions = tui_state
         .command_line
         .completions()
         .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            if Some(i) == selected_completion {
-                Span::from(c.display.clone()).style(Style::new().bold())
-            } else {
-                Span::from(c.display.clone())
-            }
-        });
-    let mut parts = Vec::new();
-    parts.push(Span::from(tui_state.mode.to_string()));
-    parts.push(Span::from(" "));
-    for completion in completions {
-        parts.push(completion);
-        parts.push(Span::from(" "));
-    }
-    parts.push(Span::from(tui_state.key_events.to_string()));
+        .map(|c| Span::from(c.display.clone()).style(revstyle));
 
-    let status_line = Paragraph::new(Line::from(parts)).style(Style::new().reversed());
-    frame.render_widget(status_line, rect);
+    let splits = Layout::horizontal([
+        Constraint::Length(8),
+        Constraint::Fill(1),
+        Constraint::Length(4),
+    ])
+    .split(rect);
+
+    frame.render_widget(
+        Span::from(tui_state.mode.to_string()).style(revstyle),
+        splits[0],
+    );
+
+    let mut completions_list = HorizontalList::new(completions.collect());
+    completions_list.set_selected_item_style(Style::new().bold());
+    frame.render_stateful_widget(
+        &completions_list,
+        splits[1],
+        &mut tui_state.command_line.completions.list_state,
+    );
+
+    frame.render_widget(
+        Span::from(tui_state.key_events.to_string()).style(revstyle),
+        splits[2],
+    );
 }
 
 fn render_command(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, _now: u64) {

@@ -3,11 +3,13 @@ use tui_textarea::TextArea;
 
 use crate::{command_history::CommandLineHistory, commands::Completion};
 
+use super::list::ListState;
+
 #[derive(Debug, Default)]
 pub struct CommandLine {
     command: TextArea<'static>,
     pub error: String,
-    completions: Completions,
+    pub completions: Completions,
     pub history: CommandLineHistory,
 }
 
@@ -19,7 +21,8 @@ impl CommandLine {
     pub fn text_without_completion(&self) -> String {
         if let Some(completion) = self
             .completions
-            .selected
+            .list_state
+            .selected()
             .map(|i| self.completions.candidates[i].clone())
         {
             let mut textarea = self.command.clone();
@@ -69,7 +72,7 @@ impl CommandLine {
     }
 
     pub fn selected_completion(&self) -> Option<usize> {
-        self.completions.selected
+        self.completions.list_state.selected()
     }
 
     pub fn textarea(&mut self) -> &mut TextArea<'static> {
@@ -79,7 +82,8 @@ impl CommandLine {
     pub fn select_next_completion(&mut self) {
         let last = self
             .completions
-            .selected
+            .list_state
+            .selected()
             .map(|i| self.completions.candidates[i].clone());
         self.completions.select_next();
         if let Some(last) = last {
@@ -91,7 +95,8 @@ impl CommandLine {
         }
         if let Some(comp) = self
             .completions
-            .selected
+            .list_state
+            .selected()
             .map(|i| self.completions.candidates[i].clone())
         {
             self.command.insert_str(comp.append);
@@ -106,7 +111,7 @@ impl CommandLine {
 #[derive(Debug, Default)]
 pub struct Completions {
     pub candidates: Vec<Completion>,
-    pub selected: Option<usize>,
+    pub list_state: ListState,
     pub generated_for: Option<String>,
 }
 
@@ -117,7 +122,7 @@ impl Completions {
 
     pub fn set_completions(&mut self, completions: Vec<Completion>, generated_for: String) {
         if Some(&generated_for) != self.generated_for.as_ref() {
-            self.selected = None;
+            self.list_state.select(None);
             self.candidates = completions;
             self.generated_for = Some(generated_for);
         }
@@ -125,7 +130,7 @@ impl Completions {
 
     pub fn clear(&mut self) {
         self.candidates.clear();
-        self.selected = None;
+        self.list_state.select(None);
         self.generated_for = None;
     }
 
@@ -133,15 +138,15 @@ impl Completions {
         if self.candidates.is_empty() {
             return;
         }
-        if let Some(index) = self.selected {
+        if let Some(index) = self.list_state.selected() {
             let new_index = index + 1;
             if new_index == self.candidates.len() {
-                self.selected = None;
+                self.list_state.select(None);
             } else {
-                self.selected = Some(new_index);
+                self.list_state.select(Some(new_index));
             }
         } else {
-            self.selected = Some(0);
+            self.list_state.select(Some(0));
         }
     }
 }
