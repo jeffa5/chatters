@@ -1,0 +1,14 @@
+---
+source: crates/chatters-lib/src/tui/list.rs
+expression: terminal.backend()
+---
+"multi               "
+"line                "
+"string              "
+"a                   "
+"b                   "
+"c                   "
+"1                   "
+"2                   "
+"3                   "
+"4                   "

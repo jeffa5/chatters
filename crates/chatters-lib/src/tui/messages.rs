@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::tui::list::ListState;
 use ratatui::{
     style::{Style, Stylize as _},
     text::Span,
-    widgets::ListState,
 };
 
 use crate::backends::{ContactId, MessageAttachment};

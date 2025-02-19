@@ -1,6 +1,7 @@
 use command_line::CommandLine;
 use compose::Compose;
 use contacts::Contacts;
+use list::VerticalList;
 use log::warn;
 use messages::Message;
 use messages::Messages;
@@ -20,7 +21,6 @@ use ratatui::text::Text;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
 use ratatui::widgets::Clear;
-use ratatui::widgets::List;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Row;
 use ratatui::widgets::Scrollbar;
@@ -41,6 +41,7 @@ use crate::keybinds::KeyEvents;
 mod command_line;
 mod compose;
 mod contacts;
+mod list;
 pub mod messages;
 pub use messages::Quote;
 
@@ -215,11 +216,10 @@ fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
                 lines.push(Line::from(vec![Span::from(content_indent.clone()), line]));
             }
         }
-        lines
+        Text::from(lines)
     });
-    let messages = List::default()
-        .items(message_items)
-        .highlight_style(Style::new().reversed());
+    let mut messages = VerticalList::new(message_items.collect());
+    messages.set_selected_item_style(Style::new().reversed());
 
     let remaining_area = render_scrollbar(
         frame,
