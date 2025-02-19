@@ -104,6 +104,7 @@ pub enum PopupType {
 
 #[derive(Debug, Default)]
 pub struct TuiState {
+    pub app_name: String,
     pub self_id: Vec<u8>,
     pub contacts: Contacts,
     pub messages: Messages,

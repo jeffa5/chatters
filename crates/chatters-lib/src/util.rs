@@ -30,6 +30,7 @@ pub struct Options {
     pub device_name: String,
     pub data_local_dir: PathBuf,
     pub config_file: PathBuf,
+    pub app_name: String,
 }
 
 pub async fn run<B: Backend + Clone>(options: Options) {
@@ -90,7 +91,16 @@ pub async fn run<B: Backend + Clone>(options: Options) {
 
     let ui = async move {
         let terminal = ratatui::init();
-        run_ui(terminal, b_tx, f_rx, self_id, &config, options.config_file).await;
+        run_ui(
+            terminal,
+            b_tx,
+            f_rx,
+            self_id,
+            options.app_name,
+            &config,
+            options.config_file,
+        )
+        .await;
         debug!("Finished run_ui task");
         ratatui::restore();
     };
@@ -139,6 +149,7 @@ async fn run_ui(
     backend_actor_tx: mpsc::UnboundedSender<BackendMessage>,
     mut backend_actor_rx: mpsc::UnboundedReceiver<FrontendMessage>,
     self_id: Vec<u8>,
+    app_name: String,
     config: &Config,
     config_path: PathBuf,
 ) {
@@ -148,6 +159,7 @@ async fn run_ui(
     // handle either action then render the ui again
 
     let mut tui_state = TuiState::default();
+    tui_state.app_name = app_name;
     tui_state.self_id = self_id;
     tui_state.config = config.clone();
     tui_state.config_path = config_path;
@@ -407,7 +419,9 @@ fn process_backend_message(
                 .contact_or_group_by_id_mut(&message.contact_id)
             {
                 if message.sender != tui_state.self_id {
-                    config.hooks.do_on_new_message(contact, &sender, &message);
+                    config
+                        .hooks
+                        .do_on_new_message(&tui_state.app_name, contact, &sender, &message);
                 }
 
                 contact.last_message_timestamp = Some(message.timestamp);

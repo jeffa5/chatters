@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
         device_name: args.device_name,
         data_local_dir: data_local_dir.to_owned(),
         config_file,
+        app_name: "chatters-matrix".to_owned(),
     };
 
     util::run::<Matrix>(options).await;

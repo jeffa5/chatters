@@ -10,16 +10,19 @@ pub struct Hooks {
 }
 
 impl Hooks {
-    pub fn do_on_new_message(&self, contact: &Contact, sender: &Contact, message: &Message) {
+    pub fn do_on_new_message(
+        &self,
+        app_name: &str,
+        contact: &Contact,
+        sender: &Contact,
+        message: &Message,
+    ) {
         let Some(script) = &self.on_new_message else {
             return;
         };
 
         let mut envs: BTreeMap<String, String> = BTreeMap::new();
-        envs.insert(
-            "CHATTERS_APP_NAME".to_owned(),
-            std::env::args().next().unwrap(),
-        );
+        envs.insert("CHATTERS_APP_NAME".to_owned(), app_name.to_owned());
         envs.insert("CHATTERS_CONTACT_NAME".to_owned(), contact.name.clone());
         envs.insert("CHATTERS_SENDER_NAME".to_owned(), sender.name.clone());
         envs.insert(
