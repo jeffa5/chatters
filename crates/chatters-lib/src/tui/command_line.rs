@@ -103,6 +103,30 @@ impl CommandLine {
         }
     }
 
+    pub fn select_previous_completion(&mut self) {
+        let last = self
+            .completions
+            .list_state
+            .selected()
+            .map(|i| self.completions.candidates[i].clone());
+        self.completions.select_previous();
+        if let Some(last) = last {
+            let char_count = last.append.chars().count();
+            for _ in 0..char_count {
+                self.command.move_cursor(tui_textarea::CursorMove::Back);
+            }
+            self.command.delete_str(char_count);
+        }
+        if let Some(comp) = self
+            .completions
+            .list_state
+            .selected()
+            .map(|i| self.completions.candidates[i].clone())
+        {
+            self.command.insert_str(comp.append);
+        }
+    }
+
     pub fn completions_generated_for(&self) -> &Option<String> {
         &self.completions.generated_for
     }
@@ -147,6 +171,22 @@ impl Completions {
             }
         } else {
             self.list_state.select(Some(0));
+        }
+    }
+
+    fn select_previous(&mut self) {
+        if self.candidates.is_empty() {
+            return;
+        }
+        if let Some(index) = self.list_state.selected() {
+            if index == 0 {
+                self.list_state.select(None);
+            } else {
+                self.list_state.select(Some(index - 1));
+            }
+        } else {
+            self.list_state
+                .select(Some(self.candidates.len().saturating_sub(1)));
         }
     }
 }

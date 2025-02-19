@@ -261,7 +261,9 @@ fn process_user_event(
                     // mode itself
                     tui_state.key_events.0.clear();
                     if code == KeyCode::Tab {
-                        commands::complete_command(tui_state);
+                        commands::complete_command(tui_state, true);
+                    } else if code == KeyCode::BackTab {
+                        commands::complete_command(tui_state, false);
                     } else if code == KeyCode::Enter {
                         match ExecuteCommand.execute(tui_state, ba_tx) {
                             Ok(cs) => match cs {
