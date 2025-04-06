@@ -7,7 +7,7 @@
   "git+https://github.com/signalapp/libsignal?tag=v0.56.1#signal-crypto@0.1.0": "1d00w7y1ryrjcwlh7sq2snch37nhpr7v8nqdl8n1i4mlgd87rlq1",
   "git+https://github.com/signalapp/libsignal?tag=v0.56.1#zkcredential@0.1.0": "1d00w7y1ryrjcwlh7sq2snch37nhpr7v8nqdl8n1i4mlgd87rlq1",
   "git+https://github.com/signalapp/libsignal?tag=v0.56.1#zkgroup@0.9.0": "1d00w7y1ryrjcwlh7sq2snch37nhpr7v8nqdl8n1i4mlgd87rlq1",
-  "git+https://github.com/whisperfish/libsignal-service-rs?rev=82d70f6720e762898f34ae76b0894b0297d9b2f8#libsignal-service@0.1.0": "0y52j9gmzs3ndm3pkvy8kvmysxass3qnzniwbz1ifmlad3j46i9x",
+  "git+https://github.com/whisperfish/libsignal-service-rs?rev=f94d55bf8d742699024c26ca3965e85fc9946e23#libsignal-service@0.1.0": "02mz9h6lkjksx4z9xid52bn7jvq1r8a05x4gy6qc7fg701z44va6",
   "git+https://github.com/whisperfish/presage#0.7.0-dev": "02pr23jby3k86hf9zr3igd2fww5agmd8ij7b68nymwilc7m4c8ph",
   "git+https://github.com/whisperfish/presage#presage-store-cipher@0.1.0": "02pr23jby3k86hf9zr3igd2fww5agmd8ij7b68nymwilc7m4c8ph",
   "git+https://github.com/whisperfish/presage#presage-store-sled@0.6.0-dev": "02pr23jby3k86hf9zr3igd2fww5agmd8ij7b68nymwilc7m4c8ph"
