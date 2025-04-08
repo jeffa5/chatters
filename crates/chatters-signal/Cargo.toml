@@ -7,7 +7,7 @@ edition = "2021"
 presage = { git = "https://github.com/whisperfish/presage" }
 presage-store-sled = { git = "https://github.com/whisperfish/presage" }
 
-tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.43.1", features = ["rt-multi-thread"] }
 hex = "0.4.3"
 mime_guess = "2.0.5"
 url = "2.5.4"
