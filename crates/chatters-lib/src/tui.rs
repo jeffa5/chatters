@@ -185,7 +185,7 @@ fn render_contacts(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, 
 }
 
 fn render_messages(frame: &mut Frame<'_>, rect: Rect, tui_state: &mut TuiState, now: u64) {
-    let message_width = rect.width as usize;
+    let message_width = rect.width as usize - 1;
     let message_items = tui_state.messages.messages_by_ts.values().map(|m| {
         let sender_width = 20;
         let sender = tui_state
@@ -519,10 +519,6 @@ fn render_scrollbar(frame: &mut Frame<'_>, area: Rect, length: usize, position: 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
 
     let scrollable_distance = length.saturating_sub(area.height.into());
-    if scrollable_distance == 0 {
-        return area;
-    }
-
     let mut scrollbar_state = ScrollbarState::new(scrollable_distance).position(position);
     frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
 
