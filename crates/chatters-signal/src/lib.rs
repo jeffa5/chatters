@@ -351,9 +351,12 @@ impl Backend for Signal {
         let Some(attachment_pointer) = self.attachment_pointers.get(attachment_index) else {
             return Err(Error::UnknownAttachment(attachment_index));
         };
-        let Ok(attachment_data) = self.manager.get_attachment(attachment_pointer).await else {
-            warn!(attachment:? = attachment_pointer; "failed to fetch attachment");
-            return Err(Error::Failure("Failed to fetch attachment".to_owned()));
+        let attachment_data = match self.manager.get_attachment(attachment_pointer).await {
+            Ok(ad) => ad,
+            Err(error) => {
+                warn!(error:%, attachment:? = attachment_pointer; "failed to fetch attachment");
+                return Err(Error::Failure("Failed to fetch attachment".to_owned(), error.to_string()));
+            }
         };
 
         let file_name = self.attachment_name(attachment_pointer);
@@ -368,7 +371,7 @@ impl Backend for Signal {
             Ok(()) => Ok(file_path),
             Err(e) => {
                 warn!(error:% = e; "Failed to save attachment");
-                Err(Error::Failure(format!("Failed to save attachment: {e}")))
+                Err(Error::Failure("Failed to save attachment".to_owned(), e.to_string()))
             }
         }
     }

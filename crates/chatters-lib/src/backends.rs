@@ -126,7 +126,7 @@ pub enum Error {
     #[error("Unknown attachment with index {0}")]
     UnknownAttachment(usize),
     #[error("A failure occurred: {0}")]
-    Failure(String),
+    Failure(String, String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
