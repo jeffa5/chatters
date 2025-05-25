@@ -356,7 +356,7 @@ fn execute_command(
     let mut quit = false;
     for key_event in key_events.0 {
         debug!(key_event:?; "Simulating key event");
-        quit = process_user_event(
+        quit |= process_user_event(
             tui_state,
             ba_tx,
             terminal,
